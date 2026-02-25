@@ -5,6 +5,7 @@
     "dev": { "cache": false, "persistent": true },
     "test": { "dependsOn": ["^build"] },
     "db:migrate": { "cache": false },
-    "db:seed": { "cache": false }
+    "db:seed": { "cache": false },
+    "start": { "cache": false }
   }
 }
