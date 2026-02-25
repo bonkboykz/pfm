@@ -95,6 +95,7 @@ function createAndSeedDb(): DB {
       payment_day INTEGER NOT NULL,
       penalty_rate_bps INTEGER NOT NULL DEFAULT 0,
       early_repayment_fee_cents INTEGER NOT NULL DEFAULT 0,
+      paid_off_cents INTEGER NOT NULL DEFAULT 0,
       note TEXT,
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,

@@ -142,11 +142,12 @@ sqlite.exec(`
   );
 `);
 
-// Account metadata columns (idempotent ALTER TABLE)
+// Idempotent ALTER TABLE migrations
 const alterStatements = [
   'ALTER TABLE accounts ADD COLUMN bank_name TEXT',
   'ALTER TABLE accounts ADD COLUMN last_4_digits TEXT',
   "ALTER TABLE accounts ADD COLUMN card_type TEXT CHECK(card_type IN ('visa', 'mastercard', 'amex', 'unionpay', 'mir', 'other'))",
+  'ALTER TABLE loans ADD COLUMN paid_off_cents INTEGER NOT NULL DEFAULT 0',
 ];
 for (const sql of alterStatements) {
   try {

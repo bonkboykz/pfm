@@ -64,6 +64,7 @@ function createAndSeedDb(): DB {
       monthly_payment_cents INTEGER NOT NULL, payment_day INTEGER NOT NULL,
       penalty_rate_bps INTEGER NOT NULL DEFAULT 0,
       early_repayment_fee_cents INTEGER NOT NULL DEFAULT 0,
+      paid_off_cents INTEGER NOT NULL DEFAULT 0,
       note TEXT, is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     );
@@ -173,6 +174,36 @@ describe('Loans API', () => {
     expect(status).toBe(200);
     expect(data.schedule.length).toBe(24);
     expect(data.schedule[0].interestCents).toBeGreaterThan(0);
+  });
+
+  it('POST /api/v1/loans with paidOffCents reduces currentDebtCents', async () => {
+    const { status, data } = await api(app, 'POST', '/api/v1/loans', {
+      name: 'Forte кредит',
+      type: 'loan',
+      principalCents: 500000000,
+      paidOffCents: 200000000,
+      aprBps: 1200,
+      termMonths: 36,
+      startDate: '2024-01-01',
+      monthlyPaymentCents: 15000000,
+      paymentDay: 15,
+    });
+    expect(status).toBe(201);
+    expect(data.paidOffCents).toBe(200000000);
+    expect(data.paidOffFormatted).toBeDefined();
+    // currentDebt = principal - paidOff (no category → no payment lookup)
+    expect(data.currentDebtCents).toBe(300000000);
+  });
+
+  it('PATCH /api/v1/loans/:id updates paidOffCents', async () => {
+    const { data: list } = await api(app, 'GET', '/api/v1/loans');
+    const forte = list.find((l: any) => l.name === 'Forte кредит');
+    const { status, data } = await api(app, 'PATCH', `/api/v1/loans/${forte.id}`, {
+      paidOffCents: 350000000,
+    });
+    expect(status).toBe(200);
+    expect(data.paidOffCents).toBe(350000000);
+    expect(data.currentDebtCents).toBe(150000000);
   });
 
   it('POST /api/v1/loans creates installment (0% APR)', async () => {

@@ -9,7 +9,7 @@ export function getLoanCurrentDebt(db: DB, loanId: string): number {
   const loan = db.select().from(loans).where(eq(loans.id, loanId)).get();
   if (!loan) return 0;
 
-  if (!loan.categoryId) return loan.principalCents;
+  if (!loan.categoryId) return Math.max(0, loan.principalCents - loan.paidOffCents);
 
   const result = db
     .select({ total: sql<number>`COALESCE(SUM(${transactions.amountCents}), 0)` })
@@ -24,7 +24,7 @@ export function getLoanCurrentDebt(db: DB, loanId: string): number {
     .get();
 
   const totalPayments = Math.abs(result?.total ?? 0);
-  return Math.max(0, loan.principalCents - totalPayments);
+  return Math.max(0, loan.principalCents - loan.paidOffCents - totalPayments);
 }
 
 export function getLoanSummary(db: DB, loanId: string): LoanSummary | null {

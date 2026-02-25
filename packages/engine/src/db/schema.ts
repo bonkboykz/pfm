@@ -126,6 +126,7 @@ export const loans = sqliteTable('loans', {
   paymentDay: integer('payment_day').notNull(),
   penaltyRateBps: integer('penalty_rate_bps').notNull().default(0),
   earlyRepaymentFeeCents: integer('early_repayment_fee_cents').notNull().default(0),
+  paidOffCents: integer('paid_off_cents').notNull().default(0),
   note: text('note'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),

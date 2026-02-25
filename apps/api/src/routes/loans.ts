@@ -23,6 +23,7 @@ const createLoanSchema = z.object({
   paymentDay: z.number().int().min(1).max(28),
   penaltyRateBps: z.number().int().min(0).optional(),
   earlyRepaymentFeeCents: z.number().int().min(0).optional(),
+  paidOffCents: z.number().int().min(0).optional(),
   note: z.string().optional(),
 });
 
@@ -34,6 +35,7 @@ const updateLoanSchema = z.object({
   paymentDay: z.number().int().min(1).max(28).optional(),
   penaltyRateBps: z.number().int().min(0).optional(),
   earlyRepaymentFeeCents: z.number().int().min(0).optional(),
+  paidOffCents: z.number().int().min(0).optional(),
   note: z.string().nullable().optional(),
 });
 
@@ -54,6 +56,8 @@ function formatLoan(loan: typeof loans.$inferSelect, currentDebtCents: number) {
     paymentDay: loan.paymentDay,
     penaltyRateBps: loan.penaltyRateBps,
     earlyRepaymentFeeCents: loan.earlyRepaymentFeeCents,
+    paidOffCents: loan.paidOffCents,
+    paidOffFormatted: formatMoney(loan.paidOffCents),
     note: loan.note,
     isActive: loan.isActive,
     currentDebtCents,
@@ -98,6 +102,7 @@ export function loanRoutes(db: DB) {
         paymentDay: data.paymentDay,
         penaltyRateBps: data.penaltyRateBps ?? 0,
         earlyRepaymentFeeCents: data.earlyRepaymentFeeCents ?? 0,
+        paidOffCents: data.paidOffCents ?? 0,
         note: data.note ?? null,
       })
       .returning()
