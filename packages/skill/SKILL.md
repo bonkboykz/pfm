@@ -4,8 +4,9 @@ description: >
   Zero-based envelope budgeting (YNAB-style) via REST API. Track accounts,
   transactions, categories, budget assignments. Use when user asks about
   budgeting, expense tracking, "сколько осталось", "куда ушли деньги",
-  account balances, financial planning, debt tracking, Kaspi, transfers.
-version: 0.1.0
+  account balances, financial planning, debt tracking, Kaspi, transfers,
+  loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен".
+version: 0.2.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -60,6 +61,8 @@ curl -s -X POST "$PFM_API_URL/api/v1/accounts" \
 ```
 
 Types: `checking`, `savings`, `credit_card`, `cash`, `line_of_credit`, `tracking`
+
+Optional metadata: `bankName`, `last4Digits` (4 digits), `cardType` (`visa`, `mastercard`, `amex`, `unionpay`, `mir`, `other`)
 
 ### Get single account
 
@@ -369,6 +372,114 @@ curl -s -X POST "$PFM_API_URL/api/v1/scheduled/process" \
 
 ---
 
+## Loans (Кредиты)
+
+### List all loans
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/loans" | jq
+```
+
+Returns loans with computed `currentDebtCents` (principal minus payments).
+
+### Create a loan
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/loans" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Халық кредит",
+    "type": "loan",
+    "accountId": "ACCOUNT_ID",
+    "categoryId": "CATEGORY_ID",
+    "principalCents": 200000000,
+    "aprBps": 1850,
+    "termMonths": 24,
+    "startDate": "2025-06-01",
+    "monthlyPaymentCents": 8500000,
+    "paymentDay": 25
+  }' | jq
+```
+
+Types: `loan`, `installment` (0% APR like Kaspi Red), `credit_line`
+
+### Get amortization schedule
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/loans/{id}/schedule" | jq
+```
+
+Returns month-by-month breakdown: principal, interest, payment, remaining balance.
+
+### Update / delete loan
+
+```bash
+curl -s -X PATCH "$PFM_API_URL/api/v1/loans/{id}" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"note": "Досрочное погашение планируется"}' | jq
+
+curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/loans/{id}" | jq
+```
+
+---
+
+## Personal Debts (Личные долги)
+
+### List debts with summary
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/debts" | jq
+
+# Include settled debts
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/debts?includeSettled=true" | jq
+```
+
+Returns `{ debts: [...], summary: { totalOweCents, totalOwedCents, netCents, ... } }`
+
+### Create a debt
+
+```bash
+# I owe someone
+curl -s -X POST "$PFM_API_URL/api/v1/debts" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "personName": "Ансар С.",
+    "direction": "owe",
+    "amountCents": 5000000,
+    "dueDate": "2026-03-15",
+    "note": "За обед"
+  }' | jq
+
+# Someone owes me
+curl -s -X POST "$PFM_API_URL/api/v1/debts" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "personName": "Марат К.",
+    "direction": "owed",
+    "amountCents": 3000000
+  }' | jq
+```
+
+Directions: `owe` (я должен), `owed` (мне должны)
+
+### Settle a debt
+
+```bash
+curl -s -X POST -H "$AUTH" "$PFM_API_URL/api/v1/debts/{id}/settle" | jq
+```
+
+### Update / delete debt
+
+```bash
+curl -s -X PATCH "$PFM_API_URL/api/v1/debts/{id}" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"amountCents": 3000000}' | jq
+
+curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/debts/{id}" | jq
+```
+
+---
+
 ## Typical Workflows
 
 ### "Сколько у меня денег?"
@@ -386,3 +497,18 @@ curl -s -X POST "$PFM_API_URL/api/v1/scheduled/process" \
 Two options:
 a) Transfer between accounts: `POST /transactions` with `transferAccountId`
 b) Move budget: `POST /budget/2026-02/move` between categories
+
+### "Сколько я должен по кредитам?"
+1. `GET /api/v1/loans` → show currentDebtFormatted for each loan
+
+### "Покажи график платежей по кредиту"
+1. `GET /api/v1/loans` → find loan ID
+2. `GET /api/v1/loans/{id}/schedule` → amortization table
+
+### "Кому я должен?"
+1. `GET /api/v1/debts` → show debts with direction=owe
+2. Summary shows totalOweCents and totalOwedCents
+
+### "Марат вернул долг"
+1. `GET /api/v1/debts` → find Марат's debt ID
+2. `POST /api/v1/debts/{id}/settle` → mark as settled
