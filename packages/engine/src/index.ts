@@ -7,6 +7,7 @@ export {
   payees,
   transactions,
   monthlyBudgets,
+  scheduledTransactions,
 } from './db/schema.js';
 
 export { formatMoney, addCents, subtractCents, multiplyCents, sumCents } from './math/money.js';
@@ -16,3 +17,6 @@ export { getBudgetMonth, assignToCategory, moveBetweenCategories, getAccountBala
 export type { DebtSnapshot, PayoffStrategy, MonthlySnapshot, DebtMonthState, PayoffSimulationResult, StrategyComparison, DebtVsInvestResult } from './debt/types.js';
 export { simulatePayoff } from './debt/simulator.js';
 export { compareStrategies, debtVsInvest } from './debt/analyzer.js';
+
+export type { Frequency, ScheduledTransaction, ProcessResult } from './scheduler/types.js';
+export { getUpcoming, processDue, advanceDate } from './scheduler/engine.js';

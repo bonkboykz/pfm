@@ -84,3 +84,23 @@ export const monthlyBudgets = sqliteTable('monthly_budgets', {
 }, (table) => [
   index('idx_budget_cat_month').on(table.categoryId, table.month),
 ]);
+
+export const scheduledTransactions = sqliteTable('scheduled_transactions', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  accountId: text('account_id').notNull().references(() => accounts.id),
+  frequency: text('frequency', {
+    enum: ['weekly', 'biweekly', 'monthly', 'yearly']
+  }).notNull(),
+  nextDate: text('next_date').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  payeeName: text('payee_name'),
+  categoryId: text('category_id').references(() => categories.id),
+  transferAccountId: text('transfer_account_id').references(() => accounts.id),
+  memo: text('memo'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+}, (table) => [
+  index('idx_sched_next_date').on(table.nextDate),
+  index('idx_sched_active').on(table.isActive),
+]);

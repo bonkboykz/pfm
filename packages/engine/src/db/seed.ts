@@ -222,6 +222,35 @@ const seedBudgets = sqlite.transaction(() => {
 
 seedBudgets();
 
+// --- SCHEDULED TRANSACTIONS ---
+const schedIds = {
+  salary: 'seed_sched_salary',
+  rent: 'seed_sched_rent',
+  internet: 'seed_sched_internet',
+  kaspiRed: 'seed_sched_kaspi_red',
+  halykCredit: 'seed_sched_halyk_credit',
+};
+
+const insertSched = sqlite.prepare(`
+  INSERT OR IGNORE INTO scheduled_transactions (id, account_id, frequency, next_date, amount_cents, payee_name, category_id, transfer_account_id, memo, is_active, created_at, updated_at)
+  VALUES (?, ?, 'monthly', ?, ?, ?, ?, ?, ?, 1, ?, ?)
+`);
+
+const seedScheduled = sqlite.transaction(() => {
+  // 1. Salary +500,000₸ on 1st
+  insertSched.run(schedIds.salary, accountIds.kaspiGold, '2026-03-01', 50000000, 'ТОО Работодатель', categoryIds.readyToAssign, null, 'Зарплата', now, now);
+  // 2. Rent -150,000₸ on 5th
+  insertSched.run(schedIds.rent, accountIds.kaspiGold, '2026-03-05', -15000000, 'Арендодатель', categoryIds.rent, null, 'Аренда квартиры', now, now);
+  // 3. Internet -5,000₸ on 15th
+  insertSched.run(schedIds.internet, accountIds.kaspiGold, '2026-03-15', -500000, 'Интернет-провайдер', categoryIds.internet, null, 'Интернет', now, now);
+  // 4. Kaspi Red transfer -150,000₸ on 20th
+  insertSched.run(schedIds.kaspiRed, accountIds.kaspiGold, '2026-03-20', -15000000, null, null, accountIds.kaspiRed, 'Погашение Kaspi Red', now, now);
+  // 5. Халық кредит -85,000₸ on 25th
+  insertSched.run(schedIds.halykCredit, accountIds.halyk, '2026-03-25', -8500000, 'Halyk Bank', categoryIds.halykCredit, null, 'Ежемесячный платёж', now, now);
+});
+
+seedScheduled();
+
 sqlite.close();
 
 // Summary
@@ -237,6 +266,7 @@ console.log('Categories:  13  (Ready to Assign + 12 user categories)');
 console.log('Payees:       7');
 console.log('Transactions: 9  (1 salary, 5 expenses, 2 transfer pair, 1 credit card)');
 console.log('Budgets:     12  (all for 2026-02)');
+console.log('Scheduled:    5  (salary, rent, internet, Kaspi Red transfer, Халық кредит)');
 console.log('');
 console.log(`Income:       ${(totalIncome / 100).toLocaleString('ru-RU')} ₸`);
 console.log(`Assigned:     ${(totalAssigned / 100).toLocaleString('ru-RU')} ₸`);

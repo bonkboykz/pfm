@@ -318,6 +318,52 @@ curl -s -X POST "$PFM_API_URL/api/v1/simulate/debt-vs-invest" \
 
 ---
 
+## Recurring Transactions
+
+### List upcoming (next 7 days)
+
+```bash
+curl -s "$PFM_API_URL/api/v1/scheduled?upcoming=7" | jq
+```
+
+### List all active scheduled transactions
+
+```bash
+curl -s "$PFM_API_URL/api/v1/scheduled" | jq
+```
+
+### Create monthly expense
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/scheduled" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "ACCOUNT_ID",
+    "frequency": "monthly",
+    "nextDate": "2026-03-01",
+    "amountCents": -15000000,
+    "payeeName": "Арендодатель",
+    "categoryId": "CATEGORY_ID",
+    "memo": "Аренда квартиры"
+  }' | jq
+```
+
+### Process all due transactions
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/scheduled/process" | jq
+```
+
+### Process with specific date
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/scheduled/process" \
+  -H "Content-Type: application/json" \
+  -d '{"asOfDate": "2026-03-01"}' | jq
+```
+
+---
+
 ## Typical Workflows
 
 ### "Сколько у меня денег?"

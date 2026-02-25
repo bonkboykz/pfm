@@ -87,6 +87,23 @@ sqlite.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_budget_cat_month ON monthly_budgets(category_id, month);
+
+  CREATE TABLE IF NOT EXISTS scheduled_transactions (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL REFERENCES accounts(id),
+    frequency TEXT NOT NULL CHECK(frequency IN ('weekly', 'biweekly', 'monthly', 'yearly')),
+    next_date TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL,
+    payee_name TEXT,
+    category_id TEXT REFERENCES categories(id),
+    transfer_account_id TEXT REFERENCES accounts(id),
+    memo TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_sched_next_date ON scheduled_transactions(next_date);
+  CREATE INDEX IF NOT EXISTS idx_sched_active ON scheduled_transactions(is_active);
 `);
 
 // Insert system records if they don't exist
