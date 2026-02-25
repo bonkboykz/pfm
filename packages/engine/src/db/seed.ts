@@ -1,3 +1,8 @@
+if (process.env.NODE_ENV === 'production') {
+  console.error('ERROR: Cannot run seed in production. Set NODE_ENV to "development" or "test".');
+  process.exit(1);
+}
+
 import Database from 'better-sqlite3';
 
 const DB_PATH = process.env.PFM_DB_PATH ?? './data/pfm.db';
@@ -251,6 +256,46 @@ const seedScheduled = sqlite.transaction(() => {
 
 seedScheduled();
 
+// --- LOANS ---
+const loanIds = {
+  halykCredit: 'seed_loan_halyk_credit',
+  kaspiRedIphone: 'seed_loan_kaspi_red_iphone',
+};
+
+const insertLoan = sqlite.prepare(`
+  INSERT OR IGNORE INTO loans (id, name, type, account_id, category_id, principal_cents, apr_bps, term_months, start_date, monthly_payment_cents, payment_day, penalty_rate_bps, early_repayment_fee_cents, note, is_active, created_at, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+`);
+
+const seedLoans = sqlite.transaction(() => {
+  // Халық кредит — regular loan, 18.5% APR, 24 months, 85,000₸/month
+  insertLoan.run(loanIds.halykCredit, 'Халық кредит', 'loan', accountIds.halyk, categoryIds.halykCredit, 200000000, 1850, 24, '2025-06-01', 8500000, 25, 0, 0, null, now, now);
+  // Kaspi Red iPhone — installment, 0% APR, 6 months, 75,000₸/month
+  insertLoan.run(loanIds.kaspiRedIphone, 'Kaspi Red iPhone', 'installment', accountIds.kaspiRed, categoryIds.kaspiRedIphone, 45000000, 0, 6, '2026-01-01', 7500000, 20, 0, 0, null, now, now);
+});
+
+seedLoans();
+
+// --- PERSONAL DEBTS ---
+const debtIds = {
+  ansar: 'seed_debt_ansar',
+  marat: 'seed_debt_marat',
+};
+
+const insertDebt = sqlite.prepare(`
+  INSERT OR IGNORE INTO personal_debts (id, person_name, direction, amount_cents, currency, due_date, note, is_settled, settled_date, created_at, updated_at)
+  VALUES (?, ?, ?, ?, 'KZT', ?, ?, 0, NULL, ?, ?)
+`);
+
+const seedDebts = sqlite.transaction(() => {
+  // Я должен Ансару 50,000₸
+  insertDebt.run(debtIds.ansar, 'Ансар С.', 'owe', 5000000, '2026-03-15', 'За обед в ресторане', now, now);
+  // Марат должен мне 30,000₸
+  insertDebt.run(debtIds.marat, 'Марат К.', 'owed', 3000000, null, 'Одолжил на такси', now, now);
+});
+
+seedDebts();
+
 sqlite.close();
 
 // Summary
@@ -267,6 +312,8 @@ console.log('Payees:       7');
 console.log('Transactions: 9  (1 salary, 5 expenses, 2 transfer pair, 1 credit card)');
 console.log('Budgets:     12  (all for 2026-02)');
 console.log('Scheduled:    5  (salary, rent, internet, Kaspi Red transfer, Халық кредит)');
+console.log('Loans:        2  (Халық кредит, Kaspi Red iPhone)');
+console.log('Debts:        2  (Ансар С. — owe 50k, Марат К. — owed 30k)');
 console.log('');
 console.log(`Income:       ${(totalIncome / 100).toLocaleString('ru-RU')} ₸`);
 console.log(`Assigned:     ${(totalAssigned / 100).toLocaleString('ru-RU')} ₸`);

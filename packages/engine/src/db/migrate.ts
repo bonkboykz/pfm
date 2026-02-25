@@ -104,7 +104,57 @@ sqlite.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_sched_next_date ON scheduled_transactions(next_date);
   CREATE INDEX IF NOT EXISTS idx_sched_active ON scheduled_transactions(is_active);
+
+  CREATE TABLE IF NOT EXISTS loans (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('loan', 'installment', 'credit_line')),
+    account_id TEXT REFERENCES accounts(id),
+    category_id TEXT REFERENCES categories(id),
+    principal_cents INTEGER NOT NULL,
+    apr_bps INTEGER NOT NULL DEFAULT 0,
+    term_months INTEGER NOT NULL,
+    start_date TEXT NOT NULL,
+    monthly_payment_cents INTEGER NOT NULL,
+    payment_day INTEGER NOT NULL,
+    penalty_rate_bps INTEGER NOT NULL DEFAULT 0,
+    early_repayment_fee_cents INTEGER NOT NULL DEFAULT 0,
+    note TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_loans_active ON loans(is_active);
+  CREATE INDEX IF NOT EXISTS idx_loans_category ON loans(category_id);
+
+  CREATE TABLE IF NOT EXISTS personal_debts (
+    id TEXT PRIMARY KEY,
+    person_name TEXT NOT NULL,
+    direction TEXT NOT NULL CHECK(direction IN ('owe', 'owed')),
+    amount_cents INTEGER NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'KZT',
+    due_date TEXT,
+    note TEXT,
+    is_settled INTEGER NOT NULL DEFAULT 0,
+    settled_date TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
+
+// Account metadata columns (idempotent ALTER TABLE)
+const alterStatements = [
+  'ALTER TABLE accounts ADD COLUMN bank_name TEXT',
+  'ALTER TABLE accounts ADD COLUMN last_4_digits TEXT',
+  "ALTER TABLE accounts ADD COLUMN card_type TEXT CHECK(card_type IN ('visa', 'mastercard', 'amex', 'unionpay', 'mir', 'other'))",
+];
+for (const sql of alterStatements) {
+  try {
+    sqlite.exec(sql);
+  } catch (_) {
+    // Column already exists — ignore
+  }
+}
 
 // Insert system records if they don't exist
 const insertGroup = sqlite.prepare(`
@@ -125,3 +175,4 @@ console.log('Migration complete. Database created at', DB_PATH);
 console.log('System records:');
 console.log('  - Category group "Inflow" (id: inflow-group)');
 console.log('  - Category "Ready to Assign" (id: ready-to-assign)');
+console.log('Tables: accounts, category_groups, categories, payees, transactions, monthly_budgets, scheduled_transactions, loans, personal_debts');

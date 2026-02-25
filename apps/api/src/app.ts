@@ -8,6 +8,8 @@ import { transactionRoutes } from './routes/transactions.js';
 import { budgetRoutes } from './routes/budget.js';
 import { debtRoutes } from './routes/debt.js';
 import { scheduledRoutes } from './routes/scheduled.js';
+import { loanRoutes } from './routes/loans.js';
+import { debtListRoutes } from './routes/debts.js';
 import { apiKeyAuth } from './middleware/auth.js';
 
 export function createApp(db: DB) {
@@ -40,6 +42,8 @@ export function createApp(db: DB) {
   app.route('/api/v1/budget', budgetRoutes(db));
   app.route('/api/v1/simulate', debtRoutes());
   app.route('/api/v1/scheduled', scheduledRoutes(db));
+  app.route('/api/v1/loans', loanRoutes(db));
+  app.route('/api/v1/debts', debtListRoutes(db));
 
   return app;
 }

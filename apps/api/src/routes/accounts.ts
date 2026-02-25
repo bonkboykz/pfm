@@ -15,6 +15,9 @@ const createAccountSchema = z.object({
   onBudget: z.boolean().optional(),
   currency: z.string().optional(),
   note: z.string().optional(),
+  bankName: z.string().optional(),
+  last4Digits: z.string().length(4).regex(/^\d{4}$/).optional(),
+  cardType: z.enum(['visa', 'mastercard', 'amex', 'unionpay', 'mir', 'other']).optional(),
 });
 
 const updateAccountSchema = z.object({
@@ -23,6 +26,9 @@ const updateAccountSchema = z.object({
   currency: z.string().optional(),
   sortOrder: z.number().int().optional(),
   note: z.string().nullable().optional(),
+  bankName: z.string().nullable().optional(),
+  last4Digits: z.string().length(4).regex(/^\d{4}$/).nullable().optional(),
+  cardType: z.enum(['visa', 'mastercard', 'amex', 'unionpay', 'mir', 'other']).nullable().optional(),
 });
 
 function formatAccountBalance(ab: { accountId: string; accountName: string; type: string; balanceCents: number; clearedCents: number; unclearedCents: number }, currency = 'KZT') {
@@ -82,6 +88,9 @@ export function accountRoutes(db: DB) {
         onBudget,
         currency: data.currency ?? 'KZT',
         note: data.note ?? null,
+        bankName: data.bankName ?? null,
+        last4Digits: data.last4Digits ?? null,
+        cardType: data.cardType ?? null,
       })
       .returning()
       .get();

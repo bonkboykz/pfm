@@ -18,24 +18,55 @@ describe('formatMoney', () => {
     expect(formatMoney(199)).toBe('1 ₸');
   });
 
-  it('formats with USD symbol', () => {
-    expect(formatMoney(100000, 'USD')).toBe('1 000 $');
-  });
-
-  it('formats with EUR symbol', () => {
+  it('formats with EUR symbol (suffix)', () => {
     expect(formatMoney(5000, 'EUR')).toBe('50 €');
   });
 
-  it('formats with RUB symbol', () => {
+  it('formats with RUB symbol (suffix)', () => {
     expect(formatMoney(1000000, 'RUB')).toBe('10 000 ₽');
-  });
-
-  it('falls back to ISO code for unknown currency', () => {
-    expect(formatMoney(50000, 'GBP')).toBe('500 GBP');
   });
 
   it('formats large amount with spaces', () => {
     expect(formatMoney(50000000)).toBe('500 000 ₸');
+  });
+
+  // Prefix currencies
+  it('formats USD with prefix symbol', () => {
+    expect(formatMoney(100000, 'USD')).toBe('$1 000');
+  });
+
+  it('formats negative USD with prefix symbol', () => {
+    expect(formatMoney(-500000, 'USD')).toBe('-$5 000');
+  });
+
+  it('formats GBP with prefix symbol', () => {
+    expect(formatMoney(93000, 'GBP')).toBe('£930');
+  });
+
+  it('formats CNY with prefix symbol', () => {
+    expect(formatMoney(93000, 'CNY')).toBe('¥930');
+  });
+
+  it('formats JPY with prefix symbol', () => {
+    expect(formatMoney(93000, 'JPY')).toBe('¥930');
+  });
+
+  // Suffix currencies (new)
+  it('formats TRY with suffix symbol', () => {
+    expect(formatMoney(93000, 'TRY')).toBe('930 ₺');
+  });
+
+  it('formats UAH with suffix symbol', () => {
+    expect(formatMoney(93000, 'UAH')).toBe('930 ₴');
+  });
+
+  it('formats GEL with suffix symbol', () => {
+    expect(formatMoney(93000, 'GEL')).toBe('930 ₾');
+  });
+
+  // Unknown currency fallback
+  it('falls back to ISO code suffix for unknown currency', () => {
+    expect(formatMoney(50000, 'BTC')).toBe('500 BTC');
   });
 });
 

@@ -8,6 +8,8 @@ export {
   transactions,
   monthlyBudgets,
   scheduledTransactions,
+  loans,
+  personalDebts,
 } from './db/schema.js';
 
 export { formatMoney, addCents, subtractCents, multiplyCents, sumCents } from './math/money.js';
@@ -20,3 +22,6 @@ export { compareStrategies, debtVsInvest } from './debt/analyzer.js';
 
 export type { Frequency, ScheduledTransaction, ProcessResult } from './scheduler/types.js';
 export { getUpcoming, processDue, advanceDate } from './scheduler/engine.js';
+
+export type { LoanSummary, AmortizationEntry } from './loan/types.js';
+export { getLoanCurrentDebt, getLoanSummary, loanToDebtSnapshot, generateAmortizationSchedule } from './loan/engine.js';

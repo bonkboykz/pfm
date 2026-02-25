@@ -102,6 +102,7 @@ pnpm db:seed          # Populate test data (packages/engine)
 - `docs/section-6c-csv-import.md` — Bank CSV import (post-MVP)
 - `docs/section-6d-recurring.md` — Recurring transactions (post-MVP)
 - `docs/section-6e-auth.md` — API key authentication (post-MVP)
+- `docs/section-6f-pdf-import.md` — Bank PDF import (post-MVP)
 
 ## File Naming
 

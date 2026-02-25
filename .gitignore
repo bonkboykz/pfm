@@ -6,3 +6,5 @@ data/
 *.db-shm
 .env
 .turbo/
+docs/samples/*
+.DS_Store

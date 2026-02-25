@@ -74,6 +74,9 @@ function createAndSeedDb(): DB {
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_active INTEGER NOT NULL DEFAULT 1,
       note TEXT,
+      bank_name TEXT,
+      last_4_digits TEXT,
+      card_type TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -142,6 +145,59 @@ function createAndSeedDb(): DB {
     );
 
     CREATE INDEX IF NOT EXISTS idx_budget_cat_month ON monthly_budgets(category_id, month);
+
+    CREATE TABLE IF NOT EXISTS scheduled_transactions (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL REFERENCES accounts(id),
+      frequency TEXT NOT NULL CHECK(frequency IN ('weekly', 'biweekly', 'monthly', 'yearly')),
+      next_date TEXT NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      payee_name TEXT,
+      category_id TEXT REFERENCES categories(id),
+      transfer_account_id TEXT REFERENCES accounts(id),
+      memo TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sched_next_date ON scheduled_transactions(next_date);
+    CREATE INDEX IF NOT EXISTS idx_sched_active ON scheduled_transactions(is_active);
+
+    CREATE TABLE IF NOT EXISTS loans (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('loan', 'installment', 'credit_line')),
+      account_id TEXT REFERENCES accounts(id),
+      category_id TEXT REFERENCES categories(id),
+      principal_cents INTEGER NOT NULL,
+      apr_bps INTEGER NOT NULL DEFAULT 0,
+      term_months INTEGER NOT NULL,
+      start_date TEXT NOT NULL,
+      monthly_payment_cents INTEGER NOT NULL,
+      payment_day INTEGER NOT NULL,
+      penalty_rate_bps INTEGER NOT NULL DEFAULT 0,
+      early_repayment_fee_cents INTEGER NOT NULL DEFAULT 0,
+      note TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_loans_active ON loans(is_active);
+    CREATE INDEX IF NOT EXISTS idx_loans_category ON loans(category_id);
+
+    CREATE TABLE IF NOT EXISTS personal_debts (
+      id TEXT PRIMARY KEY,
+      person_name TEXT NOT NULL,
+      direction TEXT NOT NULL CHECK(direction IN ('owe', 'owed')),
+      amount_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'KZT',
+      due_date TEXT,
+      note TEXT,
+      is_settled INTEGER NOT NULL DEFAULT 0,
+      settled_date TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
 
   const now = new Date().toISOString();

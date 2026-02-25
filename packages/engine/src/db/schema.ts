@@ -12,6 +12,11 @@ export const accounts = sqliteTable('accounts', {
   sortOrder: integer('sort_order').notNull().default(0),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   note: text('note'),
+  bankName: text('bank_name'),
+  last4Digits: text('last_4_digits'),
+  cardType: text('card_type', {
+    enum: ['visa', 'mastercard', 'amex', 'unionpay', 'mir', 'other'],
+  }),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
 });
@@ -104,3 +109,44 @@ export const scheduledTransactions = sqliteTable('scheduled_transactions', {
   index('idx_sched_next_date').on(table.nextDate),
   index('idx_sched_active').on(table.isActive),
 ]);
+
+export const loans = sqliteTable('loans', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').notNull(),
+  type: text('type', {
+    enum: ['loan', 'installment', 'credit_line'],
+  }).notNull(),
+  accountId: text('account_id').references(() => accounts.id),
+  categoryId: text('category_id').references(() => categories.id),
+  principalCents: integer('principal_cents').notNull(),
+  aprBps: integer('apr_bps').notNull().default(0),
+  termMonths: integer('term_months').notNull(),
+  startDate: text('start_date').notNull(),
+  monthlyPaymentCents: integer('monthly_payment_cents').notNull(),
+  paymentDay: integer('payment_day').notNull(),
+  penaltyRateBps: integer('penalty_rate_bps').notNull().default(0),
+  earlyRepaymentFeeCents: integer('early_repayment_fee_cents').notNull().default(0),
+  note: text('note'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+}, (table) => [
+  index('idx_loans_active').on(table.isActive),
+  index('idx_loans_category').on(table.categoryId),
+]);
+
+export const personalDebts = sqliteTable('personal_debts', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  personName: text('person_name').notNull(),
+  direction: text('direction', {
+    enum: ['owe', 'owed'],
+  }).notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  currency: text('currency').notNull().default('KZT'),
+  dueDate: text('due_date'),
+  note: text('note'),
+  isSettled: integer('is_settled', { mode: 'boolean' }).notNull().default(false),
+  settledDate: text('settled_date'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+});

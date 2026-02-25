@@ -1,10 +1,21 @@
 import Decimal from 'decimal.js';
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  KZT: '₸',
-  USD: '$',
-  EUR: '€',
-  RUB: '₽',
+interface CurrencyConfig {
+  symbol: string;
+  position: 'prefix' | 'suffix';
+}
+
+const CURRENCY_CONFIG: Record<string, CurrencyConfig> = {
+  KZT: { symbol: '₸', position: 'suffix' },
+  USD: { symbol: '$', position: 'prefix' },
+  EUR: { symbol: '€', position: 'suffix' },
+  RUB: { symbol: '₽', position: 'suffix' },
+  GBP: { symbol: '£', position: 'prefix' },
+  CNY: { symbol: '¥', position: 'prefix' },
+  JPY: { symbol: '¥', position: 'prefix' },
+  TRY: { symbol: '₺', position: 'suffix' },
+  UAH: { symbol: '₴', position: 'suffix' },
+  GEL: { symbol: '₾', position: 'suffix' },
 };
 
 export function formatMoney(amountCents: number, currency = 'KZT'): string {
@@ -13,8 +24,18 @@ export function formatMoney(amountCents: number, currency = 'KZT'): string {
   const absStr = Math.abs(amount)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  const symbol = CURRENCY_SYMBOLS[currency] ?? currency;
-  return `${isNegative ? '-' : ''}${absStr} ${symbol}`;
+
+  const config = CURRENCY_CONFIG[currency];
+
+  if (config) {
+    if (config.position === 'prefix') {
+      return `${isNegative ? '-' : ''}${config.symbol}${absStr}`;
+    }
+    return `${isNegative ? '-' : ''}${absStr} ${config.symbol}`;
+  }
+
+  // Unknown currency: fallback to suffix with ISO code
+  return `${isNegative ? '-' : ''}${absStr} ${currency}`;
 }
 
 export function addCents(...amounts: number[]): number {
