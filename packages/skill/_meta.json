@@ -1,5 +1,5 @@
 {
   "name": "pfm-budget",
-  "version": "0.2.0",
-  "description": "Zero-based budgeting (YNAB-style) via REST API. Track accounts, transactions, envelope budgets, loans, personal debts."
+  "version": "0.3.0",
+  "description": "Zero-based budgeting (YNAB-style) via REST API. Track accounts, transactions, envelope budgets, loans, personal debts, bank deposits."
 }

@@ -203,4 +203,4 @@ console.log('Migration complete. Database created at', DB_PATH);
 console.log('System records:');
 console.log('  - Category group "Inflow" (id: inflow-group)');
 console.log('  - Category "Ready to Assign" (id: ready-to-assign)');
-console.log('Tables: accounts, category_groups, categories, payees, transactions, monthly_budgets, scheduled_transactions, loans, personal_debts');
+console.log('Tables: accounts, category_groups, categories, payees, transactions, monthly_budgets, scheduled_transactions, loans, deposits, personal_debts');

@@ -5,8 +5,9 @@ description: >
   transactions, categories, budget assignments. Use when user asks about
   budgeting, expense tracking, "сколько осталось", "куда ушли деньги",
   account balances, financial planning, debt tracking, Kaspi, transfers,
-  loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен".
-version: 0.2.0
+  loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
+  вклады, депозиты, проценты, КГСС, капитализация.
+version: 0.3.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -480,6 +481,87 @@ curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/debts/{id}" | jq
 
 ---
 
+## Bank Deposits (Вклады)
+
+### List all deposits
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/deposits" | jq
+```
+
+Returns deposits with `currentBalanceCents`, `projectedInterestCents`, and formatted versions.
+
+### Create a term deposit
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/deposits" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Halyk Срочный 14.5%",
+    "bankName": "Halyk Bank",
+    "type": "term",
+    "initialAmountCents": 100000000,
+    "annualRateBps": 1450,
+    "termMonths": 12,
+    "startDate": "2025-06-01",
+    "endDate": "2026-06-01",
+    "capitalization": "monthly"
+  }' | jq
+```
+
+Types: `term` (срочный), `savings` (накопительный), `demand` (до востребования)
+
+Capitalization: `monthly`, `quarterly`, `at_end`, `none` (simple interest)
+
+Optional fields: `accountId`, `categoryId`, `isWithdrawable`, `isReplenishable`, `minBalanceCents`, `topUpCents`, `earlyWithdrawalRateBps`, `note`
+
+### Get interest schedule
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/deposits/{id}/schedule" | jq
+```
+
+For perpetual deposits (termMonths=0), pass `?months=N` (default 12):
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/deposits/{id}/schedule?months=24" | jq
+```
+
+Returns month-by-month: startBalance, interest, capitalized, endBalance, cumulativeInterest.
+
+### KDIF exposure (КГСС)
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/deposits/kdif" | jq
+```
+
+Groups deposits by bank, shows total vs 15M₸ guarantee limit, flags `isOverInsured`.
+
+### Compare deposits
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/simulate/deposit-compare" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "deposits": [
+      {"name":"Halyk 14.5%","initialAmountCents":100000000,"annualRateBps":1450,"termMonths":12,"capitalization":"monthly"},
+      {"name":"Kaspi 12%","initialAmountCents":100000000,"annualRateBps":1200,"termMonths":12,"capitalization":"quarterly"}
+    ]
+  }' | jq '.recommended, .explanation'
+```
+
+### Update / delete deposit
+
+```bash
+curl -s -X PATCH "$PFM_API_URL/api/v1/deposits/{id}" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"topUpCents": 50000000}' | jq
+
+curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/deposits/{id}" | jq
+```
+
+---
+
 ## Typical Workflows
 
 ### "Сколько у меня денег?"
@@ -512,3 +594,16 @@ b) Move budget: `POST /budget/2026-02/move` between categories
 ### "Марат вернул долг"
 1. `GET /api/v1/debts` → find Марат's debt ID
 2. `POST /api/v1/debts/{id}/settle` → mark as settled
+
+### "Какие у меня вклады?"
+1. `GET /api/v1/deposits` → show deposits with projected interest
+
+### "Покажи график процентов по вкладу"
+1. `GET /api/v1/deposits` → find deposit ID
+2. `GET /api/v1/deposits/{id}/schedule` → interest schedule
+
+### "Безопасны ли мои вклады по КГСС?"
+1. `GET /api/v1/deposits/kdif` → check isOverInsured per bank
+
+### "Какой вклад выгоднее — Halyk или Kaspi?"
+1. `POST /api/v1/simulate/deposit-compare` → compare with schedules
