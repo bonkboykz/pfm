@@ -529,6 +529,30 @@ describe('REST API', () => {
     }
   });
 
+  // 17a. RTA overview
+  it('GET /api/v1/budget/rta-overview returns per-month RTA with min', async () => {
+    // First assign something to March so we have multi-month coverage
+    await api(app, 'POST', '/api/v1/budget/2026-03/assign', {
+      categoryId: cat.rent,
+      amountCents: 15000000,
+    });
+
+    const { status, data } = await api(app, 'GET', '/api/v1/budget/rta-overview?from=2026-02');
+    expect(status).toBe(200);
+    expect(data.from).toBe('2026-02');
+    expect(data.to).toBe('2026-03');
+    expect(data.months).toHaveLength(2);
+    expect(data.months[0].month).toBe('2026-02');
+    expect(data.months[1].month).toBe('2026-03');
+    expect(data.months[0].readyToAssignFormatted).toBeDefined();
+    expect(data.minReadyToAssignCents).toBeDefined();
+    expect(data.minReadyToAssignFormatted).toBeDefined();
+    expect(data.minMonth).toBeDefined();
+    // March RTA should be lower than Feb (more assigned)
+    expect(data.months[1].readyToAssignCents).toBeLessThan(data.months[0].readyToAssignCents);
+    expect(data.minMonth).toBe('2026-03');
+  });
+
   // 17. Ready to assign breakdown
   it('GET /api/v1/budget/2026-02/ready-to-assign returns breakdown', async () => {
     const { status, data } = await api(app, 'GET', '/api/v1/budget/2026-02/ready-to-assign');

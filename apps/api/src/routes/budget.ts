@@ -5,6 +5,7 @@ import {
   getBudgetMonth,
   assignToCategory,
   moveBetweenCategories,
+  getReadyToAssignRange,
   getReadyToAssign,
   formatMoney,
 } from '@pfm/engine';
@@ -74,6 +75,37 @@ function formatBudgetResponse(budget: ReturnType<typeof getBudgetMonth>) {
 
 export function budgetRoutes(db: DB) {
   const router = new Hono();
+
+  // GET /rta-overview — RTA across all assigned months
+  router.get('/rta-overview', (c) => {
+    const fromParam = c.req.query('from');
+    const fromMonth = fromParam && monthRegex.test(fromParam)
+      ? fromParam
+      : new Date().toISOString().slice(0, 7);
+
+    // Find furthest assigned month
+    const maxRow = db.$client.prepare(
+      `SELECT MAX(month) as maxMonth FROM monthly_budgets`
+    ).get() as { maxMonth: string | null } | undefined;
+
+    const furthestAssigned = maxRow?.maxMonth ?? fromMonth;
+    const toMonth = furthestAssigned > fromMonth ? furthestAssigned : fromMonth;
+
+    const result = getReadyToAssignRange(db, fromMonth, toMonth);
+
+    return c.json({
+      from: fromMonth,
+      to: toMonth,
+      months: result.months.map((m) => ({
+        month: m.month,
+        readyToAssignCents: m.readyToAssignCents,
+        readyToAssignFormatted: formatMoney(m.readyToAssignCents),
+      })),
+      minReadyToAssignCents: result.minReadyToAssignCents,
+      minReadyToAssignFormatted: formatMoney(result.minReadyToAssignCents),
+      minMonth: result.minMonth,
+    });
+  });
 
   // GET /:month — full budget state
   router.get('/:month', (c) => {

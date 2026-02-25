@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.3.0
+version: 0.4.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -192,6 +192,22 @@ Soft-deletes. If part of a transfer, deletes both sides.
 ---
 
 ## Budget
+
+> **RTA varies by month.** A single month's RTA does NOT account for
+> future assignments. Always use `/rta-overview` to see the true available
+> amount across all assigned months.
+
+### Get RTA overview (across months)
+
+Use this INSTEAD of checking a single month's RTA. Shows the real available
+money considering future assignments.
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/rta-overview" | jq
+```
+
+`minReadyToAssignCents` is the TRUE available amount — the lowest RTA across
+all months with assignments.
 
 ### Get full budget state for a month
 
@@ -563,6 +579,10 @@ curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/deposits/{id}" | jq
 ---
 
 ## Typical Workflows
+
+### "Сколько свободных денег / сколько можно назначить?"
+1. `GET /api/v1/budget/rta-overview` → use `minReadyToAssignFormatted` as the answer
+   - If `minMonth` != current month, warn: "в текущем месяце RTA = X, но в {minMonth} уже только Y"
 
 ### "Сколько у меня денег?"
 1. `GET /api/v1/accounts` → show balances

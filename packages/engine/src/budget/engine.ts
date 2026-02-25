@@ -302,6 +302,41 @@ export function getAccountBalances(db: DB): AccountBalance[] {
   }));
 }
 
+export function getReadyToAssignRange(
+  db: DB,
+  fromMonth: string,
+  toMonth: string,
+): {
+  months: Array<{ month: string; readyToAssignCents: number }>;
+  minReadyToAssignCents: number;
+  minMonth: string;
+} {
+  // Generate month range
+  const months: Array<{ month: string; readyToAssignCents: number }> = [];
+  let current = fromMonth;
+  while (current <= toMonth) {
+    const { readyToAssignCents } = getReadyToAssign(db, current);
+    months.push({ month: current, readyToAssignCents });
+
+    // Advance to next month
+    const [y, m] = current.split('-').map(Number);
+    const nextMonth = m === 12 ? 1 : m + 1;
+    const nextYear = m === 12 ? y + 1 : y;
+    current = `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+  }
+
+  let minReadyToAssignCents = months[0]?.readyToAssignCents ?? 0;
+  let minMonth = months[0]?.month ?? fromMonth;
+  for (const entry of months) {
+    if (entry.readyToAssignCents < minReadyToAssignCents) {
+      minReadyToAssignCents = entry.readyToAssignCents;
+      minMonth = entry.month;
+    }
+  }
+
+  return { months, minReadyToAssignCents, minMonth };
+}
+
 export function getReadyToAssign(db: DB, month: string): ReadyToAssignBreakdown {
   const monthEnd = `${month}-31`;
 

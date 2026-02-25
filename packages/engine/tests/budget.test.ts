@@ -6,6 +6,7 @@ import {
   moveBetweenCategories,
   getAccountBalances,
   getReadyToAssign,
+  getReadyToAssignRange,
 } from '../src/budget/engine.js';
 
 // --- Deterministic IDs ---
@@ -427,6 +428,45 @@ describe('getReadyToAssign', () => {
     expect(result.totalAssignedCents).toBe(58500000);
     expect(result.readyToAssignCents).toBe(-8500000);
     expect(result.isOverAssigned).toBe(true);
+  });
+});
+
+describe('getReadyToAssignRange', () => {
+  let db: DB;
+
+  beforeAll(() => {
+    db = createAndSeedDb();
+
+    // Add March assignment: 20,000,000 (200K₸) to rent
+    const sqlite = db.$client;
+    const now = new Date().toISOString();
+    sqlite.prepare(`
+      INSERT INTO monthly_budgets (id, category_id, month, assigned_cents, created_at, updated_at)
+      VALUES (?, ?, '2026-03', ?, ?, ?)
+    `).run('mb-rent-mar', cat.rent, 20000000, now, now);
+  });
+
+  it('returns per-month RTA with minMonth pointing to month with least headroom', () => {
+    const result = getReadyToAssignRange(db, '2026-02', '2026-03');
+
+    expect(result.months).toHaveLength(2);
+    expect(result.months[0].month).toBe('2026-02');
+    expect(result.months[1].month).toBe('2026-03');
+
+    // Feb RTA: 50M inflow - 58.5M assigned = -8.5M
+    expect(result.months[0].readyToAssignCents).toBe(-8500000);
+    // Mar RTA: 50M inflow - 58.5M (Feb) - 20M (Mar) = -28.5M
+    expect(result.months[1].readyToAssignCents).toBe(-28500000);
+
+    // Min should be March since it has more assigned
+    expect(result.minMonth).toBe('2026-03');
+    expect(result.minReadyToAssignCents).toBe(-28500000);
+  });
+
+  it('returns single month when from == to', () => {
+    const result = getReadyToAssignRange(db, '2026-02', '2026-02');
+    expect(result.months).toHaveLength(1);
+    expect(result.minMonth).toBe('2026-02');
   });
 });
 
