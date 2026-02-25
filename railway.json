@@ -5,8 +5,7 @@
     "buildCommand": "pnpm exec turbo build --filter=@pfm/api"
   },
   "deploy": {
-    "preDeployCommand": "pnpm exec turbo db:migrate",
-    "startCommand": "pnpm exec turbo start --filter=@pfm/api",
+    "startCommand": "pnpm --filter @pfm/engine db:migrate && pnpm --filter @pfm/api start",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",

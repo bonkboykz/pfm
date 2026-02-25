@@ -6,5 +6,5 @@ const app = createApp(db);
 const port = parseInt(process.env.PORT ?? '3000');
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`PFM API v0.1.0 → http://localhost:${info.port}`);
+  console.log(`PFM API v0.2.0 → http://localhost:${info.port}`);
 });
