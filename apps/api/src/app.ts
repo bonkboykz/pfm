@@ -8,6 +8,7 @@ import { transactionRoutes } from './routes/transactions.js';
 import { budgetRoutes } from './routes/budget.js';
 import { debtRoutes } from './routes/debt.js';
 import { scheduledRoutes } from './routes/scheduled.js';
+import { apiKeyAuth } from './middleware/auth.js';
 
 export function createApp(db: DB) {
   const app = new Hono();
@@ -30,6 +31,8 @@ export function createApp(db: DB) {
   });
 
   app.get('/health', (c) => c.json({ status: 'ok', version: '0.1.0' }));
+
+  app.use('/api/v1/*', apiKeyAuth());
 
   app.route('/api/v1/accounts', accountRoutes(db));
   app.route('/api/v1/categories', categoryRoutes(db));

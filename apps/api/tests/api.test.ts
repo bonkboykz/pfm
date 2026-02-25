@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { createDb, type DB } from '@pfm/engine';
 import { createApp } from '../src/app.js';
 import type { Hono } from 'hono';
@@ -498,5 +498,54 @@ describe('REST API', () => {
     expect(status).toBe(400);
     expect(data.error).toBeDefined();
     expect(data.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('Authentication', () => {
+  let app: Hono;
+
+  beforeAll(() => {
+    const db = createAndSeedDb();
+    app = createApp(db);
+  });
+
+  afterEach(() => {
+    delete process.env.PFM_API_KEY;
+  });
+
+  it('/health is accessible without auth', async () => {
+    process.env.PFM_API_KEY = 'test-key-123';
+    const res = await app.request('/health');
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects /api/v1/* without auth when key is set', async () => {
+    process.env.PFM_API_KEY = 'test-key-123';
+    const res = await app.request('/api/v1/accounts');
+    expect(res.status).toBe(401);
+    const data = await res.json() as any;
+    expect(data.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('accepts valid Bearer token', async () => {
+    process.env.PFM_API_KEY = 'test-key-123';
+    const res = await app.request('/api/v1/accounts', {
+      headers: { 'Authorization': 'Bearer test-key-123' },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects wrong key', async () => {
+    process.env.PFM_API_KEY = 'test-key-123';
+    const res = await app.request('/api/v1/accounts', {
+      headers: { 'Authorization': 'Bearer wrong-key' },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('allows everything when PFM_API_KEY not set', async () => {
+    delete process.env.PFM_API_KEY;
+    const res = await app.request('/api/v1/accounts');
+    expect(res.status).toBe(200);
   });
 });

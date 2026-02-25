@@ -11,7 +11,7 @@ metadata:
     emoji: "💰"
     requires:
       bins: [curl, jq]
-      env: [PFM_API_URL]
+      env: [PFM_API_URL, PFM_API_KEY]
     primaryEnv: PFM_API_URL
 ---
 
@@ -21,6 +21,11 @@ Zero-based (envelope) budgeting via REST API. Every tenge of income is
 assigned to a category. Budget balanced when Ready to Assign = 0.
 
 **API Base**: `$PFM_API_URL` (e.g. `http://localhost:3000`)
+
+**Auth Header** (required when `PFM_API_KEY` is set):
+```bash
+AUTH="Authorization: Bearer $PFM_API_KEY"
+```
 
 ---
 
@@ -37,7 +42,7 @@ curl -s "$PFM_API_URL/health" | jq
 ### List all accounts with balances
 
 ```bash
-curl -s "$PFM_API_URL/api/v1/accounts" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/accounts" | jq
 ```
 
 Returns: `{ accounts: [{ id, name, type, balanceCents, balanceFormatted, ... }] }`
@@ -46,7 +51,7 @@ Returns: `{ accounts: [{ id, name, type, balanceCents, balanceFormatted, ... }] 
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/accounts" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "name": "Kaspi Gold",
     "type": "checking",
@@ -59,7 +64,7 @@ Types: `checking`, `savings`, `credit_card`, `cash`, `line_of_credit`, `tracking
 ### Get single account
 
 ```bash
-curl -s "$PFM_API_URL/api/v1/accounts/{id}" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/accounts/{id}" | jq
 ```
 
 ---
@@ -69,7 +74,7 @@ curl -s "$PFM_API_URL/api/v1/accounts/{id}" | jq
 ### List all category groups with categories
 
 ```bash
-curl -s "$PFM_API_URL/api/v1/categories" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/categories" | jq
 ```
 
 Returns nested structure: `{ categoryGroups: [{ id, name, categories: [...] }] }`
@@ -78,7 +83,7 @@ Returns nested structure: `{ categoryGroups: [{ id, name, categories: [...] }] }
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/categories/groups" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"name": "Постоянные расходы"}' | jq
 ```
 
@@ -86,7 +91,7 @@ curl -s -X POST "$PFM_API_URL/api/v1/categories/groups" \
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/categories" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "groupId": "GROUP_ID",
     "name": "Продукты",
@@ -109,23 +114,23 @@ Target types:
 
 ```bash
 # All transactions
-curl -s "$PFM_API_URL/api/v1/transactions" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions" | jq
 
 # Filter by account
-curl -s "$PFM_API_URL/api/v1/transactions?accountId={id}" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions?accountId={id}" | jq
 
 # Filter by date range
-curl -s "$PFM_API_URL/api/v1/transactions?since=2026-02-01&until=2026-02-28" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions?since=2026-02-01&until=2026-02-28" | jq
 
 # Filter by category
-curl -s "$PFM_API_URL/api/v1/transactions?categoryId={id}" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions?categoryId={id}" | jq
 ```
 
 ### Create expense transaction
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "accountId": "ACCOUNT_ID",
     "date": "2026-02-24",
@@ -145,7 +150,7 @@ Income goes to "Ready to Assign" category:
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "accountId": "ACCOUNT_ID",
     "date": "2026-02-01",
@@ -160,7 +165,7 @@ curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "accountId": "SOURCE_ACCOUNT_ID",
     "date": "2026-02-15",
@@ -175,7 +180,7 @@ Note: transfers automatically create TWO paired transactions. No category needed
 ### Delete transaction
 
 ```bash
-curl -s -X DELETE "$PFM_API_URL/api/v1/transactions/{id}" | jq
+curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/transactions/{id}" | jq
 ```
 
 Soft-deletes. If part of a transfer, deletes both sides.
@@ -187,7 +192,7 @@ Soft-deletes. If part of a transfer, deletes both sides.
 ### Get full budget state for a month
 
 ```bash
-curl -s "$PFM_API_URL/api/v1/budget/2026-02" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-02" | jq
 ```
 
 Returns:
@@ -221,7 +226,7 @@ Returns:
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/assign" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "categoryId": "CATEGORY_ID",
     "amountCents": 8000000
@@ -232,7 +237,7 @@ curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/assign" \
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/move" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "fromCategoryId": "FROM_ID",
     "toCategoryId": "TO_ID",
@@ -243,7 +248,7 @@ curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/move" \
 ### Get Ready to Assign breakdown
 
 ```bash
-curl -s "$PFM_API_URL/api/v1/budget/2026-02/ready-to-assign" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-02/ready-to-assign" | jq
 ```
 
 ---
@@ -276,7 +281,7 @@ Response fields include both raw cents and formatted strings:
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/simulate/payoff" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "debts": [
       {"name":"Kaspi Red","type":"installment","balanceCents":45000000,"aprBps":0,"minPaymentCents":15000000,"remainingInstallments":3,"latePenaltyCents":200000},
@@ -293,7 +298,7 @@ Strategies: `snowball`, `avalanche`, `highest_monthly_interest`, `cash_flow_inde
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/simulate/compare" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "debts": [
       {"name":"Kaspi Red","type":"installment","balanceCents":45000000,"aprBps":0,"minPaymentCents":15000000,"remainingInstallments":3,"latePenaltyCents":200000},
@@ -307,7 +312,7 @@ curl -s -X POST "$PFM_API_URL/api/v1/simulate/compare" \
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/simulate/debt-vs-invest" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "extraMonthlyCents":5000000,
     "debt":{"name":"Халық","type":"loan","balanceCents":120000000,"aprBps":1850,"minPaymentCents":8500000},
@@ -323,20 +328,20 @@ curl -s -X POST "$PFM_API_URL/api/v1/simulate/debt-vs-invest" \
 ### List upcoming (next 7 days)
 
 ```bash
-curl -s "$PFM_API_URL/api/v1/scheduled?upcoming=7" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/scheduled?upcoming=7" | jq
 ```
 
 ### List all active scheduled transactions
 
 ```bash
-curl -s "$PFM_API_URL/api/v1/scheduled" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/scheduled" | jq
 ```
 
 ### Create monthly expense
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/scheduled" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{
     "accountId": "ACCOUNT_ID",
     "frequency": "monthly",
@@ -351,14 +356,14 @@ curl -s -X POST "$PFM_API_URL/api/v1/scheduled" \
 ### Process all due transactions
 
 ```bash
-curl -s -X POST "$PFM_API_URL/api/v1/scheduled/process" | jq
+curl -s -X POST -H "$AUTH" "$PFM_API_URL/api/v1/scheduled/process" | jq
 ```
 
 ### Process with specific date
 
 ```bash
 curl -s -X POST "$PFM_API_URL/api/v1/scheduled/process" \
-  -H "Content-Type: application/json" \
+  -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"asOfDate": "2026-03-01"}' | jq
 ```
 
