@@ -1,81 +1,83 @@
 import Database from 'better-sqlite3';
-import { createId } from '@paralleldrive/cuid2';
 
-const DB_PATH = './data/pfm.db';
+const DB_PATH = process.env.PFM_DB_PATH ?? './data/pfm.db';
 const sqlite = new Database(DB_PATH);
 sqlite.pragma('foreign_keys = ON');
 
 const now = new Date().toISOString();
 
-// Pre-generate IDs
+// Fixed deterministic IDs — re-runs target the exact same rows
 const accountIds = {
-  kaspiGold: createId(),
-  halyk: createId(),
-  kaspiRed: createId(),
-  cash: createId(),
+  kaspiGold: 'seed_acc_kaspi_gold',
+  halyk: 'seed_acc_halyk',
+  kaspiRed: 'seed_acc_kaspi_red',
+  cash: 'seed_acc_cash',
 };
 
 const groupIds = {
   inflow: 'inflow-group', // system — already exists
-  fixed: createId(),
-  variable: createId(),
-  debt: createId(),
-  savings: createId(),
+  fixed: 'seed_grp_fixed',
+  variable: 'seed_grp_variable',
+  debt: 'seed_grp_debt',
+  savings: 'seed_grp_savings',
 };
 
 const categoryIds = {
   readyToAssign: 'ready-to-assign', // system — already exists
-  rent: createId(),
-  utilities: createId(),
-  internet: createId(),
-  groceries: createId(),
-  transport: createId(),
-  cafe: createId(),
-  entertainment: createId(),
-  clothing: createId(),
-  kaspiRedIphone: createId(),
-  halykCredit: createId(),
-  emergency: createId(),
-  vacation: createId(),
+  rent: 'seed_cat_rent',
+  utilities: 'seed_cat_utilities',
+  internet: 'seed_cat_internet',
+  groceries: 'seed_cat_groceries',
+  transport: 'seed_cat_transport',
+  cafe: 'seed_cat_cafe',
+  entertainment: 'seed_cat_entertainment',
+  clothing: 'seed_cat_clothing',
+  kaspiRedIphone: 'seed_cat_kaspi_red_iphone',
+  halykCredit: 'seed_cat_halyk_credit',
+  emergency: 'seed_cat_emergency',
+  vacation: 'seed_cat_vacation',
 };
 
 const payeeIds = {
-  employer: createId(),
-  landlord: createId(),
-  magnum: createId(),
-  miniMarket: createId(),
-  brisket: createId(),
-  glovo: createId(),
-  halykBank: createId(),
+  employer: 'seed_pay_employer',
+  landlord: 'seed_pay_landlord',
+  magnum: 'seed_pay_magnum',
+  miniMarket: 'seed_pay_mini_market',
+  brisket: 'seed_pay_brisket',
+  glovo: 'seed_pay_glovo',
+  halykBank: 'seed_pay_halyk_bank',
 };
 
 const txIds = {
-  salary: createId(),
-  rent: createId(),
-  groceries1: createId(),
-  groceries2: createId(),
-  cafe: createId(),
-  transferOut: createId(),
-  transferIn: createId(),
-  loan: createId(),
-  glovo: createId(),
+  salary: 'seed_tx_salary',
+  rent: 'seed_tx_rent',
+  groceries1: 'seed_tx_groceries1',
+  groceries2: 'seed_tx_groceries2',
+  cafe: 'seed_tx_cafe',
+  transferOut: 'seed_tx_transfer_out',
+  transferIn: 'seed_tx_transfer_in',
+  loan: 'seed_tx_loan',
+  glovo: 'seed_tx_glovo',
 };
 
-// Clear all data in reverse FK order
-const clearAll = sqlite.transaction(() => {
-  sqlite.exec('DELETE FROM monthly_budgets');
-  sqlite.exec('DELETE FROM transactions');
-  sqlite.exec('DELETE FROM payees');
-  sqlite.exec('DELETE FROM categories WHERE id != \'ready-to-assign\'');
-  sqlite.exec('DELETE FROM category_groups WHERE id != \'inflow-group\'');
-  sqlite.exec('DELETE FROM accounts');
-});
-
-clearAll();
+const mbIds = {
+  rent: 'seed_mb_rent',
+  utilities: 'seed_mb_utilities',
+  internet: 'seed_mb_internet',
+  groceries: 'seed_mb_groceries',
+  transport: 'seed_mb_transport',
+  cafe: 'seed_mb_cafe',
+  entertainment: 'seed_mb_entertainment',
+  clothing: 'seed_mb_clothing',
+  kaspiRedIphone: 'seed_mb_kaspi_red_iphone',
+  halykCredit: 'seed_mb_halyk_credit',
+  emergency: 'seed_mb_emergency',
+  vacation: 'seed_mb_vacation',
+};
 
 // --- ACCOUNTS ---
 const insertAccount = sqlite.prepare(`
-  INSERT INTO accounts (id, name, type, on_budget, currency, sort_order, is_active, created_at, updated_at)
+  INSERT OR IGNORE INTO accounts (id, name, type, on_budget, currency, sort_order, is_active, created_at, updated_at)
   VALUES (?, ?, ?, ?, 'KZT', ?, 1, ?, ?)
 `);
 
@@ -90,7 +92,7 @@ seedAccounts();
 
 // --- CATEGORY GROUPS ---
 const insertGroup = sqlite.prepare(`
-  INSERT INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at)
+  INSERT OR IGNORE INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at)
   VALUES (?, ?, ?, ?, 0, ?)
 `);
 
@@ -105,7 +107,7 @@ seedGroups();
 
 // --- CATEGORIES ---
 const insertCategory = sqlite.prepare(`
-  INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at)
+  INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at)
   VALUES (?, ?, ?, ?, ?, 0, ?)
 `);
 
@@ -135,7 +137,7 @@ seedCategories();
 
 // --- PAYEES ---
 const insertPayee = sqlite.prepare(`
-  INSERT INTO payees (id, name, last_category_id, created_at)
+  INSERT OR IGNORE INTO payees (id, name, last_category_id, created_at)
   VALUES (?, ?, ?, ?)
 `);
 
@@ -154,7 +156,7 @@ seedPayees();
 // --- TRANSACTIONS ---
 // All amounts in tiyns (1₸ = 100 tiyns)
 const insertTx = sqlite.prepare(`
-  INSERT INTO transactions (id, account_id, date, amount_cents, payee_id, payee_name, category_id, transfer_account_id, transfer_transaction_id, memo, cleared, approved, is_deleted, created_at, updated_at)
+  INSERT OR IGNORE INTO transactions (id, account_id, date, amount_cents, payee_id, payee_name, category_id, transfer_account_id, transfer_transaction_id, memo, cleared, approved, is_deleted, created_at, updated_at)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?)
 `);
 
@@ -192,30 +194,30 @@ seedTransactions();
 // --- MONTHLY BUDGETS ---
 // 2026-02: total 585,000₸ = 58,500,000 tiyns (over-assigned by 85,000₸)
 const insertBudget = sqlite.prepare(`
-  INSERT INTO monthly_budgets (id, category_id, month, assigned_cents, created_at, updated_at)
+  INSERT OR IGNORE INTO monthly_budgets (id, category_id, month, assigned_cents, created_at, updated_at)
   VALUES (?, ?, '2026-02', ?, ?, ?)
 `);
 
 const seedBudgets = sqlite.transaction(() => {
   // Постоянные: 170,000₸
-  insertBudget.run(createId(), categoryIds.rent, 15000000, now, now);          // 150,000₸
-  insertBudget.run(createId(), categoryIds.utilities, 1500000, now, now);      // 15,000₸
-  insertBudget.run(createId(), categoryIds.internet, 500000, now, now);        // 5,000₸
+  insertBudget.run(mbIds.rent, categoryIds.rent, 15000000, now, now);          // 150,000₸
+  insertBudget.run(mbIds.utilities, categoryIds.utilities, 1500000, now, now);      // 15,000₸
+  insertBudget.run(mbIds.internet, categoryIds.internet, 500000, now, now);        // 5,000₸
 
   // Переменные: 165,000₸
-  insertBudget.run(createId(), categoryIds.groceries, 8000000, now, now);      // 80,000₸
-  insertBudget.run(createId(), categoryIds.transport, 3000000, now, now);      // 30,000₸
-  insertBudget.run(createId(), categoryIds.cafe, 2000000, now, now);           // 20,000₸
-  insertBudget.run(createId(), categoryIds.entertainment, 1500000, now, now);  // 15,000₸
-  insertBudget.run(createId(), categoryIds.clothing, 2000000, now, now);       // 20,000₸
+  insertBudget.run(mbIds.groceries, categoryIds.groceries, 8000000, now, now);      // 80,000₸
+  insertBudget.run(mbIds.transport, categoryIds.transport, 3000000, now, now);      // 30,000₸
+  insertBudget.run(mbIds.cafe, categoryIds.cafe, 2000000, now, now);           // 20,000₸
+  insertBudget.run(mbIds.entertainment, categoryIds.entertainment, 1500000, now, now);  // 15,000₸
+  insertBudget.run(mbIds.clothing, categoryIds.clothing, 2000000, now, now);       // 20,000₸
 
   // Долги: 160,000₸
-  insertBudget.run(createId(), categoryIds.kaspiRedIphone, 7500000, now, now); // 75,000₸
-  insertBudget.run(createId(), categoryIds.halykCredit, 8500000, now, now);    // 85,000₸
+  insertBudget.run(mbIds.kaspiRedIphone, categoryIds.kaspiRedIphone, 7500000, now, now); // 75,000₸
+  insertBudget.run(mbIds.halykCredit, categoryIds.halykCredit, 8500000, now, now);    // 85,000₸
 
   // Накопления: 90,000₸
-  insertBudget.run(createId(), categoryIds.emergency, 5000000, now, now);      // 50,000₸
-  insertBudget.run(createId(), categoryIds.vacation, 4000000, now, now);       // 40,000₸
+  insertBudget.run(mbIds.emergency, categoryIds.emergency, 5000000, now, now);      // 50,000₸
+  insertBudget.run(mbIds.vacation, categoryIds.vacation, 4000000, now, now);       // 40,000₸
 });
 
 seedBudgets();

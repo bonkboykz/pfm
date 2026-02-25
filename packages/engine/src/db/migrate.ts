@@ -1,9 +1,10 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 
-const DB_PATH = './data/pfm.db';
+const DB_PATH = process.env.PFM_DB_PATH ?? './data/pfm.db';
 
-mkdirSync('data', { recursive: true });
+mkdirSync(dirname(DB_PATH), { recursive: true });
 const sqlite = new Database(DB_PATH);
 sqlite.pragma('journal_mode = WAL');
 sqlite.pragma('foreign_keys = ON');
