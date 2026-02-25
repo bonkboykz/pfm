@@ -1,0 +1,18 @@
+{
+  "name": "pfm",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "db:migrate": "pnpm --filter @pfm/engine db:migrate",
+    "db:seed": "pnpm --filter @pfm/engine db:seed"
+  },
+  "devDependencies": {
+    "turbo": "latest",
+    "typescript": "latest"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+  }
+}
