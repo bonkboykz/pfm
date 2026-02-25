@@ -270,6 +270,54 @@ Response fields include both raw cents and formatted strings:
 }
 ```
 
+## Debt Payoff Simulator
+
+### Simulate Debt Payoff
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/simulate/payoff" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "debts": [
+      {"name":"Kaspi Red","type":"installment","balanceCents":45000000,"aprBps":0,"minPaymentCents":15000000,"remainingInstallments":3,"latePenaltyCents":200000},
+      {"name":"Халық кредит","type":"loan","balanceCents":120000000,"aprBps":1850,"minPaymentCents":8500000}
+    ],
+    "strategy": "avalanche",
+    "extraMonthlyCents": 5000000
+  }' | jq
+```
+
+Strategies: `snowball`, `avalanche`, `highest_monthly_interest`, `cash_flow_index`
+
+### Compare All Strategies
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/simulate/compare" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "debts": [
+      {"name":"Kaspi Red","type":"installment","balanceCents":45000000,"aprBps":0,"minPaymentCents":15000000,"remainingInstallments":3,"latePenaltyCents":200000},
+      {"name":"Халық кредит","type":"loan","balanceCents":120000000,"aprBps":1850,"minPaymentCents":8500000}
+    ],
+    "extraMonthlyCents": 5000000
+  }' | jq '.recommended, .savingsVsWorstFormatted'
+```
+
+### Debt vs Invest
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/simulate/debt-vs-invest" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "extraMonthlyCents":5000000,
+    "debt":{"name":"Халық","type":"loan","balanceCents":120000000,"aprBps":1850,"minPaymentCents":8500000},
+    "expectedReturnBps":1200,
+    "horizonMonths":24
+  }' | jq '.recommendation, .explanation'
+```
+
+---
+
 ## Typical Workflows
 
 ### "Сколько у меня денег?"

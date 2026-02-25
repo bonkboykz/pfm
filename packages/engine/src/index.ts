@@ -12,3 +12,7 @@ export {
 export { formatMoney, addCents, subtractCents, multiplyCents, sumCents } from './math/money.js';
 export type { CategoryBudget, BudgetMonth, AccountBalance, ReadyToAssignBreakdown } from './budget/types.js';
 export { getBudgetMonth, assignToCategory, moveBetweenCategories, getAccountBalances, getReadyToAssign } from './budget/engine.js';
+
+export type { DebtSnapshot, PayoffStrategy, MonthlySnapshot, DebtMonthState, PayoffSimulationResult, StrategyComparison, DebtVsInvestResult } from './debt/types.js';
+export { simulatePayoff } from './debt/simulator.js';
+export { compareStrategies, debtVsInvest } from './debt/analyzer.js';

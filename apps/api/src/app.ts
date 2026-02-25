@@ -6,6 +6,7 @@ import { accountRoutes } from './routes/accounts.js';
 import { categoryRoutes } from './routes/categories.js';
 import { transactionRoutes } from './routes/transactions.js';
 import { budgetRoutes } from './routes/budget.js';
+import { debtRoutes } from './routes/debt.js';
 
 export function createApp(db: DB) {
   const app = new Hono();
@@ -33,6 +34,7 @@ export function createApp(db: DB) {
   app.route('/api/v1/categories', categoryRoutes(db));
   app.route('/api/v1/transactions', transactionRoutes(db));
   app.route('/api/v1/budget', budgetRoutes(db));
+  app.route('/api/v1/simulate', debtRoutes());
 
   return app;
 }
