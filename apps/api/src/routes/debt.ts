@@ -5,6 +5,7 @@ import {
   simulatePayoff,
   compareStrategies,
   debtVsInvest,
+  compareDeposits,
   formatMoney,
 } from '@pfm/engine';
 import { validationError } from '../errors.js';
@@ -127,6 +128,45 @@ export function debtRoutes() {
       investFirstFormatted: formatMoney(result.investFirstNetWorthCents),
       recommendation: result.recommendation,
       breakEvenReturnBps: result.breakEvenReturnBps,
+      explanation: result.explanation,
+    });
+  });
+
+  // POST /deposit-compare
+  const depositCompareSchema = z.object({
+    deposits: z.array(z.object({
+      name: z.string().min(1),
+      initialAmountCents: z.number().int().positive(),
+      annualRateBps: z.number().int().min(0),
+      termMonths: z.number().int().min(0),
+      capitalization: z.enum(['monthly', 'quarterly', 'at_end', 'none']).default('monthly'),
+    })).min(2).max(10),
+  });
+
+  router.post('/deposit-compare', async (c) => {
+    const body = await c.req.json();
+    const parsed = depositCompareSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+
+    const result = compareDeposits(parsed.data.deposits);
+    return c.json({
+      deposits: result.deposits.map((d) => ({
+        ...d,
+        initialAmountFormatted: formatMoney(d.initialAmountCents),
+        totalInterestFormatted: formatMoney(d.totalInterestCents),
+        finalBalanceFormatted: formatMoney(d.finalBalanceCents),
+        schedule: d.schedule.map((e) => ({
+          ...e,
+          startBalanceFormatted: formatMoney(e.startBalanceCents),
+          interestFormatted: formatMoney(e.interestCents),
+          capitalizedFormatted: formatMoney(e.capitalizedCents),
+          endBalanceFormatted: formatMoney(e.endBalanceCents),
+          cumulativeInterestFormatted: formatMoney(e.cumulativeInterestCents),
+        })),
+      })),
+      recommended: result.recommended,
       explanation: result.explanation,
     });
   });

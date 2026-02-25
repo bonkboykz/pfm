@@ -127,6 +127,33 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_loans_active ON loans(is_active);
   CREATE INDEX IF NOT EXISTS idx_loans_category ON loans(category_id);
 
+  CREATE TABLE IF NOT EXISTS deposits (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    bank_name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('term', 'savings', 'demand')),
+    account_id TEXT REFERENCES accounts(id),
+    category_id TEXT REFERENCES categories(id),
+    initial_amount_cents INTEGER NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'KZT',
+    annual_rate_bps INTEGER NOT NULL,
+    early_withdrawal_rate_bps INTEGER NOT NULL DEFAULT 0,
+    term_months INTEGER NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    capitalization TEXT NOT NULL DEFAULT 'monthly' CHECK(capitalization IN ('monthly', 'quarterly', 'at_end', 'none')),
+    is_withdrawable INTEGER NOT NULL DEFAULT 0,
+    is_replenishable INTEGER NOT NULL DEFAULT 0,
+    min_balance_cents INTEGER NOT NULL DEFAULT 0,
+    top_up_cents INTEGER NOT NULL DEFAULT 0,
+    note TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_deposits_active ON deposits(is_active);
+  CREATE INDEX IF NOT EXISTS idx_deposits_bank ON deposits(bank_name);
+
   CREATE TABLE IF NOT EXISTS personal_debts (
     id TEXT PRIMARY KEY,
     person_name TEXT NOT NULL,

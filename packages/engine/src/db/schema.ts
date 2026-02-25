@@ -136,6 +136,38 @@ export const loans = sqliteTable('loans', {
   index('idx_loans_category').on(table.categoryId),
 ]);
 
+export const deposits = sqliteTable('deposits', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').notNull(),
+  bankName: text('bank_name').notNull(),
+  type: text('type', {
+    enum: ['term', 'savings', 'demand'],
+  }).notNull(),
+  accountId: text('account_id').references(() => accounts.id),
+  categoryId: text('category_id').references(() => categories.id),
+  initialAmountCents: integer('initial_amount_cents').notNull(),
+  currency: text('currency').notNull().default('KZT'),
+  annualRateBps: integer('annual_rate_bps').notNull(),
+  earlyWithdrawalRateBps: integer('early_withdrawal_rate_bps').notNull().default(0),
+  termMonths: integer('term_months').notNull(),
+  startDate: text('start_date').notNull(),
+  endDate: text('end_date'),
+  capitalization: text('capitalization', {
+    enum: ['monthly', 'quarterly', 'at_end', 'none'],
+  }).notNull().default('monthly'),
+  isWithdrawable: integer('is_withdrawable', { mode: 'boolean' }).notNull().default(false),
+  isReplenishable: integer('is_replenishable', { mode: 'boolean' }).notNull().default(false),
+  minBalanceCents: integer('min_balance_cents').notNull().default(0),
+  topUpCents: integer('top_up_cents').notNull().default(0),
+  note: text('note'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+}, (table) => [
+  index('idx_deposits_active').on(table.isActive),
+  index('idx_deposits_bank').on(table.bankName),
+]);
+
 export const personalDebts = sqliteTable('personal_debts', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   personName: text('person_name').notNull(),

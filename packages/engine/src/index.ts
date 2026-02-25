@@ -10,6 +10,7 @@ export {
   scheduledTransactions,
   loans,
   personalDebts,
+  deposits,
 } from './db/schema.js';
 
 export { formatMoney, addCents, subtractCents, multiplyCents, sumCents } from './math/money.js';
@@ -25,3 +26,6 @@ export { getUpcoming, processDue, advanceDate } from './scheduler/engine.js';
 
 export type { LoanSummary, AmortizationEntry } from './loan/types.js';
 export { getLoanCurrentDebt, getLoanSummary, loanToDebtSnapshot, generateAmortizationSchedule } from './loan/engine.js';
+
+export type { DepositSummary, InterestScheduleEntry, KdifExposure, DepositCompareConfig, DepositComparisonEntry } from './deposit/types.js';
+export { getDepositCurrentBalance, getDepositSummary, generateInterestSchedule, computeEffectiveAnnualRate, getKdifExposure, compareDeposits } from './deposit/engine.js';
