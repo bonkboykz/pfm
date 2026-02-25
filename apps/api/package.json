@@ -1,0 +1,24 @@
+{
+  "name": "@pfm/api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pfm/engine": "workspace:*",
+    "hono": "latest",
+    "@hono/node-server": "latest",
+    "zod": "latest",
+    "@paralleldrive/cuid2": "latest",
+    "drizzle-orm": "latest"
+  },
+  "devDependencies": {
+    "tsx": "latest",
+    "vitest": "latest",
+    "typescript": "latest"
+  }
+}
