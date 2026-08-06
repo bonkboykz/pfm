@@ -15774,6 +15774,2090 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "ZoMvM",
+      "x": 8972,
+      "y": 893,
+      "name": "Отчёты",
+      "clip": true,
+      "width": 412,
+      "fill": "$pfm/bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "ZlM0d",
+          "name": "Status Bar",
+          "width": "fill_container",
+          "height": 62,
+          "padding": [
+            0,
+            20
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "QXEJk",
+              "name": "Time",
+              "fill": "$pfm/text-primary",
+              "content": "11:35",
+              "fontFamily": "Inter",
+              "fontSize": 15,
+              "fontWeight": "600"
+            },
+            {
+              "type": "frame",
+              "id": "nVWyB",
+              "name": "Status Icons",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "u1lg7",
+                  "name": "signal",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "signal",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                },
+                {
+                  "type": "icon",
+                  "id": "aeuvO",
+                  "name": "wifi",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "wifi",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                },
+                {
+                  "type": "icon",
+                  "id": "Er77J",
+                  "name": "battery-full",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "battery-full",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "m1Ale",
+          "name": "Content",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "padding": [
+            4,
+            16,
+            20,
+            16
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "HA4JC",
+              "name": "Header",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "NyyNM",
+                  "name": "Title",
+                  "fill": "$pfm/text-primary",
+                  "content": "Отчёты",
+                  "fontFamily": "$pfm/font-display",
+                  "fontSize": 30,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YZoEL",
+              "name": "Period Chips",
+              "width": "fill_container",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "PB4Qf",
+                  "name": "Chip 3 месяца",
+                  "width": "fill_container",
+                  "height": 38,
+                  "fill": "$pfm/surface",
+                  "cornerRadius": 999,
+                  "stroke": "$pfm/border",
+                  "strokeWidth": 1,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "GlbhH",
+                      "name": "Label",
+                      "fill": "$pfm/text-secondary",
+                      "content": "3 месяца",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "du2ce",
+                  "name": "Chip 6 месяцев",
+                  "width": "fill_container",
+                  "height": 38,
+                  "fill": "$pfm/surface",
+                  "cornerRadius": 999,
+                  "stroke": "$pfm/border",
+                  "strokeWidth": 1,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "X7tVTr",
+                      "name": "Label",
+                      "fill": "$pfm/text-secondary",
+                      "content": "6 месяцев",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "cfJRc",
+                  "name": "Chip 12 месяцев",
+                  "width": "fill_container",
+                  "height": 38,
+                  "fill": "$pfm/accent",
+                  "cornerRadius": 999,
+                  "stroke": "$pfm/accent",
+                  "strokeWidth": 1,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ddjRe",
+                      "name": "Label",
+                      "fill": "#FFFFFF",
+                      "content": "12 месяцев",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "a26zJ0",
+              "name": "Cash Flow Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "stroke": "$pfm/border",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 14,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "LRtuX",
+                  "name": "Label",
+                  "fill": "$pfm/text-secondary",
+                  "content": "Приход и расход за период",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "ajEnV",
+                  "name": "Flow Row",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "n383u5",
+                      "name": "Cell Пришло",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "N2F7DZ",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "Пришло",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "lEfdm",
+                          "name": "Value",
+                          "fill": "$pfm/positive",
+                          "content": "+1 431 000 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "Bm88R",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": 1,
+                      "height": 34
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Zfj1l",
+                      "name": "Cell Ушло",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "eSgzz",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "Ушло",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "vEbAc",
+                          "name": "Value",
+                          "fill": "$pfm/text-primary",
+                          "content": "-1 285 300 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "MshXj",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": 1,
+                      "height": 34
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GgvkP",
+                      "name": "Cell Разница",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 4,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "TG0i3",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "Разница",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Fb1Yt",
+                          "name": "Value",
+                          "fill": "$pfm/positive",
+                          "content": "+145 700 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "EBmpd",
+              "name": "Trend Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "stroke": "$pfm/border",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 14,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "JUdHE",
+                  "name": "Head",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "eYYYJ",
+                      "name": "Title",
+                      "fill": "$pfm/text-primary",
+                      "content": "По месяцам",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ua5Bs",
+                      "name": "Legend",
+                      "gap": 12,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "c0yNkD",
+                          "name": "Legend приход",
+                          "gap": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "AIe7v",
+                              "name": "Dot",
+                              "fill": "$pfm/positive",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "A6bQJ",
+                              "name": "Label",
+                              "fill": "$pfm/text-muted",
+                              "content": "приход",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "XoVZh",
+                          "name": "Legend расход",
+                          "gap": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "fNW0t",
+                              "name": "Dot",
+                              "fill": "$pfm/accent",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "YE0cF",
+                              "name": "Label",
+                              "fill": "$pfm/text-muted",
+                              "content": "расход",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "bUdEl",
+                  "name": "Bars",
+                  "width": "fill_container",
+                  "height": 140,
+                  "gap": 10,
+                  "justifyContent": "space_between",
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "xKUt7",
+                      "name": "Col сен",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "pxv8o",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "bn1KM",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "Lwjeg",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "NyHGK",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "сен",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "UNvp0",
+                      "name": "Col окт",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Lhdxm",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "G8rdZa",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "T59mIW",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "laVlD",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "окт",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "XJmzb",
+                      "name": "Col ноя",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "O3CtyG",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "rfGWB",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "zClKO",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "TY1Pa",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "ноя",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GlxeT",
+                      "name": "Col дек",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "M8WtNt",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "f4QACe",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "VwHb6",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "OlMrs",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "дек",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Id4NX",
+                      "name": "Col янв",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "qAZ4f",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "EhO03",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "e0y3RU",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "a1fEM",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "янв",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "QAVIl",
+                      "name": "Col фев",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YMMWn",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "b19z4",
+                              "name": "In",
+                              "fill": "$pfm/positive",
+                              "width": 7,
+                              "height": 106
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "U5FYFn",
+                              "name": "Out",
+                              "fill": "$pfm/accent",
+                              "width": 7,
+                              "height": 86
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "Pi68H",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "фев",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TZcaC",
+                      "name": "Col мар",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "uE3mY",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "lvswb",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "Lc8o8",
+                              "name": "Out",
+                              "fill": "$pfm/accent",
+                              "width": 7,
+                              "height": 14
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "TDoYT",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "мар",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "E4woa",
+                      "name": "Col апр",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ky0iD",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "J8uQz",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "ZNrOu",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "nklWO",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "апр",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "RECqV",
+                      "name": "Col май",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "nPjzt",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "RVjzB",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "l1a810",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "QeOt2",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "май",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "DefnI",
+                      "name": "Col июн",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "f6756",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "xIhMC",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "m1ukT",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "fnMFv",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "июн",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "W6tOK",
+                      "name": "Col июл",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "DzEDZ",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "QaHJG",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "TvSPs",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "FAGdo",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "июл",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "lAfA3",
+                      "name": "Col авг",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "exz1A",
+                          "name": "Pair",
+                          "height": 112,
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "nswzK",
+                              "name": "In",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            },
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                3,
+                                3,
+                                0,
+                                0
+                              ],
+                              "id": "OFgS6",
+                              "name": "Out",
+                              "fill": "$pfm/border",
+                              "width": 7,
+                              "height": 2
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "xY1Nq",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "авг",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "rov4q",
+              "name": "Categories Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "stroke": "$pfm/border",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 16,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "FBxbc",
+                  "name": "Title",
+                  "fill": "$pfm/text-primary",
+                  "content": "Куда уходят деньги",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 14,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "KEKbl",
+                  "name": "Donut Row",
+                  "width": "fill_container",
+                  "gap": 18,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "AGzO1",
+                      "name": "Donut",
+                      "width": 112,
+                      "height": 112,
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "wkXvH",
+                          "layoutPosition": "absolute",
+                          "x": 0,
+                          "y": 0,
+                          "name": "Slice 0",
+                          "innerRadius": 0.62,
+                          "startAngle": 90,
+                          "sweepAngle": -150,
+                          "fill": "$pfm/accent",
+                          "width": 112,
+                          "height": 112
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "b2Y2fO",
+                          "layoutPosition": "absolute",
+                          "x": 0,
+                          "y": 0,
+                          "name": "Slice 150",
+                          "innerRadius": 0.62,
+                          "startAngle": -60,
+                          "sweepAngle": -90,
+                          "fill": "#16A34A",
+                          "width": 112,
+                          "height": 112
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "qkvF4",
+                          "layoutPosition": "absolute",
+                          "x": 0,
+                          "y": 0,
+                          "name": "Slice 240",
+                          "innerRadius": 0.62,
+                          "startAngle": -150,
+                          "sweepAngle": -60,
+                          "fill": "#F59E0B",
+                          "width": 112,
+                          "height": 112
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "E2e1JK",
+                          "layoutPosition": "absolute",
+                          "x": 0,
+                          "y": 0,
+                          "name": "Slice 300",
+                          "innerRadius": 0.62,
+                          "startAngle": -210,
+                          "sweepAngle": -38,
+                          "fill": "#6366F1",
+                          "width": 112,
+                          "height": 112
+                        },
+                        {
+                          "type": "ellipse",
+                          "id": "mLUfm",
+                          "layoutPosition": "absolute",
+                          "x": 0,
+                          "y": 0,
+                          "name": "Slice 338",
+                          "innerRadius": 0.62,
+                          "startAngle": -248,
+                          "sweepAngle": -22,
+                          "fill": "#9AA1AC",
+                          "width": 112,
+                          "height": 112
+                        },
+                        {
+                          "type": "frame",
+                          "id": "WfLhP",
+                          "layoutPosition": "absolute",
+                          "x": 0,
+                          "y": 0,
+                          "name": "Center",
+                          "width": 112,
+                          "height": 112,
+                          "layout": "vertical",
+                          "gap": 1,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "cA87g",
+                              "name": "Total",
+                              "fill": "$pfm/text-primary",
+                              "content": "1 285 300",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 15,
+                              "fontWeight": "800"
+                            },
+                            {
+                              "type": "text",
+                              "id": "H84hW",
+                              "name": "Label",
+                              "fill": "$pfm/text-muted",
+                              "content": "₸ расход",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ZdSny",
+                      "name": "Legend",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 9,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "fq8cI",
+                          "name": "Cat 🎁 Подарки",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "h9r5X",
+                              "name": "Dot",
+                              "fill": "$pfm/accent",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "C0hqW",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "🎁 Подарки",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "uh6gx",
+                              "name": "Pct",
+                              "fill": "$pfm/text-muted",
+                              "content": "41%",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "SLKdo",
+                              "name": "Amount",
+                              "fill": "$pfm/text-primary",
+                              "content": "353 200",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Al7Hh",
+                          "name": "Cat ✈️ Путешествия",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "JbvPa",
+                              "name": "Dot",
+                              "fill": "#16A34A",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "v7RaG",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "✈️ Путешествия",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "rTmGC",
+                              "name": "Pct",
+                              "fill": "$pfm/text-muted",
+                              "content": "25%",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ayLrc",
+                              "name": "Amount",
+                              "fill": "$pfm/text-primary",
+                              "content": "122 179",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "w7tu4",
+                          "name": "Cat 🤲 Помощь",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "k4hxS",
+                              "name": "Dot",
+                              "fill": "#F59E0B",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "O1mcIM",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "🤲 Помощь",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "JDpnC",
+                              "name": "Pct",
+                              "fill": "$pfm/text-muted",
+                              "content": "17%",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ypWFB",
+                              "name": "Amount",
+                              "fill": "$pfm/text-primary",
+                              "content": "50 000",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "R6QWw",
+                          "name": "Cat 📱 Связь",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "vP5PZ",
+                              "name": "Dot",
+                              "fill": "#6366F1",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "KmbGs",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "📱 Связь",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "DaZpD",
+                              "name": "Pct",
+                              "fill": "$pfm/text-muted",
+                              "content": "10%",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "cfUZ4",
+                              "name": "Amount",
+                              "fill": "$pfm/text-primary",
+                              "content": "10 316",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "WVfsp",
+                          "name": "Cat Прочее",
+                          "width": "fill_container",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "YpqcB",
+                              "name": "Dot",
+                              "fill": "#9AA1AC",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "MxxV7",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "Прочее",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "apDJy",
+                              "name": "Pct",
+                              "fill": "$pfm/text-muted",
+                              "content": "7%",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Eb6y3",
+                              "name": "Amount",
+                              "fill": "$pfm/text-primary",
+                              "content": "6 149",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "p2woWW",
+              "name": "Payees Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "stroke": "$pfm/border",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 14,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "T7Gwu",
+                  "name": "Title",
+                  "fill": "$pfm/text-primary",
+                  "content": "Кому чаще платили",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 14,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "bwHXI",
+                  "name": "List",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "E4O7g",
+                      "name": "Payee Расходы",
+                      "width": "fill_container",
+                      "gap": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "tnNMs",
+                          "name": "Left",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "gEjmA",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "content": "Расходы",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 14,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "uE4MK",
+                              "name": "Count",
+                              "fill": "$pfm/text-muted",
+                              "content": "2 операции",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "W1B8C",
+                          "name": "Amount",
+                          "fill": "$pfm/text-primary",
+                          "content": "64 920 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "cPfOd",
+                      "name": "Payee Папа",
+                      "width": "fill_container",
+                      "gap": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "dBuYu",
+                          "name": "Left",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "GGc5x",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "content": "Папа",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 14,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "gviis",
+                              "name": "Count",
+                              "fill": "$pfm/text-muted",
+                              "content": "1 операция",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "FvIPj",
+                          "name": "Amount",
+                          "fill": "$pfm/text-primary",
+                          "content": "50 000 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "yF7Yc",
+                      "name": "Payee Tele2",
+                      "width": "fill_container",
+                      "gap": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d1wTv",
+                          "name": "Left",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "t36iq",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "content": "Tele2",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 14,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Osn1O",
+                              "name": "Count",
+                              "fill": "$pfm/text-muted",
+                              "content": "2 операции",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "ufexD",
+                          "name": "Amount",
+                          "fill": "$pfm/text-primary",
+                          "content": "12 278 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "NbNEY",
+                      "name": "Payee Бахыт (SBDIFI)",
+                      "width": "fill_container",
+                      "gap": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "u8GlI",
+                          "name": "Left",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "K4Yz2",
+                              "name": "Name",
+                              "fill": "$pfm/text-primary",
+                              "content": "Бахыт (SBDIFI)",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 14,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Jm4Bp",
+                              "name": "Count",
+                              "fill": "$pfm/text-muted",
+                              "content": "1 операция",
+                              "fontFamily": "$pfm/font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "f7j1p",
+                          "name": "Amount",
+                          "fill": "$pfm/text-primary",
+                          "content": "15 000 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Ju3t5",
+              "name": "Currency Note",
+              "width": "fill_container",
+              "fill": "$pfm/neutral-soft",
+              "cornerRadius": "$pfm/radius-inner",
+              "gap": 8,
+              "padding": [
+                11,
+                13
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "oOklK",
+                  "name": "Icon",
+                  "width": 14,
+                  "height": 14,
+                  "icon": "info",
+                  "library": "lucide",
+                  "fill": "$pfm/text-secondary"
+                },
+                {
+                  "type": "text",
+                  "id": "iLETs",
+                  "name": "Text",
+                  "fill": "$pfm/text-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Считается по счетам в ₸. Операции в других валютах в разрезы не попадают.",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "KLAS1",
+          "name": "Tab Bar",
+          "width": "fill_container",
+          "height": 80,
+          "fill": "$pfm/surface",
+          "stroke": "$pfm/border",
+          "strokeWidth": {
+            "top": 1
+          },
+          "padding": [
+            10,
+            4,
+            14,
+            4
+          ],
+          "justifyContent": "space_around",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "CZku9",
+              "name": "Tab Бюджет",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tLXqO",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "HwxW8",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "chart-pie",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "KveON",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Бюджет",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "d9vzhC",
+              "name": "Tab Счета",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Y82Pvr",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "xOVnz",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "wallet",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "revVU",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Счета",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "lnu4E",
+              "name": "Tab Операции",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "c7mwEV",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "DbwTm",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "arrow-left-right",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "sCP08",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Операции",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "sgSLf",
+              "name": "Tab Отчёты",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "A2x3Y",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "$pfm/accent-soft",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "Xdhex",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "chart-column",
+                      "library": "lucide",
+                      "fill": "$pfm/text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "MCzwM",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Отчёты",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "R47ak",
+              "name": "Tab Ещё",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "uCzAz",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "hWBtL",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "layout-grid",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "DtFRF",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Ещё",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "themes": {
