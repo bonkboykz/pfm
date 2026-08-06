@@ -44,8 +44,10 @@ Turborepo monorepo. YNAB-style zero-based budgeting engine + REST API + MCP.
 worklog-ручек — **time tracking это фича Plane Pro**, в Community её нет: флаг
 `is_time_tracking_enabled` через API ставится, но кнопки «Log work» в интерфейсе не будет.
 `create_state` **игнорирует `sequence`**, дописывая статус в конец группы.
-`comment_html` принимает **сырой HTML** — экранировать теги не надо, иначе в интерфейсе
-будут видны `&lt;p&gt;` вместо форматирования (лечится `update_work_item_comment`).
+`comment_html` **и `description_html`** принимают **сырой HTML** — экранировать теги не надо,
+иначе в интерфейсе будут видны `&lt;p&gt;` вместо форматирования (лечится
+`update_work_item_comment` / `update_work_item`). Сервер сам оборачивает содержимое
+в `<div>`, свой корневой контейнер добавлять не нужно.
 
 ## Structure
 
