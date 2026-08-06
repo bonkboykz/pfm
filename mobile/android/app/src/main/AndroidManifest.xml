@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Приложение целиком работает поверх REST API, поэтому интернет нужен и в
+         релизе. Шаблон Flutter объявляет это разрешение только в debug- и
+         profile-манифестах, из-за чего release-сборка молча падала в
+         "Failed host lookup" на каждом запросе. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="PFM"
         android:name="${applicationName}"

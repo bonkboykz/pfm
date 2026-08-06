@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/text/plural.dart';
 import '../../../core/widgets/states.dart';
 import '../cubit/more_cubit.dart';
 
@@ -150,7 +151,8 @@ class _Content extends StatelessWidget {
                 title: 'Регулярные платежи',
                 subtitle: scheduled == null
                     ? 'не загрузились'
-                    : '${scheduled.items.length} правил'
+                    : '${scheduled.items.length} '
+                        '${plural(scheduled.items.length, 'правило', 'правила', 'правил')}'
                         '${due > 0 ? " · наступило $due" : ""}',
                 value: due > 0 ? '$due' : null,
                 valueColor: AppColors.warning,

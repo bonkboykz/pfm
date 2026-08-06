@@ -9,6 +9,7 @@ import '../../../app/theme.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/text/plural.dart';
 import '../cubit/reports_cubit.dart';
 import '../data/reports_models.dart';
 import '../data/reports_repository.dart';
@@ -644,7 +645,8 @@ class _PayeesCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _plural(top[i].count),
+                        '${top[i].count} '
+                        '${plural(top[i].count, 'операция', 'операции', 'операций')}',
                         style: theme.textTheme.bodySmall?.copyWith(
                             fontSize: 11, color: AppColors.textMuted),
                       ),
@@ -668,15 +670,6 @@ class _PayeesCard extends StatelessWidget {
     );
   }
 
-  static String _plural(int n) {
-    final mod10 = n % 10;
-    final mod100 = n % 100;
-    if (mod10 == 1 && mod100 != 11) return '$n операция';
-    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-      return '$n операции';
-    }
-    return '$n операций';
-  }
 }
 
 class _CurrencyNote extends StatelessWidget {
