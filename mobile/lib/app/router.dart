@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../core/widgets/placeholder.dart';
 import '../features/accounts/presentation/account_register_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
 import '../features/budget/presentation/budget_page.dart';
+import '../features/debts/presentation/debts_page.dart';
+import '../features/deposits/presentation/deposit_schedule_page.dart';
+import '../features/deposits/presentation/deposits_page.dart';
+import '../features/loans/presentation/loan_schedule_page.dart';
+import '../features/loans/presentation/loans_page.dart';
+import '../features/more/presentation/more_page.dart';
+import '../features/payoff/presentation/payoff_page.dart';
+import '../features/reports/presentation/reports_page.dart';
+import '../features/scheduled/presentation/scheduled_page.dart';
 import '../features/settings/presentation/settings_page.dart';
+import '../features/transactions/presentation/transactions_page.dart';
 import 'branch_pager.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
@@ -49,29 +58,56 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/transactions',
-            builder: (context, state) => const FeaturePlaceholder(
-              title: 'Операции',
-              note: 'Волна 3: лента операций, фильтры и добавление.',
-            ),
+            builder: (context, state) => const TransactionsPage(),
           ),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/reports',
-            builder: (context, state) => const FeaturePlaceholder(
-              title: 'Отчёты',
-              note: 'Волна 4: тренды, траты по категориям, приход/расход.',
-            ),
+            builder: (context, state) => const ReportsPage(),
           ),
         ]),
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/more',
-            builder: (context, state) => const FeaturePlaceholder(
-              title: 'Ещё',
-              note: 'Волна 5: кредиты, долги, вклады, регулярные, симулятор.',
-              showSettings: true,
-            ),
+            builder: (context, state) => const MorePage(),
+            routes: [
+              GoRoute(
+                path: 'loans',
+                builder: (context, state) => const LoansPage(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) =>
+                        LoanSchedulePage(loanId: state.pathParameters['id']!),
+                  ),
+                ],
+              ),
+              GoRoute(
+                path: 'debts',
+                builder: (context, state) => const DebtsPage(),
+              ),
+              GoRoute(
+                path: 'deposits',
+                builder: (context, state) => const DepositsPage(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) => DepositSchedulePage(
+                      depositId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
+              ),
+              GoRoute(
+                path: 'scheduled',
+                builder: (context, state) => const ScheduledPage(),
+              ),
+              GoRoute(
+                path: 'payoff',
+                builder: (context, state) => const PayoffPage(),
+              ),
+            ],
           ),
         ]),
       ],
