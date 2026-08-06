@@ -2,6 +2,51 @@
 
 Turborepo monorepo. YNAB-style zero-based budgeting engine + REST API + MCP.
 
+## Держать Plane актуальным (обязательно)
+
+Проект ведётся в **self-hosted Plane** (`https://plane.team.rama.gg`), workspace `personal`,
+проект **PFM** (identifier `PFM`, project_id `0ebd8a57-954d-4ed3-8e50-eac55980ea22`).
+Синхронизируй через **Plane MCP** по ходу работы:
+
+- **Начал** крупную задачу → переведи её в **In Progress** (`update_work_item`, поле `state`).
+- **Завершил** (проверенная фича закоммичена и запушена в `main`) → переведи в
+  **Ready to Deploy** и добавь короткий комментарий со ссылкой на коммит/суть
+  (`create_work_item_comment`). В **Done** — только когда выкачено в прод и проверено там.
+- **Новая** планируемая работа (из кода/обсуждения) → заведи через `create_work_item` в нужном
+  статусе (Todo/Backlog) с подходящей меткой. **Приоритеты не проставляй** — решение пользователя.
+- Перед созданием проверь `search_work_items`, чтобы не плодить дубликаты; ищи по заголовку.
+- Если MCP-вызов падает — повтори; при иной ошибке честно сообщи и не выдавай за сделанное.
+
+**Эпики — это МОДУЛИ Plane**: `Engine и данные` · `REST API` · `Mobile — каркас и бюджет` ·
+`Mobile — счета и операции` · `Mobile — отчёты и домены` · `Mobile — релиз и иконка` ·
+`MCP и скилл` · `Инфра и деплой`.
+Метки: `engine` `api` `mobile` `design` `infra` `docs` `Bug` `Tech debt` `UX`.
+Статусы (2026-08-06): `Backlog` / `Todo` / `In Progress` / `In Review` / `QA` /
+`Ready to Deploy` / `Done` / `Cancelled` / `Duplicate`. Три средних — группа `started`,
+поэтому в burndown они считаются незакрытыми: `Done` = выкачено в прод, не «смёржено».
+
+**Циклы (Cycles)** двухнедельные. Модули = этапы продукта, циклы = спринты; задача может быть
+одновременно в обоих. Закрывая цикл, незавершённое переносится через `transfer_cycle_work_items`.
+`Cycle 1` — 2026-08-10 … 2026-08-23.
+
+**Оценки (estimates).** Шкалы пока нет: в Community вся группа estimate-ручек отдаёт 404,
+через API её не создать. Включи руками в **Settings → Estimates**, проставь пару задач,
+после чего UUID точек вычитываются через `list_work_items(fields: "estimate_point")` и
+таблица «оценка → UUID» дописывается сюда. Писать оценку надо строго в `estimate_point`
+(FK на точку шкалы) — legacy-поле `point` API принимает молча, но UI и burndown его игнорируют.
+
+⚠️ Ограничения инстанса (Community **v1.4.0**), не тратить на них попытки:
+**PQL-фильтры не поддерживаются вообще** — фильтруй на клиенте, выкачивая страницы по 100.
+`retrieve_work_item_by_identifier` работает **только с `expand: "labels"`**; фильтр
+`external_id` в `list_work_items` не работает. **404 отдают**: `get_features`,
+`update_project_features` (фичи включаются через `update_project`: `cycle_view`,
+`module_view`, `issue_views_view`, `page_view`), вся группа estimate-ручек и вся группа
+worklog-ручек — **time tracking это фича Plane Pro**, в Community её нет: флаг
+`is_time_tracking_enabled` через API ставится, но кнопки «Log work» в интерфейсе не будет.
+`create_state` **игнорирует `sequence`**, дописывая статус в конец группы.
+`comment_html` принимает **сырой HTML** — экранировать теги не надо, иначе в интерфейсе
+будут видны `&lt;p&gt;` вместо форматирования (лечится `update_work_item_comment`).
+
 ## Structure
 
 - `packages/engine` — @pfm/engine: core library (budget, math, db)
