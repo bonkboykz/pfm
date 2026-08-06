@@ -56,9 +56,10 @@ String _decorate(String absStr, bool isNegative, String currency) {
       : '$sign$absStr ${config.symbol}';
 }
 
-/// Same as [formatMoney] but always shows an explicit sign for non-zero values.
+/// [formatMoneySmart] with an explicit `+` on inflows, for registers where the
+/// direction of a row matters as much as its size.
 String formatMoneySigned(int amountCents, {String currency = 'KZT'}) {
-  final formatted = formatMoney(amountCents, currency: currency);
+  final formatted = formatMoneySmart(amountCents, currency: currency);
   return amountCents > 0 ? '+$formatted' : formatted;
 }
 

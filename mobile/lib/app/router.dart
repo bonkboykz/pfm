@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../core/widgets/placeholder.dart';
+import '../features/accounts/presentation/account_register_page.dart';
+import '../features/accounts/presentation/accounts_page.dart';
 import '../features/budget/presentation/budget_page.dart';
 import '../features/settings/presentation/settings_page.dart';
 import 'branch_pager.dart';
@@ -33,10 +35,15 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/accounts',
-            builder: (context, state) => const FeaturePlaceholder(
-              title: 'Счета',
-              note: 'Волна 2: балансы счетов и регистр по каждому.',
-            ),
+            builder: (context, state) => const AccountsPage(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                builder: (context, state) => AccountRegisterPage(
+                  accountId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
           ),
         ]),
         StatefulShellBranch(routes: [

@@ -26,3 +26,11 @@ String formatMonthLabel(String month) {
 /// "2026-08" → "августе 2026" (for use inside a sentence)
 String formatMonthInline(String month) =>
     DateFormat('LLLL yyyy', 'ru').format(_monthDate(month));
+
+/// "2026-02-28" → "28 февраля" (year appended when it is not the current one)
+String formatDayLabel(String date) {
+  final parsed = DateTime.tryParse(date);
+  if (parsed == null) return date;
+  final pattern = parsed.year == DateTime.now().year ? 'd MMMM' : 'd MMMM yyyy';
+  return DateFormat(pattern, 'ru').format(parsed);
+}
