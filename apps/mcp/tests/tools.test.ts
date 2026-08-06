@@ -396,3 +396,106 @@ describe('scheduled transaction tools', () => {
     });
   });
 });
+
+describe('loan tools', () => {
+  it('lists loans', () => {
+    expect(mapping('list_loans', {})).toEqual({ method: 'GET', path: '/api/v1/loans', body: undefined });
+  });
+
+  it('reads one loan', () => {
+    expect(mapping('get_loan', { id: 'loan-1' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/loans/loan-1',
+      body: undefined,
+    });
+  });
+
+  it('reads the amortization schedule', () => {
+    expect(mapping('get_loan_schedule', { id: 'loan-1' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/loans/loan-1/schedule',
+      body: undefined,
+    });
+  });
+
+  it('creates a loan', () => {
+    const args = {
+      name: 'Halyk auto',
+      type: 'loan',
+      principalCents: 500000000,
+      aprBps: 1850,
+      termMonths: 60,
+      startDate: '2026-01-15',
+      monthlyPaymentCents: 12800000,
+      paymentDay: 15,
+    };
+    expect(mapping('create_loan', args)).toEqual({ method: 'POST', path: '/api/v1/loans', body: args });
+  });
+
+  it('strips id when updating', () => {
+    expect(mapping('update_loan', { id: 'loan-1', monthlyPaymentCents: 13000000 })).toEqual({
+      method: 'PATCH',
+      path: '/api/v1/loans/loan-1',
+      body: { monthlyPaymentCents: 13000000 },
+    });
+  });
+
+  it('deletes a loan', () => {
+    expect(mapping('delete_loan', { id: 'loan-1' })).toEqual({
+      method: 'DELETE',
+      path: '/api/v1/loans/loan-1',
+      body: undefined,
+    });
+  });
+});
+
+describe('personal debt tools', () => {
+  it('lists unsettled debts by default', () => {
+    expect(mapping('list_debts', {})).toEqual({ method: 'GET', path: '/api/v1/debts', body: undefined });
+  });
+
+  it('lists including settled debts', () => {
+    expect(mapping('list_debts', { includeSettled: true })).toEqual({
+      method: 'GET',
+      path: '/api/v1/debts?includeSettled=true',
+      body: undefined,
+    });
+  });
+
+  it('reads one debt', () => {
+    expect(mapping('get_debt', { id: 'debt-1' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/debts/debt-1',
+      body: undefined,
+    });
+  });
+
+  it('creates a debt', () => {
+    const args = { personName: 'Aidar', direction: 'owed', amountCents: 5000000 };
+    expect(mapping('create_debt', args)).toEqual({ method: 'POST', path: '/api/v1/debts', body: args });
+  });
+
+  it('strips id when updating', () => {
+    expect(mapping('update_debt', { id: 'debt-1', amountCents: 6000000 })).toEqual({
+      method: 'PATCH',
+      path: '/api/v1/debts/debt-1',
+      body: { amountCents: 6000000 },
+    });
+  });
+
+  it('settles a debt with no body', () => {
+    expect(mapping('settle_debt', { id: 'debt-1' })).toEqual({
+      method: 'POST',
+      path: '/api/v1/debts/debt-1/settle',
+      body: undefined,
+    });
+  });
+
+  it('deletes a debt', () => {
+    expect(mapping('delete_debt', { id: 'debt-1' })).toEqual({
+      method: 'DELETE',
+      path: '/api/v1/debts/debt-1',
+      body: undefined,
+    });
+  });
+});

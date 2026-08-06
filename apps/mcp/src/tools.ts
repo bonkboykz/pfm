@@ -340,4 +340,145 @@ export const tools: ToolDef[] = [
     path: () => '/api/v1/scheduled/process',
     body: (a) => (a.asOfDate === undefined ? {} : { asOfDate: a.asOfDate }),
   },
+
+  // ===== Loans =====
+  {
+    name: 'list_loans',
+    description:
+      'List bank loans with current outstanding debt, monthly payment and progress. Amounts are tiyn; aprBps is basis points (1850 = 18.50%).',
+    schema: z.object({}),
+    method: 'GET',
+    path: () => '/api/v1/loans',
+  },
+  {
+    name: 'get_loan',
+    description:
+      'Get one loan by id with its computed summary: outstanding principal, payments made and remaining term.',
+    schema: z.object({ id: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/loans/${a.id}`,
+  },
+  {
+    name: 'create_loan',
+    description:
+      'Create a loan. principalCents and monthlyPaymentCents are tiyn, aprBps is basis points, startDate is YYYY-MM-DD, paymentDay is 1–28. paidOffCents records principal already repaid before this loan was entered.',
+    schema: z.object({
+      name: z.string().min(1),
+      type: z.enum(['loan', 'installment', 'credit_line']),
+      accountId: z.string().optional(),
+      categoryId: z.string().optional(),
+      principalCents: z.number().int().positive(),
+      aprBps: z.number().int().min(0).optional(),
+      termMonths: z.number().int().positive(),
+      startDate: z.string(),
+      monthlyPaymentCents: z.number().int().positive(),
+      paymentDay: z.number().int().min(1).max(28),
+      penaltyRateBps: z.number().int().min(0).optional(),
+      earlyRepaymentFeeCents: z.number().int().min(0).optional(),
+      paidOffCents: z.number().int().min(0).optional(),
+      note: z.string().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/loans',
+    body: (a) => a,
+  },
+  {
+    name: 'update_loan',
+    description:
+      'Update a loan. Principal, APR, term and start date are deliberately not editable — recreate the loan if those were entered wrong.',
+    schema: z.object({
+      id: z.string(),
+      name: z.string().min(1).optional(),
+      accountId: z.string().nullable().optional(),
+      categoryId: z.string().nullable().optional(),
+      monthlyPaymentCents: z.number().int().positive().optional(),
+      paymentDay: z.number().int().min(1).max(28).optional(),
+      penaltyRateBps: z.number().int().min(0).optional(),
+      earlyRepaymentFeeCents: z.number().int().min(0).optional(),
+      paidOffCents: z.number().int().min(0).optional(),
+      note: z.string().nullable().optional(),
+    }),
+    method: 'PATCH',
+    path: (a) => `/api/v1/loans/${a.id}`,
+    body: omitId,
+  },
+  {
+    name: 'delete_loan',
+    description: 'Deactivate a loan, removing it from lists and debt totals.',
+    schema: z.object({ id: z.string() }),
+    method: 'DELETE',
+    path: (a) => `/api/v1/loans/${a.id}`,
+  },
+  {
+    name: 'get_loan_schedule',
+    description:
+      'Full amortization schedule for a loan: per-month principal, interest and remaining balance in tiyn. Use this to answer "how much of my payment is interest".',
+    schema: z.object({ id: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/loans/${a.id}/schedule`,
+  },
+
+  // ===== Personal debts =====
+  {
+    name: 'list_debts',
+    description:
+      'List informal debts between the user and other people. direction "owe" means the user owes them; "owed" means they owe the user. Settled debts are excluded unless includeSettled is true.',
+    schema: z.object({ includeSettled: z.boolean().optional() }),
+    method: 'GET',
+    path: (a) => `/api/v1/debts${qs({ includeSettled: a.includeSettled })}`,
+  },
+  {
+    name: 'get_debt',
+    description: 'Get one personal debt by id.',
+    schema: z.object({ id: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/debts/${a.id}`,
+  },
+  {
+    name: 'create_debt',
+    description:
+      'Record a personal debt. direction "owe" = the user owes personName; "owed" = personName owes the user. amountCents is tiyn and must be positive — direction carries the sign, not the amount. dueDate is YYYY-MM-DD.',
+    schema: z.object({
+      personName: z.string().min(1),
+      direction: z.enum(['owe', 'owed']),
+      amountCents: z.number().int().positive(),
+      currency: z.string().optional(),
+      dueDate: z.string().optional(),
+      note: z.string().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/debts',
+    body: (a) => a,
+  },
+  {
+    name: 'update_debt',
+    description:
+      'Update a personal debt. direction cannot be changed — delete and recreate if it was entered backwards.',
+    schema: z.object({
+      id: z.string(),
+      personName: z.string().min(1).optional(),
+      amountCents: z.number().int().positive().optional(),
+      currency: z.string().optional(),
+      dueDate: z.string().nullable().optional(),
+      note: z.string().nullable().optional(),
+    }),
+    method: 'PATCH',
+    path: (a) => `/api/v1/debts/${a.id}`,
+    body: omitId,
+  },
+  {
+    name: 'settle_debt',
+    description:
+      'Mark a personal debt as settled, stamped with today as the settled date. Fails if it is already settled. This does not create a transaction — record any money movement separately with create_transaction.',
+    schema: z.object({ id: z.string() }),
+    method: 'POST',
+    path: (a) => `/api/v1/debts/${a.id}/settle`,
+  },
+  {
+    name: 'delete_debt',
+    description: 'Permanently delete a personal debt record. Prefer settle_debt when the debt was actually repaid.',
+    schema: z.object({ id: z.string() }),
+    method: 'DELETE',
+    path: (a) => `/api/v1/debts/${a.id}`,
+  },
 ];
