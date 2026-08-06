@@ -53,7 +53,7 @@ worklog-ручек — **time tracking это фича Plane Pro**, в Community
 
 - `packages/engine` — @pfm/engine: core library (budget, math, db)
 - `apps/api` — Hono REST server, depends on @pfm/engine
-- `apps/mcp` — MCP server for AI agents (post-MVP)
+- `apps/mcp` — @pfm/mcp: MCP tool table + server, dispatched into the API routes
 - `packages/skill` — OpenClaw skill (curl-based API wrapper)
 
 ## Tech Stack
@@ -112,6 +112,19 @@ export function assignToCategory(db: DB, categoryId: string, month: string, amou
 
 This lets apps/api, apps/mcp, and tests each create their own db instance.
 
+### MCP Pattern
+
+`@pfm/mcp` owns a declarative table of 48 tools; each maps arguments to an HTTP
+method, path and body. `createMcpServer(dispatch)` takes the dispatch function as
+its first argument, the same dependency-injection shape engine functions use for
+`db`. The API supplies a dispatch that routes into an internal Hono app built from
+the same route factories as REST, so route handlers stay the single source of truth.
+
+`@pfm/mcp` must not import `@pfm/api` or `@pfm/engine` — apps/api depends on it.
+
+Remote endpoint: `POST /mcp/:token`, token = `PFM_MCP_TOKEN` (falls back to
+`PFM_API_KEY`). Adding a REST endpoint means adding a tool to the table.
+
 ### API Response Format
 
 - Errors: `{ error: { code, message, suggestion } }`
@@ -122,7 +135,11 @@ This lets apps/api, apps/mcp, and tests each create their own db instance.
 ### Testing
 
 - Framework: Vitest
-- DB in tests: `createDb(':memory:')` for isolation
+- DB in tests: `createTestDb()` from `apps/api/tests/fixtures/db.ts` — it runs the
+  DDL and seeds the system rows. `createDb(':memory:')` only opens a connection and
+  creates no tables; `packages/engine/src/db/migrate.ts` is a side-effecting script
+  that writes to `./data`, so it cannot be reused from a test. The five older API
+  test files predate the fixture and each carry their own copy of the DDL.
 - API tests: `app.request()` (no HTTP server needed)
 - Seed test data in `beforeAll` block
 

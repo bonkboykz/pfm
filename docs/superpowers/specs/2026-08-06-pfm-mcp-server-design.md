@@ -137,9 +137,11 @@ API уже возвращает деньги парами (`balanceCents` + `bal
 Сравнение через `crypto.timingSafeEqual` с предварительной сверкой длины.
 
 Транспорт stateless: на каждый запрос создаются свежие `McpServer` и
-`StreamableHTTPServerTransport` с `sessionIdGenerator: undefined`, оба закрываются
-по `outgoing.on('close')`. Маршрут типизируется `Hono<{ Bindings: HttpBindings }>`
-и возвращает `RESPONSE_ALREADY_SENT`.
+`WebStandardStreamableHTTPServerTransport` с `sessionIdGenerator: undefined` и
+`enableJsonResponse: true`, оба закрываются сразу после того, как ответ собран.
+Web-стандартный транспорт из SDK 1.29 принимает `Request` и возвращает `Response`,
+поэтому вставляется в Hono напрямую — без `HttpBindings` и `RESPONSE_ALREADY_SENT`,
+которые понадобились бы node-варианту.
 
 ## Ошибки
 
