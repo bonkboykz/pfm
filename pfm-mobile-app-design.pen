@@ -17997,7 +17997,7 @@
                   "id": "IDj27",
                   "name": "Label",
                   "fill": "$pfm/text-secondary",
-                  "content": "Обязательства",
+                  "content": "Долги минус активы",
                   "fontFamily": "$pfm/font-body",
                   "fontSize": 13,
                   "fontWeight": "500"
@@ -18007,7 +18007,7 @@
                   "id": "Dbwo3",
                   "name": "Amount",
                   "fill": "$pfm/negative",
-                  "content": "-2 554 205 ₸",
+                  "content": "-2 466 287 ₸",
                   "fontFamily": "$pfm/font-display",
                   "fontSize": 32,
                   "fontWeight": "800"
@@ -18042,8 +18042,8 @@
                           "type": "text",
                           "id": "MUSjK",
                           "name": "Value",
-                          "fill": "$pfm/text-primary",
-                          "content": "6",
+                          "fill": "$pfm/negative",
+                          "content": "2 554 205 ₸",
                           "fontFamily": "$pfm/font-display",
                           "fontSize": 14,
                           "fontWeight": "700"
@@ -18129,6 +18129,44 @@
                       ]
                     }
                   ]
+                },
+                {
+                  "type": "frame",
+                  "id": "sGUzT",
+                  "name": "Currency Note",
+                  "width": "fill_container",
+                  "fill": "$pfm/neutral-soft",
+                  "cornerRadius": "$pfm/radius-inner",
+                  "gap": 8,
+                  "padding": [
+                    11,
+                    13
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "ZPhOa",
+                      "name": "Icon",
+                      "width": 14,
+                      "height": 14,
+                      "icon": "info",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    },
+                    {
+                      "type": "text",
+                      "id": "o8X1Ut",
+                      "name": "Text",
+                      "fill": "$pfm/text-secondary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Только тенговая часть: счета и долги в других валютах сюда не входят — курса в API нет.",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
                 }
               ]
             },
@@ -18201,7 +18239,7 @@
                           "fill": "$pfm/text-muted",
                           "textGrowth": "fixed-width",
                           "width": "fill_container",
-                          "content": "6 кредитов · платежи 192 034 ₸/мес",
+                          "content": "6 шт. · платежи 192 035 ₸/мес.",
                           "fontFamily": "$pfm/font-body",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -18899,6 +18937,2629 @@
                 {
                   "type": "text",
                   "id": "debdE",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Ещё",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "k1cxB8",
+      "x": 5388,
+      "y": 323,
+      "name": "PFM / Loan Row",
+      "reusable": true,
+      "width": 380,
+      "fill": "$pfm/surface",
+      "layout": "vertical",
+      "gap": 10,
+      "padding": [
+        13,
+        14
+      ],
+      "children": [
+        {
+          "type": "frame",
+          "id": "i7WPHh",
+          "name": "Info",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 4,
+          "children": [
+            {
+              "type": "frame",
+              "id": "z6k3O",
+              "name": "Head",
+              "width": "fill_container",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "HK3sV",
+                  "name": "Name",
+                  "fill": "$pfm/text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Kaspi Кредит Наличными",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 15,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "PEkjJ",
+                  "name": "Debt",
+                  "fill": "$pfm/text-primary",
+                  "content": "1 800 000 ₸",
+                  "fontFamily": "$pfm/font-display",
+                  "fontSize": 16,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "icon",
+                  "id": "QbUgS",
+                  "name": "Chevron",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "chevron-right",
+                  "library": "lucide",
+                  "fill": "$pfm/text-muted"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YPLtc",
+              "name": "Meta",
+              "width": "fill_container",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "iTJKk",
+                  "name": "Type",
+                  "fill": "$pfm/text-muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Кредит · 22.00%",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "paz2G",
+                  "name": "Payment",
+                  "fill": "$pfm/text-secondary",
+                  "content": "73 153 ₸ до 3-го",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "vbsoi",
+          "name": "Track",
+          "clip": true,
+          "width": "fill_container",
+          "height": 5,
+          "fill": "$pfm/neutral-soft",
+          "cornerRadius": 999,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "rectangle",
+              "cornerRadius": 999,
+              "id": "rUEIR",
+              "name": "Fill",
+              "fill": "$pfm/accent",
+              "width": 106,
+              "height": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "Hh6KA",
+      "x": 9996,
+      "y": 893,
+      "name": "Кредиты",
+      "clip": true,
+      "width": 412,
+      "fill": "$pfm/bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "pDLnR",
+          "name": "Status Bar",
+          "width": "fill_container",
+          "height": 62,
+          "padding": [
+            0,
+            20
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "G3s660",
+              "name": "Time",
+              "fill": "$pfm/text-primary",
+              "content": "11:35",
+              "fontFamily": "Inter",
+              "fontSize": 15,
+              "fontWeight": "600"
+            },
+            {
+              "type": "frame",
+              "id": "vUCn8",
+              "name": "Status Icons",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "sEYqV",
+                  "name": "signal",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "signal",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                },
+                {
+                  "type": "icon",
+                  "id": "QIgx1",
+                  "name": "wifi",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "wifi",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                },
+                {
+                  "type": "icon",
+                  "id": "xGB9I",
+                  "name": "battery-full",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "battery-full",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "lSanO",
+          "name": "Content",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "padding": [
+            4,
+            16,
+            20,
+            16
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "RlguI",
+              "name": "App Bar",
+              "width": "fill_container",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "I40rj",
+                  "name": "Back",
+                  "width": 24,
+                  "height": 24,
+                  "icon": "chevron-left",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                },
+                {
+                  "type": "text",
+                  "id": "paYOs",
+                  "name": "Title",
+                  "fill": "$pfm/text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Кредиты",
+                  "fontFamily": "$pfm/font-display",
+                  "fontSize": 22,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "zURoD",
+              "name": "Total Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "P9oUgO",
+                  "name": "Label",
+                  "fill": "$pfm/text-secondary",
+                  "content": "Всего долг по кредитам",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "cferH",
+                  "name": "Amount",
+                  "fill": "$pfm/negative",
+                  "content": "2 554 205 ₸",
+                  "fontFamily": "$pfm/font-display",
+                  "fontSize": 32,
+                  "fontWeight": "800"
+                },
+                {
+                  "type": "frame",
+                  "id": "NcLVr",
+                  "name": "Split",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "C4jP0T",
+                      "name": "Cell Кредиты",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "u86Po",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "Платёж в месяц",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "XT8he",
+                          "name": "Value",
+                          "fill": "$pfm/text-primary",
+                          "content": "192 035 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "JrPTq",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": 1,
+                      "height": 32
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Y2sDW",
+                      "name": "Cell Личные долги",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "q5iUxF",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "Кредитов",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "bLcgb",
+                          "name": "Value",
+                          "fill": "$pfm/text-primary",
+                          "content": "6",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "uDm3y",
+              "name": "Rows",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "layout": "vertical",
+              "children": [
+                {
+                  "id": "mNSmD",
+                  "type": "ref",
+                  "ref": "k1cxB8",
+                  "name": "Row Kaspi Red",
+                  "width": "fill_container",
+                  "descendants": {
+                    "HK3sV": {
+                      "content": "Kaspi Red"
+                    },
+                    "PEkjJ": {
+                      "content": "311 897 ₸"
+                    },
+                    "iTJKk": {
+                      "content": "Рассрочка · без %"
+                    },
+                    "paz2G": {
+                      "content": "62 207 ₸ до 3-го"
+                    },
+                    "rUEIR": {
+                      "enabled": false
+                    }
+                  }
+                },
+                {
+                  "type": "rectangle",
+                  "id": "R0xTaM",
+                  "name": "Divider",
+                  "fill": "$pfm/border",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "id": "Vn3Aw",
+                  "type": "ref",
+                  "ref": "k1cxB8",
+                  "name": "Row Kaspi Кредит Наличными",
+                  "width": "fill_container",
+                  "descendants": {
+                    "HK3sV": {
+                      "content": "Kaspi Кредит Наличными"
+                    },
+                    "PEkjJ": {
+                      "content": "1 800 000 ₸"
+                    },
+                    "iTJKk": {
+                      "content": "Кредит · 22.00%"
+                    },
+                    "paz2G": {
+                      "content": "73 153 ₸ до 3-го"
+                    },
+                    "rUEIR": {
+                      "enabled": false
+                    }
+                  }
+                },
+                {
+                  "type": "rectangle",
+                  "id": "y0OoFK",
+                  "name": "Divider",
+                  "fill": "$pfm/border",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "id": "q6RArP",
+                  "type": "ref",
+                  "ref": "k1cxB8",
+                  "name": "Row Forte Экспресс Кредит",
+                  "width": "fill_container",
+                  "descendants": {
+                    "HK3sV": {
+                      "content": "Forte Экспресс Кредит"
+                    },
+                    "PEkjJ": {
+                      "content": "80 000 ₸"
+                    },
+                    "iTJKk": {
+                      "content": "Кредит · 27.00%"
+                    },
+                    "paz2G": {
+                      "content": "6 532 ₸ до 9-го"
+                    },
+                    "rUEIR": {
+                      "enabled": false
+                    }
+                  }
+                },
+                {
+                  "type": "rectangle",
+                  "id": "xfbFA",
+                  "name": "Divider",
+                  "fill": "$pfm/border",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "id": "xwCJJ",
+                  "type": "ref",
+                  "ref": "k1cxB8",
+                  "name": "Row BCC Кредит Наличными",
+                  "width": "fill_container",
+                  "descendants": {
+                    "HK3sV": {
+                      "content": "BCC Кредит Наличными"
+                    },
+                    "PEkjJ": {
+                      "content": "300 000 ₸"
+                    },
+                    "iTJKk": {
+                      "content": "Кредит · 28.30%"
+                    },
+                    "paz2G": {
+                      "content": "16 988 ₸ до 13-го"
+                    },
+                    "rUEIR": {
+                      "enabled": false
+                    }
+                  }
+                },
+                {
+                  "type": "rectangle",
+                  "id": "YbHWO",
+                  "name": "Divider",
+                  "fill": "$pfm/border",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "id": "MhBJx",
+                  "type": "ref",
+                  "ref": "k1cxB8",
+                  "name": "Row BCC KartaKarta",
+                  "width": "fill_container",
+                  "descendants": {
+                    "HK3sV": {
+                      "content": "BCC KartaKarta"
+                    },
+                    "PEkjJ": {
+                      "content": "31 154 ₸"
+                    },
+                    "iTJKk": {
+                      "content": "Кредитная линия · без %"
+                    },
+                    "paz2G": {
+                      "content": "31 154 ₸ до 26-го"
+                    },
+                    "rUEIR": {
+                      "enabled": false
+                    }
+                  }
+                },
+                {
+                  "type": "rectangle",
+                  "id": "CbI9R",
+                  "name": "Divider",
+                  "fill": "$pfm/border",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "id": "RGxYP",
+                  "type": "ref",
+                  "ref": "k1cxB8",
+                  "name": "Row BCC KartaKarta (рассрочка)",
+                  "width": "fill_container",
+                  "descendants": {
+                    "HK3sV": {
+                      "content": "BCC KartaKarta (рассрочка)"
+                    },
+                    "PEkjJ": {
+                      "content": "31 154 ₸"
+                    },
+                    "iTJKk": {
+                      "content": "Рассрочка · без %"
+                    },
+                    "paz2G": {
+                      "content": "2 000 ₸ до 25-го"
+                    },
+                    "rUEIR": {
+                      "enabled": false
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "B08ZNf",
+          "name": "Tab Bar",
+          "width": "fill_container",
+          "height": 80,
+          "fill": "$pfm/surface",
+          "stroke": "$pfm/border",
+          "strokeWidth": {
+            "top": 1
+          },
+          "padding": [
+            10,
+            4,
+            14,
+            4
+          ],
+          "justifyContent": "space_around",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "r6kqYq",
+              "name": "Tab Бюджет",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "l3Ke3E",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "xYx7I",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "chart-pie",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "iYdve",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Бюджет",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "HZBHy",
+              "name": "Tab Счета",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "cHyB9",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "ofeeV",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "wallet",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "ZoWlj",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Счета",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "zM9hW",
+              "name": "Tab Операции",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "sjetT",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "kw8jM",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "arrow-left-right",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "CrOCq",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Операции",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "mS5lr",
+              "name": "Tab Отчёты",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "i15b4q",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "T5GsTH",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "chart-column",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "T112zV",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Отчёты",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "CSa8p",
+              "name": "Tab Ещё",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Xwz2i",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "$pfm/accent-soft",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "i1GVVJ",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "layout-grid",
+                      "library": "lucide",
+                      "fill": "$pfm/text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "a4hcd6",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Ещё",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "A70pAZ",
+      "x": 10508,
+      "y": 893,
+      "name": "Симулятор погашения",
+      "clip": true,
+      "width": 412,
+      "fill": "$pfm/bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "KdFFy",
+          "name": "Status Bar",
+          "width": "fill_container",
+          "height": 62,
+          "padding": [
+            0,
+            20
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "g0AH1H",
+              "name": "Time",
+              "fill": "$pfm/text-primary",
+              "content": "11:35",
+              "fontFamily": "Inter",
+              "fontSize": 15,
+              "fontWeight": "600"
+            },
+            {
+              "type": "frame",
+              "id": "j4MER",
+              "name": "Status Icons",
+              "gap": 6,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "c9FXSA",
+                  "name": "signal",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "signal",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                },
+                {
+                  "type": "icon",
+                  "id": "PQRWZ",
+                  "name": "wifi",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "wifi",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                },
+                {
+                  "type": "icon",
+                  "id": "zulEL",
+                  "name": "battery-full",
+                  "width": 16,
+                  "height": 16,
+                  "icon": "battery-full",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "wW9Yy",
+          "name": "Content",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "padding": [
+            4,
+            16,
+            20,
+            16
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "F0d4I",
+              "name": "App Bar",
+              "width": "fill_container",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "aemtf",
+                  "name": "Back",
+                  "width": 24,
+                  "height": 24,
+                  "icon": "chevron-left",
+                  "library": "lucide",
+                  "fill": "$pfm/text-primary"
+                },
+                {
+                  "type": "text",
+                  "id": "eSinL",
+                  "name": "Title",
+                  "fill": "$pfm/text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Симулятор погашения",
+                  "fontFamily": "$pfm/font-display",
+                  "fontSize": 20,
+                  "fontWeight": "800"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "umZpR",
+              "name": "Hero Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "U9hI6a",
+                  "name": "Label",
+                  "fill": "$pfm/text-secondary",
+                  "content": "Свобода от долгов",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "OBF8B",
+                  "name": "Date Row",
+                  "width": "fill_container",
+                  "gap": 10,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Q6c4C",
+                      "name": "Date",
+                      "fill": "$pfm/positive",
+                      "content": "Октябрь 2027",
+                      "fontFamily": "$pfm/font-display",
+                      "fontSize": 30,
+                      "fontWeight": "800"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ECwO7",
+                      "name": "Delta Chip",
+                      "fill": "$pfm/positive-soft",
+                      "cornerRadius": 999,
+                      "gap": 4,
+                      "padding": [
+                        5,
+                        10
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "I5wmLo",
+                          "name": "Icon",
+                          "width": 13,
+                          "height": 13,
+                          "icon": "arrow-down",
+                          "library": "lucide",
+                          "fill": "$pfm/positive"
+                        },
+                        {
+                          "type": "text",
+                          "id": "YDNFU",
+                          "name": "Text",
+                          "fill": "$pfm/positive",
+                          "content": "5 месяцев",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "eEg3J",
+                  "name": "Split",
+                  "width": "fill_container",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "xaT3t",
+                      "name": "Cell Кредиты",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "h5qwsL",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "Переплата",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GkFIz",
+                          "name": "Value",
+                          "fill": "$pfm/text-primary",
+                          "content": "342 391 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "KTVub",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": 1,
+                      "height": 32
+                    },
+                    {
+                      "type": "frame",
+                      "id": "lgY0K",
+                      "name": "Cell Личные долги",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "wZqcj",
+                          "name": "Label",
+                          "fill": "$pfm/text-muted",
+                          "content": "Всего выплат",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "CIZiY",
+                          "name": "Value",
+                          "fill": "$pfm/text-primary",
+                          "content": "2 896 596 ₸",
+                          "fontFamily": "$pfm/font-display",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "LFQQV",
+                  "name": "Saving",
+                  "fill": "$pfm/text-muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "На 134 035 ₸ меньше процентов, чем на одних минимумах",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "fY3f9",
+              "name": "Extra Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "layout": "vertical",
+              "gap": 14,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tMG8Y",
+                  "name": "Head",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "K2mrj",
+                      "name": "Label",
+                      "fill": "$pfm/text-secondary",
+                      "content": "Сверх минимума",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "text",
+                      "id": "OtMEC",
+                      "name": "Value",
+                      "fill": "$pfm/accent",
+                      "content": "+50 000 ₸",
+                      "fontFamily": "$pfm/font-display",
+                      "fontSize": 20,
+                      "fontWeight": "800"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CCUXE",
+                  "name": "Slider",
+                  "width": "fill_container",
+                  "height": 24,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 999,
+                      "id": "y6YndH",
+                      "x": 0,
+                      "y": 9,
+                      "name": "Track",
+                      "fill": "$pfm/neutral-soft",
+                      "width": 340,
+                      "height": 6
+                    },
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 999,
+                      "id": "D17bHB",
+                      "x": 0,
+                      "y": 9,
+                      "name": "Fill",
+                      "fill": "$pfm/accent",
+                      "width": 85,
+                      "height": 6
+                    },
+                    {
+                      "type": "ellipse",
+                      "id": "yb1Me",
+                      "x": 75,
+                      "y": 2,
+                      "name": "Knob",
+                      "fill": "$pfm/surface",
+                      "width": 20,
+                      "height": 20,
+                      "stroke": "$pfm/accent",
+                      "strokeWidth": 3,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#00000022",
+                        "offset": {
+                          "x": 0,
+                          "y": 1
+                        },
+                        "blur": 4
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "V6Vlc",
+                  "name": "Scale",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "guZWj",
+                      "name": "Min",
+                      "fill": "$pfm/text-muted",
+                      "content": "0",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "JgFJC",
+                      "name": "Max",
+                      "fill": "$pfm/text-muted",
+                      "content": "200 000 ₸",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "rectangle",
+                  "id": "EqL71",
+                  "name": "Divider",
+                  "fill": "$pfm/border",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "xvFZH",
+                  "name": "Total",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "YejF8",
+                      "name": "Label",
+                      "fill": "$pfm/text-secondary",
+                      "content": "В месяц всего",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "iTvbM",
+                      "name": "Value",
+                      "fill": "$pfm/text-primary",
+                      "content": "242 035 ₸",
+                      "fontFamily": "$pfm/font-display",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n9J5RI",
+              "name": "Chart Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "layout": "vertical",
+              "gap": 16,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "VlBPd",
+                  "name": "Title",
+                  "fill": "$pfm/text-primary",
+                  "content": "Как тает долг",
+                  "fontFamily": "$pfm/font-display",
+                  "fontSize": 15,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "wchwD",
+                  "name": "With Extra",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 7,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "zOtIc",
+                      "name": "Bars",
+                      "height": 96,
+                      "gap": 3,
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "EEXOC",
+                          "name": "M1",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 94
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "FrWmn",
+                          "name": "M2",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 87
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "jKx8Z",
+                          "name": "M3",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 80
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "Idm7X",
+                          "name": "M4",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 73
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "nWytn",
+                          "name": "M5",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 66
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "pJgHy",
+                          "name": "M6",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 61
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "nggIv",
+                          "name": "M7",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 54
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "n28EFe",
+                          "name": "M8",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 46
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "sMA1a",
+                          "name": "M9",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 39
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "U0OrQO",
+                          "name": "M10",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 31
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "GOCua",
+                          "name": "M11",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 23
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "A2LuY",
+                          "name": "M12",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 15
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "T5QvzH",
+                          "name": "M13",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 7
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "S7l8S",
+                          "name": "M14",
+                          "fill": "$pfm/accent",
+                          "width": 15,
+                          "height": 3
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "iX6Zs",
+                      "name": "Caption",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "QU48r",
+                          "name": "Left",
+                          "fill": "$pfm/accent",
+                          "content": "С добавкой · 14 мес.",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "vNvkB",
+                          "name": "Right",
+                          "fill": "$pfm/text-muted",
+                          "content": "финиш октябрь 2027",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "M9iDN",
+                  "name": "Baseline",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 7,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "xQbPp",
+                      "name": "Bars",
+                      "opacity": 0.4,
+                      "height": 96,
+                      "gap": 3,
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "jzGLk",
+                          "name": "M1",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 96
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "z9rJC2",
+                          "name": "M2",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 91
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "jMQIT",
+                          "name": "M3",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 86
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "ns3B9",
+                          "name": "M4",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 81
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "t4spmK",
+                          "name": "M5",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 76
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "MJKFb",
+                          "name": "M6",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 74
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "GTjA3",
+                          "name": "M7",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 69
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "evYwV",
+                          "name": "M8",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 64
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "e5fjj",
+                          "name": "M9",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 58
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "fb0gg",
+                          "name": "M10",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 53
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "DxCdA",
+                          "name": "M11",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 48
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "x4QDOp",
+                          "name": "M12",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 42
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "H5djx6",
+                          "name": "M13",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 36
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "H1NBz",
+                          "name": "M14",
+                          "fill": "$pfm/neutral",
+                          "width": 15,
+                          "height": 30
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "kSnPM",
+                          "name": "M15",
+                          "fill": "$pfm/negative",
+                          "width": 15,
+                          "height": 22
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "U5JWA3",
+                          "name": "M16",
+                          "fill": "$pfm/negative",
+                          "width": 15,
+                          "height": 15
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "H6gUYL",
+                          "name": "M17",
+                          "fill": "$pfm/negative",
+                          "width": 15,
+                          "height": 8
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "k59fU",
+                          "name": "M18",
+                          "fill": "$pfm/negative",
+                          "width": 15,
+                          "height": 3
+                        },
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": [
+                            3,
+                            3,
+                            0,
+                            0
+                          ],
+                          "id": "iHXPr",
+                          "name": "M19",
+                          "fill": "$pfm/negative",
+                          "width": 15,
+                          "height": 3
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "kPZEW",
+                      "name": "Caption",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "B7gcz",
+                          "name": "Left",
+                          "fill": "$pfm/text-secondary",
+                          "content": "Только минимумы · 19 мес.",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "eVsIh",
+                          "name": "Right",
+                          "fill": "$pfm/negative",
+                          "content": "+5 месяцев долга",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 11,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Qet4z",
+              "name": "Order Block",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "UIBbi",
+                  "name": "Title",
+                  "fill": "$pfm/text-primary",
+                  "content": "Порядок закрытия",
+                  "fontFamily": "$pfm/font-display",
+                  "fontSize": 15,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "frame",
+                  "id": "C1b24",
+                  "name": "Rows",
+                  "clip": true,
+                  "width": "fill_container",
+                  "fill": "$pfm/surface",
+                  "cornerRadius": "$pfm/radius-card",
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Hgbyx",
+                      "name": "Row BCC Кредит Наличными",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "BVboS",
+                          "name": "Badge",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$pfm/accent-soft",
+                          "cornerRadius": 999,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "P9baa",
+                              "name": "N",
+                              "fill": "$pfm/accent",
+                              "content": "1",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "ZMvw3",
+                          "name": "Name",
+                          "fill": "$pfm/text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "BCC Кредит Наличными",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "vH6JB",
+                          "name": "When",
+                          "fill": "$pfm/text-muted",
+                          "content": "январь 2027",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "CXREq",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "yneOj",
+                      "name": "Row Kaspi Red",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "WdtTc",
+                          "name": "Badge",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$pfm/accent-soft",
+                          "cornerRadius": 999,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "a4ZS5",
+                              "name": "N",
+                              "fill": "$pfm/accent",
+                              "content": "2",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "l2AKv8",
+                          "name": "Name",
+                          "fill": "$pfm/text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Kaspi Red",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "RqyVX",
+                          "name": "When",
+                          "fill": "$pfm/text-muted",
+                          "content": "февраль 2027",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "r1YHbA",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LRcQl",
+                      "name": "Row Forte Экспресс Кредит",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "gMMVW",
+                          "name": "Badge",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$pfm/accent-soft",
+                          "cornerRadius": 999,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "w5r1T",
+                              "name": "N",
+                              "fill": "$pfm/accent",
+                              "content": "3",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "R6jcha",
+                          "name": "Name",
+                          "fill": "$pfm/text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Forte Экспресс Кредит",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "oAlFF",
+                          "name": "When",
+                          "fill": "$pfm/text-muted",
+                          "content": "февраль 2027",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "HQcku",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Qrc8S",
+                      "name": "Row BCC KartaKarta",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "aM3kw",
+                          "name": "Badge",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$pfm/accent-soft",
+                          "cornerRadius": 999,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "WjN3N",
+                              "name": "N",
+                              "fill": "$pfm/accent",
+                              "content": "4",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "D6jAl9",
+                          "name": "Name",
+                          "fill": "$pfm/text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "BCC KartaKarta",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "gFDNP",
+                          "name": "When",
+                          "fill": "$pfm/text-muted",
+                          "content": "сентябрь 2027",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "Q36chy",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "b4Jq0A",
+                      "name": "Row Kaspi Кредит Наличными",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "KFln2",
+                          "name": "Badge",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$pfm/accent-soft",
+                          "cornerRadius": 999,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "B9uqy",
+                              "name": "N",
+                              "fill": "$pfm/accent",
+                              "content": "5",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "G5ZFI2",
+                          "name": "Name",
+                          "fill": "$pfm/text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "Kaspi Кредит Наличными",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "kNUlx",
+                          "name": "When",
+                          "fill": "$pfm/text-muted",
+                          "content": "октябрь 2027",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "nbUXS",
+                      "name": "Divider",
+                      "fill": "$pfm/border",
+                      "width": "fill_container",
+                      "height": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LFzxP",
+                      "name": "Row BCC KartaKarta (рассрочка)",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "iZ3VE",
+                          "name": "Badge",
+                          "width": 24,
+                          "height": 24,
+                          "fill": "$pfm/positive-soft",
+                          "cornerRadius": 999,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "WZJBi",
+                              "name": "N",
+                              "fill": "$pfm/positive",
+                              "content": "6",
+                              "fontFamily": "$pfm/font-display",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "cm2tu",
+                          "name": "Name",
+                          "fill": "$pfm/text-primary",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "BCC KartaKarta (рассрочка)",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "W7EC3",
+                          "name": "When",
+                          "fill": "$pfm/text-muted",
+                          "content": "октябрь 2027",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "zBSfF",
+              "name": "Strategy Card",
+              "width": "fill_container",
+              "fill": "$pfm/surface",
+              "cornerRadius": "$pfm/radius-card",
+              "layout": "vertical",
+              "gap": 5,
+              "padding": 14,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "P4ZBj7",
+                  "name": "Row",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "PdY5Q",
+                      "name": "Label",
+                      "fill": "$pfm/text-secondary",
+                      "content": "Стратегия",
+                      "fontFamily": "$pfm/font-body",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "JIDq9",
+                      "name": "Right",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "FjxkD",
+                          "name": "Value",
+                          "fill": "$pfm/text-primary",
+                          "content": "Лавина",
+                          "fontFamily": "$pfm/font-body",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "xlnhD",
+                          "name": "Chevron",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "chevron-right",
+                          "library": "lucide",
+                          "fill": "$pfm/text-muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "AaTyr",
+                  "name": "Hint",
+                  "fill": "$pfm/text-muted",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Сначала самый дорогой процент — так меньше переплата",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "IS0al",
+              "name": "Note",
+              "width": "fill_container",
+              "fill": "$pfm/neutral-soft",
+              "cornerRadius": "$pfm/radius-inner",
+              "gap": 8,
+              "padding": [
+                11,
+                13
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon",
+                  "id": "j2prmd",
+                  "name": "Icon",
+                  "width": 14,
+                  "height": 14,
+                  "icon": "info",
+                  "library": "lucide",
+                  "fill": "$pfm/text-secondary"
+                },
+                {
+                  "type": "text",
+                  "id": "n5STd",
+                  "name": "Text",
+                  "fill": "$pfm/text-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "Расчёт ничего не меняет в данных — сценарий считается на лету по остаткам и ставкам.",
+                  "fontFamily": "$pfm/font-body",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "NP0cH",
+          "name": "Tab Bar",
+          "width": "fill_container",
+          "height": 80,
+          "fill": "$pfm/surface",
+          "stroke": "$pfm/border",
+          "strokeWidth": {
+            "top": 1
+          },
+          "padding": [
+            10,
+            4,
+            14,
+            4
+          ],
+          "justifyContent": "space_around",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "d012B",
+              "name": "Tab Бюджет",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "usi7p",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "h4yD6",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "chart-pie",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "vjG1A",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Бюджет",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "SWyul",
+              "name": "Tab Счета",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "QKT55",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "s6X15",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "wallet",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "VRnjc",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Счета",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "uEigP",
+              "name": "Tab Операции",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "OkBGn",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "RYXAe",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "arrow-left-right",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "m6GzTa",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Операции",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "X8ZUZq",
+              "name": "Tab Отчёты",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "QCe7d",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "#00000000",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "W3lKTs",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "chart-column",
+                      "library": "lucide",
+                      "fill": "$pfm/text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "Qfn1o",
+                  "name": "Label",
+                  "fill": "$pfm/text-primary",
+                  "content": "Отчёты",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "viyaC",
+              "name": "Tab Ещё",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "xONjF",
+                  "name": "Indicator",
+                  "width": 64,
+                  "height": 32,
+                  "fill": "$pfm/accent-soft",
+                  "cornerRadius": 999,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "IMBxt",
+                      "name": "Icon",
+                      "width": 22,
+                      "height": 22,
+                      "icon": "layout-grid",
+                      "library": "lucide",
+                      "fill": "$pfm/text-primary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "chh2L",
                   "name": "Label",
                   "fill": "$pfm/text-primary",
                   "content": "Ещё",
