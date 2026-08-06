@@ -31,16 +31,29 @@ const _currencies = <String, _Currency>{
 /// places the currency symbol on the side the engine uses.
 String formatMoney(int amountCents, {String currency = 'KZT'}) {
   final amount = amountCents ~/ 100; // truncates toward zero, like Decimal.truncated()
-  final isNegative = amount < 0;
-  final absStr = groupDigits(amount.abs());
+  return _decorate(groupDigits(amount.abs()), amount < 0, currency);
+}
 
-  final config = _currencies[currency];
-  if (config == null) {
-    return '${isNegative ? '-' : ''}$absStr $currency';
+/// Like [formatMoney] but keeps sub-unit amounts visible.
+///
+/// The engine truncates, so a 93-tiyn overspend renders as "0 ₸" while still
+/// being flagged as overspent — a red pill reading zero. Anything under one
+/// whole unit therefore gets two decimals instead.
+String formatMoneySmart(int amountCents, {String currency = 'KZT'}) {
+  if (amountCents != 0 && amountCents.abs() < 100) {
+    final fraction = amountCents.abs().toString().padLeft(2, '0');
+    return _decorate('0,$fraction', amountCents < 0, currency);
   }
+  return formatMoney(amountCents, currency: currency);
+}
+
+String _decorate(String absStr, bool isNegative, String currency) {
+  final sign = isNegative ? '-' : '';
+  final config = _currencies[currency];
+  if (config == null) return '$sign$absStr $currency';
   return config.prefix
-      ? '${isNegative ? '-' : ''}${config.symbol}$absStr'
-      : '${isNegative ? '-' : ''}$absStr ${config.symbol}';
+      ? '$sign${config.symbol}$absStr'
+      : '$sign$absStr ${config.symbol}';
 }
 
 /// Same as [formatMoney] but always shows an explicit sign for non-zero values.
@@ -61,6 +74,18 @@ String groupDigits(int value) {
     buffer.write(digits[i]);
   }
   return buffer.toString();
+}
+
+/// Renders cents for an editable amount field: no currency symbol, and the
+/// fractional part is kept whenever it is non-zero. Prefilling a field with the
+/// truncated value would silently drop kopecks the moment the user saves.
+String formatMoneyInput(int amountCents) {
+  final abs = amountCents.abs();
+  final whole = groupDigits(abs ~/ 100);
+  final fraction = abs % 100;
+  final body =
+      fraction == 0 ? whole : '$whole,${fraction.toString().padLeft(2, '0')}';
+  return amountCents < 0 ? '-$body' : body;
 }
 
 /// Parses user input ("12 500", "12500,50", "-1 200.75") into integer cents.

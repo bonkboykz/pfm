@@ -29,6 +29,40 @@ void main() {
     });
   });
 
+  group('formatMoneySmart', () {
+    test('keeps sub-unit amounts visible instead of collapsing to zero', () {
+      // Real case: "📱 Связь/интернет" was overspent by 93 tiyn, which the
+      // engine renders as "0 ₸" while still flagging isOverspent.
+      expect(formatMoney(-93), '0 ₸');
+      expect(formatMoneySmart(-93), '-0,93 ₸');
+      expect(formatMoneySmart(7), '0,07 ₸');
+    });
+
+    test('behaves like formatMoney from one whole unit up', () {
+      expect(formatMoneySmart(0), '0 ₸');
+      expect(formatMoneySmart(100), '1 ₸');
+      expect(formatMoneySmart(-123456), '-1 234 ₸');
+      expect(formatMoneySmart(-50, currency: 'CNY'), '-¥0,50');
+    });
+  });
+
+  group('formatMoneyInput', () {
+    test('keeps kopecks so prefilling a field cannot silently drop them', () {
+      // "📱 Связь/интернет" really is assigned 1031507 cents; a truncated
+      // prefill would rewrite it to 10 315,00 on the next save.
+      expect(formatMoneyInput(1031507), '10 315,07');
+      expect(parseMoneyToCents(formatMoneyInput(1031507)), 1031507);
+      expect(formatMoneyInput(93), '0,93');
+      expect(parseMoneyToCents(formatMoneyInput(93)), 93);
+    });
+
+    test('drops the fraction when there is none', () {
+      expect(formatMoneyInput(0), '0');
+      expect(formatMoneyInput(1250000), '12 500');
+      expect(formatMoneyInput(-120075), '-1 200,75');
+    });
+  });
+
   group('parseMoneyToCents', () {
     test('accepts grouped and decimal input', () {
       expect(parseMoneyToCents('12 500'), 1250000);

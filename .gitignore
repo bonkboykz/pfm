@@ -1,6 +1,9 @@
 node_modules/
 dist/
-data/
+# SQLite lives in these two dirs only. A bare `data/` would also swallow the
+# Flutter app's feature data layers (mobile/lib/features/*/data/).
+apps/api/data/
+packages/engine/data/
 *.db
 *.db-wal
 *.db-shm

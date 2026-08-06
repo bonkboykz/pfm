@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../core/widgets/placeholder.dart';
+import '../features/budget/presentation/budget_page.dart';
 import '../features/settings/presentation/settings_page.dart';
 import 'branch_pager.dart';
 
@@ -26,11 +27,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/budget',
-            builder: (context, state) => const FeaturePlaceholder(
-              title: 'Бюджет',
-              note: 'Волна 1: Ready to Assign, группы и категории месяца.',
-              showSettings: true,
-            ),
+            builder: (context, state) => const BudgetPage(),
           ),
         ]),
         StatefulShellBranch(routes: [
