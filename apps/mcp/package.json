@@ -1,0 +1,21 @@
+{
+  "name": "@pfm/mcp",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "tsx": "latest",
+    "vitest": "latest",
+    "typescript": "latest"
+  }
+}
