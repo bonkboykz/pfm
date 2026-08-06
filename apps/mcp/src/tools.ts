@@ -90,4 +90,118 @@ export const tools: ToolDef[] = [
     method: 'DELETE',
     path: (a) => `/api/v1/accounts/${a.id}`,
   },
+
+  // ===== Categories =====
+  {
+    name: 'list_categories',
+    description:
+      'List category groups with their categories, excluding system and hidden ones. Use this to discover category IDs before assigning money or filing a transaction.',
+    schema: z.object({}),
+    method: 'GET',
+    path: () => '/api/v1/categories',
+  },
+  {
+    name: 'create_category_group',
+    description: 'Create a category group — the heading that categories are filed under, e.g. "Fixed costs".',
+    schema: z.object({ name: z.string().min(1) }),
+    method: 'POST',
+    path: () => '/api/v1/categories/groups',
+    body: (a) => a,
+  },
+  {
+    name: 'create_category',
+    description:
+      'Create a category inside a group. Optional target: targetType "monthly_funding" | "target_balance" | "target_by_date" with targetAmountCents in tiyn, and targetDate as YYYY-MM-DD for date targets.',
+    schema: z.object({
+      groupId: z.string().min(1),
+      name: z.string().min(1),
+      targetAmountCents: z.number().int().optional(),
+      targetType: z.enum(['none', 'monthly_funding', 'target_balance', 'target_by_date']).optional(),
+      targetDate: z.string().optional(),
+      note: z.string().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/categories',
+    body: (a) => a,
+  },
+  {
+    name: 'update_category',
+    description: 'Update a category name, target or note. Nullable fields accept null to clear them.',
+    schema: z.object({
+      id: z.string(),
+      name: z.string().min(1).optional(),
+      targetAmountCents: z.number().int().nullable().optional(),
+      targetType: z.enum(['none', 'monthly_funding', 'target_balance', 'target_by_date']).optional(),
+      targetDate: z.string().nullable().optional(),
+      note: z.string().nullable().optional(),
+    }),
+    method: 'PATCH',
+    path: (a) => `/api/v1/categories/${a.id}`,
+    body: omitId,
+  },
+  {
+    name: 'delete_category',
+    description:
+      'Hide a category. Its past transactions keep their history; the category stops appearing in the budget.',
+    schema: z.object({ id: z.string() }),
+    method: 'DELETE',
+    path: (a) => `/api/v1/categories/${a.id}`,
+  },
+
+  // ===== Budget =====
+  {
+    name: 'get_budget',
+    description:
+      'Full budget for a month (YYYY-MM): every category with assigned, activity and available in tiyn plus formatted variants, grouped by category group, and Ready to Assign for that month.',
+    schema: z.object({ month: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/budget/${a.month}`,
+  },
+  {
+    name: 'get_rta_overview',
+    description:
+      'Ready to Assign across a range of months at once, starting at optional `from` (YYYY-MM). Use this instead of calling get_ready_to_assign month by month when diagnosing where money went missing — RTA is cumulative, so a single month in isolation misleads.',
+    schema: z.object({ from: z.string().optional() }),
+    method: 'GET',
+    path: (a) => `/api/v1/budget/rta-overview${qs({ from: a.from })}`,
+  },
+  {
+    name: 'get_ready_to_assign',
+    description:
+      'Ready to Assign for one month (YYYY-MM) with its breakdown: total inflows and total assigned, computed cumulatively from the beginning through that month.',
+    schema: z.object({ month: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/budget/${a.month}/ready-to-assign`,
+  },
+  {
+    name: 'assign_budget',
+    description:
+      'Set the amount assigned to a category for a month (YYYY-MM). amountCents is the new total for that month in tiyn, not a delta, and must be zero or positive.',
+    schema: z.object({
+      month: z.string(),
+      categoryId: z.string().min(1),
+      amountCents: z.number().int().min(0),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/budget/${a.month}/assign`,
+    body: (a) => ({ categoryId: a.categoryId, amountCents: a.amountCents }),
+  },
+  {
+    name: 'move_budget',
+    description:
+      'Move assigned money between two categories within a month (YYYY-MM). amountCents must be positive and is taken from the source and added to the target. This is how you cover an overspent category without touching Ready to Assign.',
+    schema: z.object({
+      month: z.string(),
+      fromCategoryId: z.string().min(1),
+      toCategoryId: z.string().min(1),
+      amountCents: z.number().int().positive(),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/budget/${a.month}/move`,
+    body: (a) => ({
+      fromCategoryId: a.fromCategoryId,
+      toCategoryId: a.toCategoryId,
+      amountCents: a.amountCents,
+    }),
+  },
 ];

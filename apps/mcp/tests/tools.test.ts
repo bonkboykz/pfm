@@ -153,3 +153,102 @@ describe('server wiring', () => {
     expect(body.error.message).toBe('socket hang up');
   });
 });
+
+describe('categories tools', () => {
+  it('lists category groups with their categories', () => {
+    expect(mapping('list_categories', {})).toEqual({
+      method: 'GET',
+      path: '/api/v1/categories',
+      body: undefined,
+    });
+  });
+
+  it('creates a group', () => {
+    expect(mapping('create_category_group', { name: 'Fixed' })).toEqual({
+      method: 'POST',
+      path: '/api/v1/categories/groups',
+      body: { name: 'Fixed' },
+    });
+  });
+
+  it('creates a category inside a group', () => {
+    expect(mapping('create_category', { groupId: 'grp-fixed', name: 'Rent' })).toEqual({
+      method: 'POST',
+      path: '/api/v1/categories',
+      body: { groupId: 'grp-fixed', name: 'Rent' },
+    });
+  });
+
+  it('strips id when updating a category', () => {
+    expect(mapping('update_category', { id: 'cat-rent', name: 'Rent & utilities' })).toEqual({
+      method: 'PATCH',
+      path: '/api/v1/categories/cat-rent',
+      body: { name: 'Rent & utilities' },
+    });
+  });
+
+  it('deletes a category', () => {
+    expect(mapping('delete_category', { id: 'cat-rent' })).toEqual({
+      method: 'DELETE',
+      path: '/api/v1/categories/cat-rent',
+      body: undefined,
+    });
+  });
+});
+
+describe('budget tools', () => {
+  it('reads a month', () => {
+    expect(mapping('get_budget', { month: '2026-08' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/budget/2026-08',
+      body: undefined,
+    });
+  });
+
+  it('reads the RTA overview without a from filter', () => {
+    expect(mapping('get_rta_overview', {})).toEqual({
+      method: 'GET',
+      path: '/api/v1/budget/rta-overview',
+      body: undefined,
+    });
+  });
+
+  it('reads the RTA overview with a from filter', () => {
+    expect(mapping('get_rta_overview', { from: '2026-01' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/budget/rta-overview?from=2026-01',
+      body: undefined,
+    });
+  });
+
+  it('reads ready-to-assign for a month', () => {
+    expect(mapping('get_ready_to_assign', { month: '2026-08' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/budget/2026-08/ready-to-assign',
+      body: undefined,
+    });
+  });
+
+  it('assigns money, keeping month in the path only', () => {
+    expect(mapping('assign_budget', { month: '2026-08', categoryId: 'cat-rent', amountCents: 15000000 })).toEqual({
+      method: 'POST',
+      path: '/api/v1/budget/2026-08/assign',
+      body: { categoryId: 'cat-rent', amountCents: 15000000 },
+    });
+  });
+
+  it('moves money between categories', () => {
+    expect(
+      mapping('move_budget', {
+        month: '2026-08',
+        fromCategoryId: 'cat-cafe',
+        toCategoryId: 'cat-groceries',
+        amountCents: 500000,
+      }),
+    ).toEqual({
+      method: 'POST',
+      path: '/api/v1/budget/2026-08/move',
+      body: { fromCategoryId: 'cat-cafe', toCategoryId: 'cat-groceries', amountCents: 500000 },
+    });
+  });
+});
