@@ -204,4 +204,140 @@ export const tools: ToolDef[] = [
       amountCents: a.amountCents,
     }),
   },
+
+  // ===== Transactions =====
+  {
+    name: 'list_transactions',
+    description:
+      'List transactions newest first, default limit 50. Filter by accountId, categoryId and a since/until date range (YYYY-MM-DD). Amounts are tiyn; negative is an outflow.',
+    schema: z.object({
+      accountId: z.string().optional(),
+      categoryId: z.string().optional(),
+      since: z.string().optional(),
+      until: z.string().optional(),
+      limit: z.number().int().positive().optional(),
+    }),
+    method: 'GET',
+    path: (a) =>
+      `/api/v1/transactions${qs({
+        accountId: a.accountId,
+        categoryId: a.categoryId,
+        since: a.since,
+        until: a.until,
+        limit: a.limit,
+      })}`,
+  },
+  {
+    name: 'get_transaction',
+    description: 'Get one transaction by id.',
+    schema: z.object({ id: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/transactions/${a.id}`,
+  },
+  {
+    name: 'create_transaction',
+    description:
+      'Record a transaction. amountCents is tiyn: negative for spending, positive for income. Supplying transferAccountId makes it a transfer between two accounts — the API writes both paired sides and leaves them uncategorised, which is correct and must not be "fixed" by also passing categoryId.',
+    schema: z.object({
+      accountId: z.string().min(1),
+      date: z.string(),
+      amountCents: z.number().int(),
+      payeeName: z.string().optional(),
+      categoryId: z.string().optional(),
+      transferAccountId: z.string().optional(),
+      memo: z.string().optional(),
+      cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/transactions',
+    body: (a) => a,
+  },
+  {
+    name: 'update_transaction',
+    description:
+      'Update a transaction. Only supplied fields change. categoryId and memo accept null to clear them. To recategorise a transfer, edit the accounts instead — transfers carry no category by design.',
+    schema: z.object({
+      id: z.string(),
+      date: z.string().optional(),
+      amountCents: z.number().int().optional(),
+      payeeName: z.string().optional(),
+      categoryId: z.string().nullable().optional(),
+      memo: z.string().nullable().optional(),
+      cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
+    }),
+    method: 'PATCH',
+    path: (a) => `/api/v1/transactions/${a.id}`,
+    body: omitId,
+  },
+  {
+    name: 'delete_transaction',
+    description:
+      'Delete a transaction. Use this for typos and duplicates. Deleting one side of a transfer is handled by the API.',
+    schema: z.object({ id: z.string() }),
+    method: 'DELETE',
+    path: (a) => `/api/v1/transactions/${a.id}`,
+  },
+
+  // ===== Scheduled transactions =====
+  {
+    name: 'list_scheduled',
+    description:
+      'List scheduled (recurring) transactions. Pass upcoming as a number of days to only return the ones due within that window.',
+    schema: z.object({ upcoming: z.number().int().positive().optional() }),
+    method: 'GET',
+    path: (a) => `/api/v1/scheduled${qs({ upcoming: a.upcoming })}`,
+  },
+  {
+    name: 'create_scheduled',
+    description:
+      'Create a recurring transaction. frequency is weekly, biweekly, monthly or yearly; nextDate (YYYY-MM-DD) is the next occurrence. amountCents is tiyn, negative for spending. Supplying transferAccountId schedules a recurring transfer.',
+    schema: z.object({
+      accountId: z.string().min(1),
+      frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']),
+      nextDate: z.string(),
+      amountCents: z.number().int(),
+      payeeName: z.string().optional(),
+      categoryId: z.string().optional(),
+      transferAccountId: z.string().optional(),
+      memo: z.string().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/scheduled',
+    body: (a) => a,
+  },
+  {
+    name: 'update_scheduled',
+    description:
+      'Update a scheduled transaction. Only supplied fields change; nullable fields accept null to clear them.',
+    schema: z.object({
+      id: z.string(),
+      frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']).optional(),
+      nextDate: z.string().optional(),
+      amountCents: z.number().int().optional(),
+      payeeName: z.string().nullable().optional(),
+      categoryId: z.string().nullable().optional(),
+      transferAccountId: z.string().nullable().optional(),
+      memo: z.string().nullable().optional(),
+    }),
+    method: 'PATCH',
+    path: (a) => `/api/v1/scheduled/${a.id}`,
+    body: omitId,
+  },
+  {
+    name: 'delete_scheduled',
+    description:
+      'Delete a scheduled transaction. Already-created transactions from past occurrences are not affected.',
+    schema: z.object({ id: z.string() }),
+    method: 'DELETE',
+    path: (a) => `/api/v1/scheduled/${a.id}`,
+  },
+  {
+    name: 'process_scheduled',
+    description:
+      'Create real transactions for every scheduled item due on or before asOfDate (YYYY-MM-DD, defaults to today) and advance each to its next occurrence. This writes to the ledger — confirm with the user before calling it.',
+    schema: z.object({ asOfDate: z.string().optional() }),
+    method: 'POST',
+    path: () => '/api/v1/scheduled/process',
+    body: (a) => (a.asOfDate === undefined ? {} : { asOfDate: a.asOfDate }),
+  },
 ];

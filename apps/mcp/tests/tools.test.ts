@@ -252,3 +252,147 @@ describe('budget tools', () => {
     });
   });
 });
+
+describe('transaction tools', () => {
+  it('lists with no filters', () => {
+    expect(mapping('list_transactions', {})).toEqual({
+      method: 'GET',
+      path: '/api/v1/transactions',
+      body: undefined,
+    });
+  });
+
+  it('lists with every filter', () => {
+    expect(
+      mapping('list_transactions', {
+        accountId: 'acc-1',
+        categoryId: 'cat-rent',
+        since: '2026-08-01',
+        until: '2026-08-31',
+        limit: 100,
+      }),
+    ).toEqual({
+      method: 'GET',
+      path: '/api/v1/transactions?accountId=acc-1&categoryId=cat-rent&since=2026-08-01&until=2026-08-31&limit=100',
+      body: undefined,
+    });
+  });
+
+  it('reads one transaction', () => {
+    expect(mapping('get_transaction', { id: 'tx-1' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/transactions/tx-1',
+      body: undefined,
+    });
+  });
+
+  it('creates a transaction', () => {
+    expect(
+      mapping('create_transaction', {
+        accountId: 'acc-1',
+        date: '2026-08-06',
+        amountCents: -1250000,
+        payeeName: 'Magnum',
+        categoryId: 'cat-groceries',
+      }),
+    ).toEqual({
+      method: 'POST',
+      path: '/api/v1/transactions',
+      body: {
+        accountId: 'acc-1',
+        date: '2026-08-06',
+        amountCents: -1250000,
+        payeeName: 'Magnum',
+        categoryId: 'cat-groceries',
+      },
+    });
+  });
+
+  it('strips id when updating', () => {
+    expect(mapping('update_transaction', { id: 'tx-1', amountCents: -1300000 })).toEqual({
+      method: 'PATCH',
+      path: '/api/v1/transactions/tx-1',
+      body: { amountCents: -1300000 },
+    });
+  });
+
+  it('deletes a transaction', () => {
+    expect(mapping('delete_transaction', { id: 'tx-1' })).toEqual({
+      method: 'DELETE',
+      path: '/api/v1/transactions/tx-1',
+      body: undefined,
+    });
+  });
+});
+
+describe('scheduled transaction tools', () => {
+  it('lists all scheduled transactions', () => {
+    expect(mapping('list_scheduled', {})).toEqual({
+      method: 'GET',
+      path: '/api/v1/scheduled',
+      body: undefined,
+    });
+  });
+
+  it('lists only upcoming ones', () => {
+    expect(mapping('list_scheduled', { upcoming: 30 })).toEqual({
+      method: 'GET',
+      path: '/api/v1/scheduled?upcoming=30',
+      body: undefined,
+    });
+  });
+
+  it('creates a scheduled transaction', () => {
+    expect(
+      mapping('create_scheduled', {
+        accountId: 'acc-1',
+        frequency: 'monthly',
+        nextDate: '2026-09-01',
+        amountCents: -15000000,
+        payeeName: 'Landlord',
+      }),
+    ).toEqual({
+      method: 'POST',
+      path: '/api/v1/scheduled',
+      body: {
+        accountId: 'acc-1',
+        frequency: 'monthly',
+        nextDate: '2026-09-01',
+        amountCents: -15000000,
+        payeeName: 'Landlord',
+      },
+    });
+  });
+
+  it('strips id when updating', () => {
+    expect(mapping('update_scheduled', { id: 'sch-1', amountCents: -16000000 })).toEqual({
+      method: 'PATCH',
+      path: '/api/v1/scheduled/sch-1',
+      body: { amountCents: -16000000 },
+    });
+  });
+
+  it('deletes a scheduled transaction', () => {
+    expect(mapping('delete_scheduled', { id: 'sch-1' })).toEqual({
+      method: 'DELETE',
+      path: '/api/v1/scheduled/sch-1',
+      body: undefined,
+    });
+  });
+
+  it('processes due transactions, defaulting to an empty body', () => {
+    expect(mapping('process_scheduled', {})).toEqual({
+      method: 'POST',
+      path: '/api/v1/scheduled/process',
+      body: {},
+    });
+  });
+
+  it('processes due transactions as of a date', () => {
+    expect(mapping('process_scheduled', { asOfDate: '2026-08-31' })).toEqual({
+      method: 'POST',
+      path: '/api/v1/scheduled/process',
+      body: { asOfDate: '2026-08-31' },
+    });
+  });
+});
