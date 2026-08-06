@@ -12,6 +12,8 @@ import { loanRoutes } from './routes/loans.js';
 import { debtListRoutes } from './routes/debts.js';
 import { depositRoutes } from './routes/deposits.js';
 import { apiKeyAuth } from './middleware/auth.js';
+import { errorHandler } from './errors.js';
+import { mcpRoutes } from './mcp.js';
 
 export function createApp(db: DB) {
   const app = new Hono();
@@ -19,21 +21,13 @@ export function createApp(db: DB) {
   app.use('*', cors());
   app.use('*', logger());
 
-  app.onError((err, c) => {
-    const status = (err as any).status ?? 500;
-    return c.json(
-      {
-        error: {
-          code: (err as any).code ?? 'INTERNAL_ERROR',
-          message: err.message,
-          suggestion: (err as any).suggestion ?? 'Check server logs',
-        },
-      },
-      status,
-    );
-  });
+  app.onError(errorHandler);
 
   app.get('/health', (c) => c.json({ status: 'ok', version: '0.1.0' }));
+
+  // Mounted before the /api/v1/* auth middleware: the MCP endpoint owns its
+  // own authorization via PFM_MCP_TOKEN.
+  app.route('/mcp', mcpRoutes(db));
 
   app.use('/api/v1/*', apiKeyAuth());
 
