@@ -6,6 +6,7 @@ import '../core/widgets/placeholder.dart';
 import '../features/accounts/presentation/account_register_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
 import '../features/budget/presentation/budget_page.dart';
+import '../features/reports/presentation/reports_page.dart';
 import '../features/settings/presentation/settings_page.dart';
 import '../features/transactions/presentation/transactions_page.dart';
 import 'branch_pager.dart';
@@ -56,10 +57,7 @@ final appRouter = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/reports',
-            builder: (context, state) => const FeaturePlaceholder(
-              title: 'Отчёты',
-              note: 'Волна 4: тренды, траты по категориям, приход/расход.',
-            ),
+            builder: (context, state) => const ReportsPage(),
           ),
         ]),
         StatefulShellBranch(routes: [
