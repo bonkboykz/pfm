@@ -4,6 +4,33 @@
 /// from the client, built out of the user's loans.
 library;
 
+/// Один месяц симуляции: сколько долга осталось к концу и кто закрылся.
+class MonthSnapshot {
+  final int month;
+  final String date; // YYYY-MM
+  final int totalRemainingCents;
+  final List<String> paidOffIds;
+
+  const MonthSnapshot({
+    required this.month,
+    required this.date,
+    required this.totalRemainingCents,
+    required this.paidOffIds,
+  });
+
+  factory MonthSnapshot.fromJson(Map<String, dynamic> json) => MonthSnapshot(
+        month: (json['month'] as num?)?.toInt() ?? 0,
+        date: (json['date'] ?? '').toString(),
+        totalRemainingCents:
+            (json['totalRemainingCents'] as num?)?.toInt() ?? 0,
+        paidOffIds: ((json['debtStates'] as List?) ?? const [])
+            .whereType<Map>()
+            .where((d) => d['isPaidOff'] == true)
+            .map((d) => (d['debtId'] ?? '').toString())
+            .toList(),
+      );
+}
+
 class StrategyResult {
   final String strategy;
   final String strategyDescription;
@@ -12,6 +39,7 @@ class StrategyResult {
   final int totalPaidCents;
   final int totalInterestCents;
   final List<String> payoffOrder;
+  final List<MonthSnapshot> schedule;
 
   const StrategyResult({
     required this.strategy,
@@ -21,6 +49,7 @@ class StrategyResult {
     required this.totalPaidCents,
     required this.totalInterestCents,
     required this.payoffOrder,
+    this.schedule = const [],
   });
 
   factory StrategyResult.fromJson(Map<String, dynamic> json) => StrategyResult(
@@ -33,7 +62,23 @@ class StrategyResult {
         payoffOrder: ((json['payoffOrder'] as List?) ?? const [])
             .map((e) => e.toString())
             .toList(),
+        schedule: ((json['schedule'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((m) => MonthSnapshot.fromJson(m.cast<String, dynamic>()))
+            .toList(),
       );
+
+  /// Долг → месяц, в котором он закрывается. Берётся первый месяц с флагом
+  /// `isPaidOff`, потому что дальше долг из графика просто исчезает.
+  Map<String, String> get payoffMonths {
+    final months = <String, String>{};
+    for (final snapshot in schedule) {
+      for (final id in snapshot.paidOffIds) {
+        months.putIfAbsent(id, () => snapshot.date);
+      }
+    }
+    return months;
+  }
 }
 
 const strategyNames = <String, String>{
