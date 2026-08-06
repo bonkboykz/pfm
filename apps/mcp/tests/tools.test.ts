@@ -499,3 +499,124 @@ describe('personal debt tools', () => {
     });
   });
 });
+
+describe('deposit tools', () => {
+  it('lists deposits', () => {
+    expect(mapping('list_deposits', {})).toEqual({ method: 'GET', path: '/api/v1/deposits', body: undefined });
+  });
+
+  it('reads KDIF exposure from its literal path', () => {
+    expect(mapping('get_kdif_exposure', {})).toEqual({
+      method: 'GET',
+      path: '/api/v1/deposits/kdif',
+      body: undefined,
+    });
+  });
+
+  it('reads one deposit', () => {
+    expect(mapping('get_deposit', { id: 'dep-1' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/deposits/dep-1',
+      body: undefined,
+    });
+  });
+
+  it('reads an interest schedule, optionally truncated', () => {
+    expect(mapping('get_deposit_schedule', { id: 'dep-1' })).toEqual({
+      method: 'GET',
+      path: '/api/v1/deposits/dep-1/schedule',
+      body: undefined,
+    });
+    expect(mapping('get_deposit_schedule', { id: 'dep-1', months: 12 })).toEqual({
+      method: 'GET',
+      path: '/api/v1/deposits/dep-1/schedule?months=12',
+      body: undefined,
+    });
+  });
+
+  it('creates a deposit', () => {
+    const args = {
+      name: 'Halyk term',
+      bankName: 'Halyk',
+      type: 'term',
+      initialAmountCents: 100000000,
+      annualRateBps: 1550,
+      termMonths: 12,
+      startDate: '2026-08-01',
+    };
+    expect(mapping('create_deposit', args)).toEqual({ method: 'POST', path: '/api/v1/deposits', body: args });
+  });
+
+  it('strips id when updating', () => {
+    expect(mapping('update_deposit', { id: 'dep-1', topUpCents: 5000000 })).toEqual({
+      method: 'PATCH',
+      path: '/api/v1/deposits/dep-1',
+      body: { topUpCents: 5000000 },
+    });
+  });
+
+  it('deletes a deposit', () => {
+    expect(mapping('delete_deposit', { id: 'dep-1' })).toEqual({
+      method: 'DELETE',
+      path: '/api/v1/deposits/dep-1',
+      body: undefined,
+    });
+  });
+});
+
+describe('simulation tools', () => {
+  const debt = {
+    name: 'Kaspi Red',
+    type: 'credit_card',
+    balanceCents: 30000000,
+    aprBps: 2500,
+    minPaymentCents: 1500000,
+  };
+
+  it('simulates a payoff', () => {
+    const args = { debts: [debt], strategy: 'avalanche', extraMonthlyCents: 5000000 };
+    expect(mapping('simulate_payoff', args)).toEqual({
+      method: 'POST',
+      path: '/api/v1/simulate/payoff',
+      body: args,
+    });
+  });
+
+  it('compares strategies', () => {
+    const args = { debts: [debt], extraMonthlyCents: 5000000 };
+    expect(mapping('compare_strategies', args)).toEqual({
+      method: 'POST',
+      path: '/api/v1/simulate/compare',
+      body: args,
+    });
+  });
+
+  it('compares paying debt against investing', () => {
+    const args = { extraMonthlyCents: 5000000, debt, expectedReturnBps: 1200, horizonMonths: 60 };
+    expect(mapping('debt_vs_invest', args)).toEqual({
+      method: 'POST',
+      path: '/api/v1/simulate/debt-vs-invest',
+      body: args,
+    });
+  });
+
+  it('compares deposit offers', () => {
+    const args = {
+      deposits: [
+        { name: 'A', initialAmountCents: 100000000, annualRateBps: 1500, termMonths: 12, capitalization: 'monthly' },
+        { name: 'B', initialAmountCents: 100000000, annualRateBps: 1600, termMonths: 12, capitalization: 'at_end' },
+      ],
+    };
+    expect(mapping('compare_deposits', args)).toEqual({
+      method: 'POST',
+      path: '/api/v1/simulate/deposit-compare',
+      body: args,
+    });
+  });
+});
+
+describe('table completeness', () => {
+  it('exposes exactly 48 tools', () => {
+    expect(tools).toHaveLength(48);
+  });
+});

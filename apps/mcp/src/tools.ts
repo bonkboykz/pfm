@@ -481,4 +481,191 @@ export const tools: ToolDef[] = [
     method: 'DELETE',
     path: (a) => `/api/v1/debts/${a.id}`,
   },
+
+  // ===== Deposits =====
+  {
+    name: 'list_deposits',
+    description:
+      'List active deposits with current balance, accrued interest and effective annual rate. annualRateBps is basis points (1550 = 15.50%); amounts are tiyn.',
+    schema: z.object({}),
+    method: 'GET',
+    path: () => '/api/v1/deposits',
+  },
+  {
+    name: 'get_deposit',
+    description:
+      'Get one deposit by id with its computed summary: current balance, interest accrued and days to maturity.',
+    schema: z.object({ id: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/deposits/${a.id}`,
+  },
+  {
+    name: 'create_deposit',
+    description:
+      'Create a deposit. initialAmountCents is tiyn, annualRateBps is basis points, startDate is YYYY-MM-DD, termMonths 0 means open-ended. capitalization controls compounding: monthly, quarterly, at_end or none.',
+    schema: z.object({
+      name: z.string().min(1),
+      bankName: z.string().min(1),
+      type: z.enum(['term', 'savings', 'demand']),
+      accountId: z.string().optional(),
+      categoryId: z.string().optional(),
+      initialAmountCents: z.number().int().positive(),
+      currency: z.string().optional(),
+      annualRateBps: z.number().int().min(0),
+      earlyWithdrawalRateBps: z.number().int().min(0).optional(),
+      termMonths: z.number().int().min(0),
+      startDate: z.string(),
+      endDate: z.string().optional(),
+      capitalization: z.enum(['monthly', 'quarterly', 'at_end', 'none']).optional(),
+      isWithdrawable: z.boolean().optional(),
+      isReplenishable: z.boolean().optional(),
+      minBalanceCents: z.number().int().min(0).optional(),
+      topUpCents: z.number().int().min(0).optional(),
+      note: z.string().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/deposits',
+    body: (a) => a,
+  },
+  {
+    name: 'update_deposit',
+    description:
+      'Update a deposit. Rate, term and start date are deliberately not editable — recreate the deposit if those were entered wrong. topUpCents records additional money paid in.',
+    schema: z.object({
+      id: z.string(),
+      name: z.string().min(1).optional(),
+      accountId: z.string().nullable().optional(),
+      categoryId: z.string().nullable().optional(),
+      topUpCents: z.number().int().min(0).optional(),
+      note: z.string().nullable().optional(),
+    }),
+    method: 'PATCH',
+    path: (a) => `/api/v1/deposits/${a.id}`,
+    body: omitId,
+  },
+  {
+    name: 'delete_deposit',
+    description: 'Deactivate a deposit, removing it from lists and KDIF exposure.',
+    schema: z.object({ id: z.string() }),
+    method: 'DELETE',
+    path: (a) => `/api/v1/deposits/${a.id}`,
+  },
+  {
+    name: 'get_deposit_schedule',
+    description:
+      'Month-by-month interest schedule for a deposit: opening balance, interest, capitalised amount, closing balance and cumulative interest, all in tiyn. Pass months to truncate a long schedule.',
+    schema: z.object({ id: z.string(), months: z.number().int().positive().optional() }),
+    method: 'GET',
+    path: (a) => `/api/v1/deposits/${a.id}/schedule${qs({ months: a.months })}`,
+  },
+  {
+    name: 'get_kdif_exposure',
+    description:
+      'Deposit exposure per bank against the Kazakhstan Deposit Insurance Fund guarantee limit, flagging any bank where the user holds more than is insured.',
+    schema: z.object({}),
+    method: 'GET',
+    path: () => '/api/v1/deposits/kdif',
+  },
+
+  // ===== Simulations =====
+  {
+    name: 'simulate_payoff',
+    description:
+      'Simulate paying off a set of debts under one strategy: snowball (smallest balance first), avalanche (highest APR first), highest_monthly_interest, or cash_flow_index. Debts are passed in explicitly rather than read from the database, so hypotheticals are possible. extraMonthlyCents is the additional payment above the minimums; startDate is YYYY-MM.',
+    schema: z.object({
+      debts: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            name: z.string(),
+            type: z.enum(['credit_card', 'loan', 'installment']),
+            balanceCents: z.number().int().positive(),
+            aprBps: z.number().int().min(0),
+            minPaymentCents: z.number().int().positive(),
+            remainingInstallments: z.number().int().positive().optional(),
+            latePenaltyCents: z.number().int().min(0).optional(),
+          }),
+        )
+        .min(1)
+        .max(20),
+      strategy: z.enum(['snowball', 'avalanche', 'highest_monthly_interest', 'cash_flow_index']),
+      extraMonthlyCents: z.number().int().min(0).optional(),
+      startDate: z.string().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/simulate/payoff',
+    body: (a) => a,
+  },
+  {
+    name: 'compare_strategies',
+    description:
+      'Run every payoff strategy against the same debts and compare total interest and months to debt-free. Use this to answer "snowball or avalanche" with numbers instead of opinion.',
+    schema: z.object({
+      debts: z
+        .array(
+          z.object({
+            id: z.string().optional(),
+            name: z.string(),
+            type: z.enum(['credit_card', 'loan', 'installment']),
+            balanceCents: z.number().int().positive(),
+            aprBps: z.number().int().min(0),
+            minPaymentCents: z.number().int().positive(),
+            remainingInstallments: z.number().int().positive().optional(),
+            latePenaltyCents: z.number().int().min(0).optional(),
+          }),
+        )
+        .min(1)
+        .max(20),
+      extraMonthlyCents: z.number().int().min(0).optional(),
+      startDate: z.string().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/simulate/compare',
+    body: (a) => a,
+  },
+  {
+    name: 'debt_vs_invest',
+    description:
+      'Compare putting extraMonthlyCents against one debt versus investing it at expectedReturnBps over horizonMonths, and report which leaves the user better off.',
+    schema: z.object({
+      extraMonthlyCents: z.number().int().min(0),
+      debt: z.object({
+        id: z.string().optional(),
+        name: z.string(),
+        type: z.enum(['credit_card', 'loan', 'installment']),
+        balanceCents: z.number().int().positive(),
+        aprBps: z.number().int().min(0),
+        minPaymentCents: z.number().int().positive(),
+        remainingInstallments: z.number().int().positive().optional(),
+        latePenaltyCents: z.number().int().min(0).optional(),
+      }),
+      expectedReturnBps: z.number().int().min(0),
+      horizonMonths: z.number().int().positive().max(600),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/simulate/debt-vs-invest',
+    body: (a) => a,
+  },
+  {
+    name: 'compare_deposits',
+    description:
+      'Compare 2–10 hypothetical deposit offers by effective annual rate and total interest, accounting for how each compounds. Use this to choose between bank offers before opening one.',
+    schema: z.object({
+      deposits: z
+        .array(
+          z.object({
+            name: z.string().min(1),
+            initialAmountCents: z.number().int().positive(),
+            annualRateBps: z.number().int().min(0),
+            termMonths: z.number().int().min(0),
+            capitalization: z.enum(['monthly', 'quarterly', 'at_end', 'none']).optional(),
+          }),
+        )
+        .min(2)
+        .max(10),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/simulate/deposit-compare',
+    body: (a) => a,
+  },
 ];
