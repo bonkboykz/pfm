@@ -136,6 +136,32 @@ describe('forecast', () => {
     expect(data.totalShortfallCents).toBe(0);
   });
 
+  it('does not let an earlier month spend the same money twice', async () => {
+    // 25 790 assigned once. Tele2 takes 15 490 in August and again in
+    // September, and Kazakhtelecom takes 10 315 in September. A forecast that
+    // reads Available fresh each month sees 25 790 in September and reports a
+    // 15 shortfall; the real hole is 15 505, because August already spent.
+    await api(app, 'POST', '/api/v1/budget/2026-08/assign', { categoryId: 'cat-phone', amountCents: 2579000 });
+    await api(app, 'POST', '/api/v1/scheduled', sched({
+      nextDate: '2026-08-30', amountCents: -1549000, categoryId: 'cat-phone', payeeName: 'Tele2',
+    }));
+    await api(app, 'POST', '/api/v1/scheduled', sched({
+      nextDate: '2026-09-07', amountCents: -1031500, categoryId: 'cat-phone', payeeName: 'Казахтелеком',
+    }));
+
+    const { data } = await api(app, 'GET', '/api/v1/budget/forecast?days=55&asOf=2026-08-07');
+    const aug = data.months.find((m: { month: string }) => m.month === '2026-08');
+    const sep = data.months.find((m: { month: string }) => m.month === '2026-09');
+
+    expect(aug.categories[0].availableCents).toBe(2579000);
+    expect(aug.totalShortfallCents).toBe(0);
+
+    // September starts from what August left, not from the original assignment.
+    const phone = sep.categories.find((c: { categoryId: string }) => c.categoryId === 'cat-phone');
+    expect(phone.availableCents).toBe(2579000 - 1549000);
+    expect(phone.shortfallCents).toBe(1550500);
+  });
+
   it('names scheduled money that reaches no category', async () => {
     await api(app, 'POST', '/api/v1/scheduled', sched({
       nextDate: '2026-08-20', amountCents: -500000, payeeName: 'Что-то без категории',

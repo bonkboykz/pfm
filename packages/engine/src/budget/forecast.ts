@@ -141,6 +141,13 @@ export function getBudgetForecast(db: DB, daysAhead = 30, asOfDate?: string): Bu
   let firstShortDate: string | null = null;
   let totalShortfall = new Decimal(0);
 
+  // What the window's own earlier occurrences have already taken out of each
+  // category. A scheduled payment is not a transaction yet, so it leaves no
+  // activity behind and getCategoryAvailable still reports the money as
+  // present in later months — August's phone bill would be spendable again in
+  // September. Months are walked in order and the running effect carried.
+  const consumed = new Map<string, number>();
+
   for (const month of [...buckets.keys()].sort()) {
     const byCat = buckets.get(month)!;
     const categories: CategoryForecast[] = [];
@@ -150,8 +157,11 @@ export function getBudgetForecast(db: DB, daysAhead = 30, asOfDate?: string): Bu
     for (const [categoryId, occurrences] of byCat) {
       occurrences.sort((a, b) => a.date.localeCompare(b.date));
 
-      const available = getCategoryAvailable(db, categoryId, month);
+      const available = new Decimal(getCategoryAvailable(db, categoryId, month))
+        .plus(consumed.get(categoryId) ?? 0)
+        .toNumber();
       const net = occurrences.reduce((s, o) => new Decimal(s).plus(o.amountCents).toNumber(), 0);
+      consumed.set(categoryId, new Decimal(consumed.get(categoryId) ?? 0).plus(net).toNumber());
       const projected = new Decimal(available).plus(net).toNumber();
       const shortfall = projected < 0 ? Math.abs(projected) : 0;
 
