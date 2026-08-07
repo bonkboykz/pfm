@@ -403,6 +403,26 @@ if (APPLY) {
   console.log(`backup: ${backup}`);
 }
 
+// The audit triggers journal every row this script touches, but the batch id and
+// request fields are stamped by the API's middleware — which this script bypasses.
+// Without the same stamp the repairs sit in the journal as anonymous 'pending'
+// rows: invisible in list_recent_changes and out of reach of undo_changes.
+const auditMark = (
+  sqlite.prepare(`SELECT COALESCE(MAX(rowid), 0) as mark FROM audit_log`).get() as { mark: number }
+).mark;
+
+function stampAuditBatch(): string | null {
+  const batchId = `cleanup-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+  const label = `audit-cleanup${ONLY.length ? ` --only=${ONLY.join(',')}` : ''}`;
+
+  const res = sqlite.prepare(`
+    UPDATE audit_log SET batch_id = ?, method = 'SCRIPT', path = ?
+    WHERE rowid > ? AND batch_id = 'pending'
+  `).run(batchId, label, auditMark);
+
+  return res.changes > 0 ? batchId : null;
+}
+
 try {
   if (wanted('categories')) checkDuplicateCategories();
   if (wanted('dupe-loans')) checkDuplicateLoans();
@@ -413,7 +433,17 @@ try {
 
   section('Summary');
   console.log(`findings: ${findings}`);
-  console.log(APPLY ? `repairs applied: ${repairs}` : 'no changes written — re-run with --apply');
+
+  if (!APPLY) {
+    console.log('no changes written — re-run with --apply');
+  } else {
+    console.log(`repairs applied: ${repairs}`);
+    const batchId = stampAuditBatch();
+    if (batchId) {
+      console.log(`audit batch: ${batchId}`);
+      console.log(`undo with:   POST /api/v1/audit/undo { "batchId": "${batchId}" }`);
+    }
+  }
 } finally {
   sqlite.close();
 }

@@ -556,6 +556,31 @@ describe('audit and undo', () => {
     expect(rent.assignedCents).toBe(15000000);
   });
 
+  it('marks writes that bypassed the API instead of showing a blank batch', async () => {
+    // A migration, a seed or a maintenance script writes straight to the
+    // database, so the triggers fire but no request stamps the row.
+    db.$client.prepare(`INSERT INTO transactions (id, account_id, date, amount_cents, cleared, approved, is_deleted, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, 'cleared', 1, 0, ?, ?)`)
+      .run('tx-direct', 'acc-main', '2026-08-01', -5000, '2026-08-01', '2026-08-01');
+
+    const { data } = await api(app, 'GET', '/api/v1/audit?entity=transactions');
+    const direct = data.batches.find((b: { batchId: string }) => b.batchId === 'pending');
+
+    expect(direct).toBeDefined();
+    expect(direct.method).toBe('DIRECT');
+    expect(direct.path).toMatch(/outside the API/);
+  });
+
+  it('refuses to undo writes that never came through the API', async () => {
+    db.$client.prepare(`INSERT INTO transactions (id, account_id, date, amount_cents, cleared, approved, is_deleted, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, 'cleared', 1, 0, ?, ?)`)
+      .run('tx-direct-2', 'acc-main', '2026-08-01', -5000, '2026-08-01', '2026-08-01');
+
+    const { status, data } = await api(app, 'POST', '/api/v1/audit/undo', { batchId: 'pending' });
+    expect(status).toBe(400);
+    expect(data.error.message).toMatch(/by hand/);
+  });
+
   it('refuses to undo a batch twice', async () => {
     await api(app, 'POST', '/api/v1/budget/2026-08/assign', { categoryId: 'cat-rent', amountCents: 15000000 });
     const audit = await api(app, 'GET', '/api/v1/audit');

@@ -69,10 +69,16 @@ export function auditRoutes(db: DB) {
 
     for (const r of rows) {
       if (!batches.has(r.batch_id)) {
+        // 'pending' is what the triggers write before the middleware stamps a
+        // request. Anything still carrying it was written straight to the
+        // database — a migration, a seed, a script — so it has no request to
+        // name and cannot be undone as a unit. Say so rather than showing a
+        // batch with a blank path.
+        const direct = r.batch_id === 'pending';
         batches.set(r.batch_id, {
           batchId: r.batch_id,
-          method: r.method,
-          path: r.path,
+          method: direct ? 'DIRECT' : r.method,
+          path: direct ? '(written outside the API — not undoable as a batch)' : r.path,
           at: r.created_at,
           changes: [],
         });
@@ -108,6 +114,12 @@ export function auditRoutes(db: DB) {
     const rows = db.$client.prepare(
       `SELECT * FROM audit_log WHERE batch_id = ? AND is_reverted = 0 ORDER BY rowid DESC`
     ).all(parsed.data.batchId) as AuditRow[];
+
+    if (parsed.data.batchId === 'pending') {
+      throw validationError(
+        'These rows were written straight to the database, not through the API. They carry no request to replay and must be reverted by hand.',
+      );
+    }
 
     if (!rows.length) throw notFound('Audit batch', parsed.data.batchId);
 
