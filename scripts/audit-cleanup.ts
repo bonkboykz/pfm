@@ -11,6 +11,8 @@
  *
  * Findings:
  *   categories   duplicate names in one group, from creates that were retried
+ *   dupe-loans   the same loan entered twice, doubling the reported debt
+ *   dupe-accts   the same account entered twice, doubling its balance
  *   loans        loans repaid in full but still counted as active debt
  *   offsetting   same-day transaction pairs that cancel each other out, the
  *                signature of hand-made corrections standing in for a proper
@@ -104,6 +106,156 @@ function checkDuplicateCategories() {
     const stmt = sqlite.prepare(`UPDATE categories SET is_hidden = 1 WHERE id = ?`);
     for (const id of toHide) { stmt.run(id); repairs++; }
     console.log(`\nhid ${toHide.length} unused duplicate(s)`);
+  }
+}
+
+// --- The same loan entered twice ------------------------------------------
+//
+// A retried create makes a second loan with a new id. Both stay active and both
+// are summed, so the reported debt is roughly double. The twins are recognised
+// by sharing a start date and a term: a retry that reconstructed the principal
+// by arithmetic lands a few tiyn away from the original, so the amounts cannot
+// be matched exactly.
+
+interface DupLoan {
+  id: string; name: string; category_id: string | null;
+  principal_cents: number; monthly_payment_cents: number;
+  term_months: number; start_date: string; paid_off_cents: number;
+}
+
+function outstandingOf(l: DupLoan): number {
+  const opening = Math.max(0, l.principal_cents - l.paid_off_cents);
+  if (!l.category_id) return opening;
+  const row = sqlite.prepare(`
+    SELECT COALESCE(SUM(amount_cents), 0) as total FROM transactions
+    WHERE category_id = ? AND is_deleted = 0 AND transfer_account_id IS NULL AND date >= ?
+  `).get(l.category_id, l.start_date) as { total: number };
+  return Math.max(0, opening - Math.max(0, -row.total));
+}
+
+function checkDuplicateLoans() {
+  section('The same loan entered twice');
+
+  const active = sqlite.prepare(`
+    SELECT id, name, category_id, principal_cents, monthly_payment_cents,
+           term_months, start_date, paid_off_cents
+    FROM loans WHERE is_active = 1
+  `).all() as DupLoan[];
+
+  const groups = new Map<string, DupLoan[]>();
+  for (const l of active) {
+    const k = `${l.start_date}|${l.term_months}`;
+    groups.set(k, [...(groups.get(k) ?? []), l]);
+  }
+
+  const pairs = [...groups.values()].filter((g) => g.length > 1);
+  if (!pairs.length) return void console.log('none');
+
+  let doubleCounted = 0;
+  const toClose: DupLoan[] = [];
+
+  for (const g of pairs) {
+    console.log(`\nstart ${g[0].start_date}, ${g[0].term_months} months — ${g.length} active loans`);
+    const debts = g.map(outstandingOf);
+
+    for (const [i, l] of g.entries()) {
+      console.log(`  ${l.id}  ${l.category_id ? 'linked  ' : 'no cat  '} ${fmt(debts[i])}  "${l.name}"`);
+      findings++;
+    }
+
+    // Keep the record wired to a category; it is the one that tracks payments.
+    const keepIdx = g.findIndex((l) => l.category_id);
+    const agree = debts.every((d) => d === debts[0]);
+
+    if (keepIdx === -1 || !agree) {
+      console.log('  → twins disagree on the outstanding amount; decide by hand which is real');
+      continue;
+    }
+
+    for (const [i, l] of g.entries()) {
+      if (i === keepIdx) continue;
+      toClose.push(l);
+      doubleCounted += debts[i];
+    }
+    console.log(`  → keep ${g[keepIdx].id} (linked to a category), close the other ${g.length - 1}`);
+  }
+
+  console.log(`\ndouble-counted debt: ${fmt(doubleCounted)}`);
+
+  if (APPLY && toClose.length) {
+    const today = new Date().toISOString().slice(0, 10);
+    const stmt = sqlite.prepare(`
+      UPDATE loans SET is_active = 0, paid_off_cents = principal_cents,
+        closed_date = ?, closure_reason = ?, updated_at = ? WHERE id = ?
+    `);
+    for (const l of toClose) {
+      stmt.run(today, 'Closed by audit-cleanup: duplicate of a linked loan', new Date().toISOString(), l.id);
+      repairs++;
+    }
+    console.log(`closed ${toClose.length} duplicate loan(s)`);
+  }
+}
+
+// --- The same account entered twice ---------------------------------------
+//
+// Deactivating the copy is not enough: its transactions keep feeding Ready to
+// Assign, which is exactly how an invisible account skews the totals. The
+// transactions have to go with it.
+
+interface DupAcct { id: string; name: string; created_at: string; is_active: number }
+
+function checkDuplicateAccounts() {
+  section('The same account entered twice');
+
+  // A copy that has already been retired and emptied is not a finding.
+  const groups = sqlite.prepare(`
+    SELECT name, COUNT(*) as n FROM accounts a
+    WHERE a.is_active = 1
+       OR EXISTS (SELECT 1 FROM transactions t WHERE t.account_id = a.id AND t.is_deleted = 0)
+    GROUP BY name HAVING COUNT(*) > 1
+  `).all() as Array<{ name: string; n: number }>;
+
+  if (!groups.length) return void console.log('none');
+
+  for (const g of groups) {
+    const copies = sqlite.prepare(`
+      SELECT id, name, created_at, is_active FROM accounts a
+      WHERE a.name = ?
+        AND (a.is_active = 1
+             OR EXISTS (SELECT 1 FROM transactions t WHERE t.account_id = a.id AND t.is_deleted = 0))
+      ORDER BY created_at
+    `).all(g.name) as DupAcct[];
+
+    console.log(`\n"${g.name}" — ${g.n} copies`);
+
+    const detail = copies.map((a) => {
+      const row = sqlite.prepare(`
+        SELECT COUNT(*) as n, COALESCE(SUM(amount_cents), 0) as bal
+        FROM transactions WHERE account_id = ? AND is_deleted = 0
+      `).get(a.id) as { n: number; bal: number };
+      console.log(`  ${a.id}  active=${!!a.is_active}  ${fmt(row.bal)}  ${row.n} tx  created ${a.created_at.slice(0, 10)}`);
+      findings++;
+      return { a, ...row };
+    });
+
+    const balances = new Set(detail.map((d) => d.bal));
+    if (balances.size > 1) {
+      console.log('  → copies hold different money; merge by hand');
+      continue;
+    }
+
+    const [, ...extras] = detail;
+    console.log(`  → keep ${detail[0].a.id} (oldest); the rest double-count ${fmt(detail[0].bal)}`);
+
+    if (APPLY) {
+      const now = new Date().toISOString();
+      for (const e of extras) {
+        sqlite.prepare(`UPDATE transactions SET is_deleted = 1, updated_at = ? WHERE account_id = ?`).run(now, e.a.id);
+        sqlite.prepare(`UPDATE accounts SET is_active = 0, updated_at = ? WHERE id = ?`).run(now, e.a.id);
+        repairs++;
+      }
+      console.log(`  removed ${extras.length} copy/copies and their transactions`);
+    }
   }
 }
 
@@ -253,6 +405,8 @@ if (APPLY) {
 
 try {
   if (wanted('categories')) checkDuplicateCategories();
+  if (wanted('dupe-loans')) checkDuplicateLoans();
+  if (wanted('dupe-accts')) checkDuplicateAccounts();
   if (wanted('loans')) checkRepaidLoans();
   if (wanted('offsetting')) checkOffsettingTransactions();
   if (wanted('orphans')) checkOrphanReferences();

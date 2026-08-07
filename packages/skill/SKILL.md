@@ -47,7 +47,26 @@ curl -s "$PFM_API_URL/health" | jq
 curl -s -H "$AUTH" "$PFM_API_URL/api/v1/accounts" | jq
 ```
 
-Returns: `{ accounts: [{ id, name, type, balanceCents, balanceFormatted, ... }] }`
+Returns: `{ accounts: [{ id, name, type, onBudget, currency, isActive, balanceCents, balanceFormatted, ... }] }`
+
+Deactivated accounts are hidden by default, yet their transactions still move
+Ready to Assign. If the totals do not add up, look for one here:
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/accounts?includeInactive=true" | jq
+```
+
+### Reconcile an account to its real balance
+
+When the computed balance has drifted from what the bank shows, write **one**
+adjustment transaction — never a set of hand-made offsetting entries. On
+on-budget accounts the adjustment lands in Ready to Assign.
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/accounts/{id}/reconcile" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "actualBalanceCents": 49665414, "date": "2026-08-07" }' | jq
+```
 
 ### Create account
 
@@ -189,6 +208,43 @@ curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/transactions/{id}" | jq
 
 Soft-deletes. If part of a transfer, deletes both sides.
 
+### Create many transactions at once (all-or-nothing)
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/transactions/bulk" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "skipDuplicates": true,
+    "transactions": [
+      { "accountId": "ACC", "date": "2026-08-01", "amountCents": -1500050, "payeeName": "Магнум", "categoryId": "CAT" },
+      { "accountId": "ACC", "date": "2026-08-02", "amountCents": -230000, "payeeName": "Такси", "categoryId": "CAT" }
+    ]
+  }' | jq
+```
+
+Every `accountId` and `categoryId` is checked before anything is stored.
+Transfers are not supported here — create those one at a time.
+
+### Import a bank statement (CSV)
+
+Deduplicates against what is already stored, matching on date + amount + payee,
+so a re-exported overlapping statement is safe to import twice. Columns are
+detected from the header (English or Russian). Dates accept `YYYY-MM-DD`,
+`DD.MM.YYYY` or `DD/MM/YYYY`; amounts accept spaced thousands, comma or dot
+decimals, and parentheses for debits.
+
+```bash
+# Always preview first
+curl -s -X POST "$PFM_API_URL/api/v1/transactions/import" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d "$(jq -n --rawfile csv statement.csv \
+        '{accountId: "ACC", csv: $csv, dryRun: true}')" | jq
+
+# Then import for real (drop dryRun)
+```
+
+Imported rows arrive **uncategorised** — assign categories so they reach the budget.
+
 ---
 
 ## Budget
@@ -271,6 +327,56 @@ curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/move" \
 curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-02/ready-to-assign" | jq
 ```
 
+### Assign to many categories at once (all-or-nothing)
+
+Every `categoryId` is validated before anything is written, so a bad id cannot
+leave the batch half-applied. Prefer this over a run of single assigns.
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/bulk-assign?response=minimal" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "assignments": [
+      { "categoryId": "CAT_RENT", "amountCents": 20000000 },
+      { "categoryId": "CAT_FOOD", "amountCents": 15000000 }
+    ]
+  }' | jq
+```
+
+`?response=minimal` works on `assign`, `move`, `bulk-assign` and `set-available`.
+It returns only the touched categories and the new RTA instead of the whole month.
+
+### Clear Available inherited from earlier months
+
+`assign` only sets the current month and refuses negatives, so it cannot clear
+carryover. `set-available` solves for the month's assignment instead, and the
+difference moves to or from Ready to Assign. No transactions are created.
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/set-available?response=minimal" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "categoryId": "CATEGORY_ID", "amountCents": 0 }' | jq
+```
+
+Start budgeting again from a given month (destructive, needs confirmation):
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/budget/reset" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "fromMonth": "2026-02", "confirm": true }' | jq
+```
+
+### Reconcile the budget against the accounts
+
+Explains the gap between the sum of account balances and RTA + everything in
+categories: off-budget accounts, deactivated accounts, foreign currency,
+uncategorised spending, transfers that left the budget. A non-zero
+`unexplainedCents` is a real anomaly, not a modelling gap.
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-02/reconciliation" | jq
+```
+
 ---
 
 ## Money Convention
@@ -293,6 +399,33 @@ Response fields include both raw cents and formatted strings:
     "suggestion": "Use GET /api/v1/accounts to list available IDs"
   }
 }
+```
+
+| Code | Meaning |
+|---|---|
+| `VALIDATION_ERROR` | 400 — the body did not match the schema |
+| `NOT_FOUND` | 404 — the thing you asked to read does not exist |
+| `UNKNOWN_REFERENCE` | 404 — a **write** named an id that does not resolve |
+| `UNAUTHORIZED` | 401 — missing or wrong API key |
+
+`UNKNOWN_REFERENCE` is never returned as a success. If an id you are holding
+stops resolving, re-read it: the id a `create` returns is canonical, and a
+retried create returns the existing row with `alreadyExisted: true` rather than
+making a second copy.
+
+## Audit and undo
+
+Every change to transactions, budget assignments and loans is journalled and
+grouped by the request that made it — a bulk import is one entry, not three
+hundred.
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/audit?limit=20" | jq
+
+# Roll a whole batch back
+curl -s -X POST "$PFM_API_URL/api/v1/audit/undo" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "batchId": "BATCH_ID" }' | jq
 ```
 
 ## Debt Payoff Simulator
@@ -397,7 +530,13 @@ curl -s -X POST "$PFM_API_URL/api/v1/scheduled/process" \
 curl -s -H "$AUTH" "$PFM_API_URL/api/v1/loans" | jq
 ```
 
-Returns loans with computed `currentDebtCents` (principal minus payments).
+Returns active loans with computed `currentDebtCents` (opening balance minus
+payments made in the linked category **since the loan's `startDate`**).
+
+```bash
+# Closed loans too, plus the summed active debt
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/loans?includeInactive=true&withTotals=true" | jq
+```
 
 ### Create a loan
 
@@ -420,6 +559,23 @@ curl -s -X POST "$PFM_API_URL/api/v1/loans" \
 
 Types: `loan`, `installment` (0% APR like Kaspi Red), `credit_line`
 
+A bank statement shows what is **left**, not what was borrowed. Quote it directly
+with `currentBalanceCents` instead of reconstructing a principal by arithmetic:
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/loans" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kaspi рассрочка",
+    "type": "installment",
+    "currentBalanceCents": 10051500,
+    "termMonths": 3,
+    "startDate": "2026-08-03",
+    "monthlyPaymentCents": 3350500,
+    "paymentDay": 3
+  }' | jq
+```
+
 ### Get amortization schedule
 
 ```bash
@@ -428,12 +584,29 @@ curl -s -H "$AUTH" "$PFM_API_URL/api/v1/loans/{id}/schedule" | jq
 
 Returns month-by-month breakdown: principal, interest, payment, remaining balance.
 
+### Close a repaid loan
+
+Use this, not `DELETE`. Closing settles the outstanding balance to zero so the
+loan leaves the debt totals; deleting only hides it and leaves its balance in
+every aggregate — which is how repaid loans end up inflating what you owe.
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/loans/{id}/close" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "closedDate": "2026-08-01", "reason": "Погашен досрочно" }' | jq
+```
+
 ### Update / delete loan
 
 ```bash
 curl -s -X PATCH "$PFM_API_URL/api/v1/loans/{id}" \
   -H "$AUTH" -H "Content-Type: application/json" \
   -d '{"note": "Досрочное погашение планируется"}' | jq
+
+# Retire without settling the balance (loan was entered wrongly)
+curl -s -X PATCH "$PFM_API_URL/api/v1/loans/{id}" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"isActive": false}' | jq
 
 curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/loans/{id}" | jq
 ```
