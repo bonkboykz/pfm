@@ -12,6 +12,7 @@ import {
   getReadyToAssignRange,
   getReadyToAssign,
   getRtaReconciliation,
+  getBudgetForecast,
   formatMoney,
 } from '@pfm/engine';
 import { validationError, unknownReference } from '../errors.js';
@@ -176,6 +177,67 @@ export function budgetRoutes(db: DB) {
       minReadyToAssignCents: result.minReadyToAssignCents,
       minReadyToAssignFormatted: formatMoney(result.minReadyToAssignCents),
       minMonth: result.minMonth,
+    });
+  });
+
+  // GET /forecast — which category runs out, and when.
+  // Registered before /:month so the literal segment is not swallowed by it.
+  router.get('/forecast', (c) => {
+    const daysParam = c.req.query('days');
+    const days = daysParam === undefined ? 30 : parseInt(daysParam, 10);
+    if (Number.isNaN(days) || days < 1 || days > 730) {
+      throw validationError('days must be an integer between 1 and 730');
+    }
+
+    const asOf = c.req.query('asOf');
+    if (asOf !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(asOf)) {
+      throw validationError('asOf must be YYYY-MM-DD');
+    }
+
+    const forecast = getBudgetForecast(db, days, asOf);
+    const onlyShort = c.req.query('onlyShort') === 'true';
+
+    return c.json({
+      asOfDate: forecast.asOfDate,
+      throughDate: forecast.throughDate,
+      days: forecast.days,
+      totalShortfallCents: forecast.totalShortfallCents,
+      totalShortfallFormatted: formatMoney(forecast.totalShortfallCents),
+      firstShortDate: forecast.firstShortDate,
+      months: forecast.months.map((m) => ({
+        month: m.month,
+        totalScheduledCents: m.totalScheduledCents,
+        totalScheduledFormatted: formatMoney(m.totalScheduledCents),
+        totalShortfallCents: m.totalShortfallCents,
+        totalShortfallFormatted: formatMoney(m.totalShortfallCents),
+        shortCategoryCount: m.shortCategoryCount,
+        categories: m.categories
+          .filter((cat) => !onlyShort || cat.shortfallCents > 0)
+          .map((cat) => ({
+            categoryId: cat.categoryId,
+            categoryName: cat.categoryName,
+            groupName: cat.groupName,
+            availableCents: cat.availableCents,
+            availableFormatted: formatMoney(cat.availableCents),
+            scheduledNetCents: cat.scheduledNetCents,
+            scheduledNetFormatted: formatMoney(cat.scheduledNetCents),
+            projectedAvailableCents: cat.projectedAvailableCents,
+            projectedAvailableFormatted: formatMoney(cat.projectedAvailableCents),
+            shortfallCents: cat.shortfallCents,
+            shortfallFormatted: formatMoney(cat.shortfallCents),
+            firstShortDate: cat.firstShortDate,
+            occurrences: cat.occurrences.map((o) => ({
+              ...o,
+              amountFormatted: formatMoney(o.amountCents),
+            })),
+          })),
+      })),
+      // Scheduled money that reaches no category never shows up in the budget,
+      // so it can never be reported as a shortfall — it has to be named.
+      uncategorizedUpcoming: forecast.uncategorizedUpcoming.map((o) => ({
+        ...o,
+        amountFormatted: formatMoney(o.amountCents),
+      })),
     });
   });
 

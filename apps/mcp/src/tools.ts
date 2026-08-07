@@ -244,6 +244,18 @@ export const tools: ToolDef[] = [
     body: (a) => a,
   },
   {
+    name: 'get_upcoming_shortfalls',
+    description:
+      'Look ahead and report which categories will run out of money, and on what date, by pushing every scheduled payment forward against the money assigned to it. Repeating rules are expanded into each occurrence in the window, and each payment is measured against the Available of the month it actually falls in — so a rent payment due next month is not reported as a shortfall against this month. Set onlyShort to get just the problems. Also lists scheduled money that reaches no category, which the budget can never see. Use this before assigning a month, and after, to check the plan survives contact with the calendar.',
+    schema: z.object({
+      days: z.number().int().min(1).max(730).optional(),
+      asOf: z.string().optional(),
+      onlyShort: z.boolean().optional(),
+    }),
+    method: 'GET',
+    path: (a) => `/api/v1/budget/forecast${qs({ days: a.days, asOf: a.asOf, onlyShort: a.onlyShort })}`,
+  },
+  {
     name: 'get_rta_reconciliation',
     description:
       'Explain why the money in the accounts does not equal Ready to Assign plus everything sitting in categories. Returns every account with its balance, onBudget, currency and isActive, then itemises the gap: off-budget balances, deactivated accounts, foreign currency, uncategorised spending and transfers that left the budget. A non-zero unexplainedCents means a real anomaly, not a modelling gap.',

@@ -36,6 +36,13 @@ export {
   getRtaReconciliation,
   reconcileAccount,
 } from './budget/engine.js';
+export { getBudgetForecast } from './budget/forecast.js';
+export type {
+  BudgetForecast,
+  MonthForecast,
+  CategoryForecast,
+  ForecastOccurrence,
+} from './budget/forecast.js';
 
 export type { DebtSnapshot, PayoffStrategy, MonthlySnapshot, DebtMonthState, PayoffSimulationResult, StrategyComparison, DebtVsInvestResult } from './debt/types.js';
 export { simulatePayoff } from './debt/simulator.js';
