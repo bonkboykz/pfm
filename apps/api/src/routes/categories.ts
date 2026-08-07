@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { type DB, categories, categoryGroups } from '@pfm/engine';
-import { notFound, validationError } from '../errors.js';
+import { notFound, validationError, unknownReference } from '../errors.js';
 
 const createGroupSchema = z.object({
   name: z.string().min(1),
@@ -73,13 +73,23 @@ export function categoryRoutes(db: DB) {
       throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
     }
 
+    const existing = db
+      .select()
+      .from(categoryGroups)
+      .where(and(eq(categoryGroups.name, parsed.data.name), eq(categoryGroups.isHidden, false)))
+      .get();
+
+    if (existing) {
+      return c.json({ ...existing, alreadyExisted: true }, 200);
+    }
+
     const created = db
       .insert(categoryGroups)
       .values({ name: parsed.data.name })
       .returning()
       .get();
 
-    return c.json(created, 201);
+    return c.json({ ...created, alreadyExisted: false }, 201);
   });
 
   // POST / — create category
@@ -95,7 +105,24 @@ export function categoryRoutes(db: DB) {
       .from(categoryGroups)
       .where(eq(categoryGroups.id, parsed.data.groupId))
       .get();
-    if (!group) throw notFound('CategoryGroup', parsed.data.groupId);
+    if (!group) throw unknownReference('groupId', parsed.data.groupId, 'GET /api/v1/categories');
+
+    // A retried create used to mint a second category with the same name and a
+    // different id, so the id the caller was holding no longer matched the one
+    // the budget reported. Returning the existing row makes the retry a no-op.
+    const existing = db
+      .select()
+      .from(categories)
+      .where(and(
+        eq(categories.groupId, parsed.data.groupId),
+        eq(categories.name, parsed.data.name),
+        eq(categories.isHidden, false),
+      ))
+      .get();
+
+    if (existing) {
+      return c.json({ ...existing, alreadyExisted: true }, 200);
+    }
 
     const created = db
       .insert(categories)
@@ -110,7 +137,7 @@ export function categoryRoutes(db: DB) {
       .returning()
       .get();
 
-    return c.json(created, 201);
+    return c.json({ ...created, alreadyExisted: false }, 201);
   });
 
   // PATCH /:id — update category

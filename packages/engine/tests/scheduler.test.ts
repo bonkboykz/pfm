@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createDb, type DB } from '../src/db/index.js';
+import { initializeDatabase } from '../src/db/ddl.js';
 import { advanceDate, getUpcoming, processDue } from '../src/scheduler/engine.js';
 
 // --- Deterministic IDs ---
@@ -32,109 +33,14 @@ function createAndSeedDb(): DB {
   const db = createDb(':memory:');
   const sqlite = db.$client;
 
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('checking', 'savings', 'credit_card', 'cash', 'line_of_credit', 'tracking')),
-      on_budget INTEGER NOT NULL DEFAULT 1,
-      currency TEXT NOT NULL DEFAULT 'KZT',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      note TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS category_groups (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      is_system INTEGER NOT NULL DEFAULT 0,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_hidden INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES category_groups(id),
-      name TEXT NOT NULL,
-      is_system INTEGER NOT NULL DEFAULT 0,
-      target_amount_cents INTEGER,
-      target_type TEXT DEFAULT 'none' CHECK(target_type IN ('none', 'monthly_funding', 'target_balance', 'target_by_date')),
-      target_date TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_hidden INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS payees (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      last_category_id TEXT REFERENCES categories(id),
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL REFERENCES accounts(id),
-      date TEXT NOT NULL,
-      amount_cents INTEGER NOT NULL,
-      payee_id TEXT REFERENCES payees(id),
-      payee_name TEXT,
-      category_id TEXT REFERENCES categories(id),
-      transfer_account_id TEXT REFERENCES accounts(id),
-      transfer_transaction_id TEXT,
-      memo TEXT,
-      cleared TEXT NOT NULL DEFAULT 'uncleared' CHECK(cleared IN ('uncleared', 'cleared', 'reconciled')),
-      approved INTEGER NOT NULL DEFAULT 1,
-      is_deleted INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_tx_account_date ON transactions(account_id, date);
-    CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category_id);
-    CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
-    CREATE INDEX IF NOT EXISTS idx_tx_transfer ON transactions(transfer_transaction_id);
-
-    CREATE TABLE IF NOT EXISTS monthly_budgets (
-      id TEXT PRIMARY KEY,
-      category_id TEXT NOT NULL REFERENCES categories(id),
-      month TEXT NOT NULL,
-      assigned_cents INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_budget_cat_month ON monthly_budgets(category_id, month);
-
-    CREATE TABLE IF NOT EXISTS scheduled_transactions (
-      id TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL REFERENCES accounts(id),
-      frequency TEXT NOT NULL CHECK(frequency IN ('weekly', 'biweekly', 'monthly', 'yearly')),
-      next_date TEXT NOT NULL,
-      amount_cents INTEGER NOT NULL,
-      payee_name TEXT,
-      category_id TEXT REFERENCES categories(id),
-      transfer_account_id TEXT REFERENCES accounts(id),
-      memo TEXT,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_sched_next_date ON scheduled_transactions(next_date);
-    CREATE INDEX IF NOT EXISTS idx_sched_active ON scheduled_transactions(is_active);
-  `);
+  initializeDatabase(sqlite);
 
   const now = new Date().toISOString();
 
   // System records
-  sqlite.prepare(`INSERT INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 1, -1, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 1, -1, 0, ?)`)
     .run(grp.inflow, 'Inflow', now);
-  sqlite.prepare(`INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
     .run(cat.readyToAssign, grp.inflow, 'Ready to Assign', now);
 
   // Accounts
@@ -146,9 +52,9 @@ function createAndSeedDb(): DB {
   insertAccount.run(acc.halyk, 'Halyk Текущий', 'checking', 1, 1, now, now);
 
   // Category group + category
-  sqlite.prepare(`INSERT INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 0, 1, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 0, 1, 0, ?)`)
     .run(grp.fixed, 'Постоянные', now);
-  sqlite.prepare(`INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 0, 0, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 0, 0, 0, ?)`)
     .run(cat.rent, grp.fixed, 'Аренда', now);
 
   // Scheduled transactions

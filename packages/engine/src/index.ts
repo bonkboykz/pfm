@@ -1,6 +1,13 @@
 export { createDb, db, schema } from './db/index.js';
 export type { DB } from './db/index.js';
 export {
+  initializeDatabase,
+  applySchema,
+  applyColumnMigrations,
+  applyAuditTriggers,
+  seedSystemRows,
+} from './db/ddl.js';
+export {
   accounts,
   categoryGroups,
   categories,
@@ -11,11 +18,24 @@ export {
   loans,
   personalDebts,
   deposits,
+  auditLog,
 } from './db/schema.js';
 
 export { formatMoney, addCents, subtractCents, multiplyCents, sumCents } from './math/money.js';
 export type { CategoryBudget, BudgetMonth, AccountBalance, ReadyToAssignBreakdown } from './budget/types.js';
-export { getBudgetMonth, assignToCategory, moveBetweenCategories, getAccountBalances, getReadyToAssignRange, getReadyToAssign } from './budget/engine.js';
+export {
+  getBudgetMonth,
+  assignToCategory,
+  moveBetweenCategories,
+  getAccountBalances,
+  getReadyToAssignRange,
+  getReadyToAssign,
+  getCategoryAvailable,
+  setCategoryAvailable,
+  resetBudgetFrom,
+  getRtaReconciliation,
+  reconcileAccount,
+} from './budget/engine.js';
 
 export type { DebtSnapshot, PayoffStrategy, MonthlySnapshot, DebtMonthState, PayoffSimulationResult, StrategyComparison, DebtVsInvestResult } from './debt/types.js';
 export { simulatePayoff } from './debt/simulator.js';

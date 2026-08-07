@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createDb, type DB } from '../src/db/index.js';
+import { initializeDatabase } from '../src/db/ddl.js';
 import {
   getBudgetMonth,
   assignToCategory,
@@ -71,92 +72,14 @@ function createAndSeedDb(): DB {
   const sqlite = db.$client;
 
   // Create tables (same DDL as migrate.ts)
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('checking', 'savings', 'credit_card', 'cash', 'line_of_credit', 'tracking')),
-      on_budget INTEGER NOT NULL DEFAULT 1,
-      currency TEXT NOT NULL DEFAULT 'KZT',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      note TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS category_groups (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      is_system INTEGER NOT NULL DEFAULT 0,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_hidden INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES category_groups(id),
-      name TEXT NOT NULL,
-      is_system INTEGER NOT NULL DEFAULT 0,
-      target_amount_cents INTEGER,
-      target_type TEXT DEFAULT 'none' CHECK(target_type IN ('none', 'monthly_funding', 'target_balance', 'target_by_date')),
-      target_date TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_hidden INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS payees (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      last_category_id TEXT REFERENCES categories(id),
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL REFERENCES accounts(id),
-      date TEXT NOT NULL,
-      amount_cents INTEGER NOT NULL,
-      payee_id TEXT REFERENCES payees(id),
-      payee_name TEXT,
-      category_id TEXT REFERENCES categories(id),
-      transfer_account_id TEXT REFERENCES accounts(id),
-      transfer_transaction_id TEXT,
-      memo TEXT,
-      cleared TEXT NOT NULL DEFAULT 'uncleared' CHECK(cleared IN ('uncleared', 'cleared', 'reconciled')),
-      approved INTEGER NOT NULL DEFAULT 1,
-      is_deleted INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_tx_account_date ON transactions(account_id, date);
-    CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category_id);
-    CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
-    CREATE INDEX IF NOT EXISTS idx_tx_transfer ON transactions(transfer_transaction_id);
-
-    CREATE TABLE IF NOT EXISTS monthly_budgets (
-      id TEXT PRIMARY KEY,
-      category_id TEXT NOT NULL REFERENCES categories(id),
-      month TEXT NOT NULL,
-      assigned_cents INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_budget_cat_month ON monthly_budgets(category_id, month);
-  `);
+  initializeDatabase(sqlite);
 
   const now = new Date().toISOString();
 
   // System records
-  sqlite.prepare(`INSERT INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 1, -1, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 1, -1, 0, ?)`)
     .run(grp.inflow, 'Inflow', now);
-  sqlite.prepare(`INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
     .run(cat.readyToAssign, grp.inflow, 'Ready to Assign', now);
 
   // Accounts
@@ -171,7 +94,7 @@ function createAndSeedDb(): DB {
 
   // Category groups
   const insertGroup = sqlite.prepare(`
-    INSERT INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at)
+    INSERT OR IGNORE INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at)
     VALUES (?, ?, 0, ?, 0, ?)
   `);
   insertGroup.run(grp.fixed, 'Постоянные', 1, now);
@@ -181,7 +104,7 @@ function createAndSeedDb(): DB {
 
   // Categories
   const insertCategory = sqlite.prepare(`
-    INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at)
+    INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at)
     VALUES (?, ?, ?, 0, ?, 0, ?)
   `);
   // Постоянные

@@ -129,6 +129,8 @@ export const loans = sqliteTable('loans', {
   paidOffCents: integer('paid_off_cents').notNull().default(0),
   note: text('note'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  closedDate: text('closed_date'),
+  closureReason: text('closure_reason'),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
 }, (table) => [
@@ -166,6 +168,34 @@ export const deposits = sqliteTable('deposits', {
 }, (table) => [
   index('idx_deposits_active').on(table.isActive),
   index('idx_deposits_bank').on(table.bankName),
+]);
+
+/**
+ * Append-only journal of mutations, written by the API's audit middleware.
+ *
+ * `beforeJson` holds the rows a mutation overwrote, so an entry can be replayed
+ * backwards. `batchId` ties the rows a bulk call touched together, which is what
+ * makes "undo that import" one operation instead of N.
+ */
+export const auditLog = sqliteTable('audit_log', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  batchId: text('batch_id').notNull(),
+  entity: text('entity').notNull(),
+  entityId: text('entity_id'),
+  action: text('action', {
+    enum: ['create', 'update', 'delete', 'assign', 'bulk'],
+  }).notNull(),
+  method: text('method').notNull(),
+  path: text('path').notNull(),
+  summary: text('summary'),
+  beforeJson: text('before_json'),
+  afterJson: text('after_json'),
+  isReverted: integer('is_reverted', { mode: 'boolean' }).notNull().default(false),
+  revertedAt: text('reverted_at'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+}, (table) => [
+  index('idx_audit_created').on(table.createdAt),
+  index('idx_audit_batch').on(table.batchId),
 ]);
 
 export const personalDebts = sqliteTable('personal_debts', {
