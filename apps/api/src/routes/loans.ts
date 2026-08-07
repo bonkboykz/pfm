@@ -15,7 +15,11 @@ const createLoanSchema = z.object({
   type: z.enum(['loan', 'installment', 'credit_line']),
   accountId: z.string().optional(),
   categoryId: z.string().optional(),
-  principalCents: z.number().int().positive(),
+  // A bank statement shows what is left, not what was borrowed. Supplying
+  // currentBalanceCents lets the caller quote the statement directly instead of
+  // inventing a principal and a paid-off figure that reconstruct it.
+  principalCents: z.number().int().positive().optional(),
+  currentBalanceCents: z.number().int().min(0).optional(),
   aprBps: z.number().int().min(0).optional(),
   termMonths: z.number().int().positive(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -25,7 +29,10 @@ const createLoanSchema = z.object({
   earlyRepaymentFeeCents: z.number().int().min(0).optional(),
   paidOffCents: z.number().int().min(0).optional(),
   note: z.string().optional(),
-});
+}).refine(
+  (d) => d.principalCents !== undefined || d.currentBalanceCents !== undefined,
+  { message: 'Provide either principalCents or currentBalanceCents' },
+);
 
 const updateLoanSchema = z.object({
   name: z.string().min(1).optional(),
@@ -36,7 +43,13 @@ const updateLoanSchema = z.object({
   penaltyRateBps: z.number().int().min(0).optional(),
   earlyRepaymentFeeCents: z.number().int().min(0).optional(),
   paidOffCents: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
   note: z.string().nullable().optional(),
+});
+
+const closeLoanSchema = z.object({
+  closedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  reason: z.string().optional(),
 });
 
 function formatLoan(loan: typeof loans.$inferSelect, currentDebtCents: number) {
@@ -60,6 +73,8 @@ function formatLoan(loan: typeof loans.$inferSelect, currentDebtCents: number) {
     paidOffFormatted: formatMoney(loan.paidOffCents),
     note: loan.note,
     isActive: loan.isActive,
+    closedDate: loan.closedDate,
+    closureReason: loan.closureReason,
     currentDebtCents,
     currentDebtFormatted: formatMoney(currentDebtCents),
   };
@@ -68,14 +83,33 @@ function formatLoan(loan: typeof loans.$inferSelect, currentDebtCents: number) {
 export function loanRoutes(db: DB) {
   const router = new Hono();
 
-  // GET / — list all active loans
+  // GET / — list loans (?includeInactive=true also returns closed ones)
   router.get('/', (c) => {
-    const allLoans = db.select().from(loans).where(eq(loans.isActive, true)).all();
+    const includeInactive = c.req.query('includeInactive') === 'true';
+
+    const allLoans = includeInactive
+      ? db.select().from(loans).all()
+      : db.select().from(loans).where(eq(loans.isActive, true)).all();
+
     const result = allLoans.map((loan) => {
       const currentDebtCents = getLoanCurrentDebt(db, loan.id);
       return formatLoan(loan, currentDebtCents);
     });
-    return c.json(result);
+
+    const activeDebt = result
+      .filter((l) => l.isActive)
+      .reduce((sum, l) => sum + l.currentDebtCents, 0);
+
+    return c.json(
+      c.req.query('withTotals') === 'true'
+        ? {
+            loans: result,
+            activeCount: result.filter((l) => l.isActive).length,
+            totalActiveDebtCents: activeDebt,
+            totalActiveDebtFormatted: formatMoney(activeDebt),
+          }
+        : result,
+    );
   });
 
   // POST / — create loan
@@ -87,6 +121,21 @@ export function loanRoutes(db: DB) {
     }
 
     const data = parsed.data;
+
+    // currentBalanceCents is stored as principal-minus-paid-off, the pair the
+    // rest of the engine works in. Quoting only the balance means nothing is
+    // yet repaid against it.
+    const principalCents = data.principalCents ?? data.currentBalanceCents!;
+    const paidOffCents = data.principalCents !== undefined
+      ? (data.paidOffCents ?? 0)
+      : 0;
+
+    if (paidOffCents > principalCents) {
+      throw validationError(
+        `paidOffCents (${paidOffCents}) cannot exceed principalCents (${principalCents})`,
+      );
+    }
+
     const created = db
       .insert(loans)
       .values({
@@ -94,7 +143,7 @@ export function loanRoutes(db: DB) {
         type: data.type,
         accountId: data.accountId ?? null,
         categoryId: data.categoryId ?? null,
-        principalCents: data.principalCents,
+        principalCents,
         aprBps: data.aprBps ?? 0,
         termMonths: data.termMonths,
         startDate: data.startDate,
@@ -102,7 +151,7 @@ export function loanRoutes(db: DB) {
         paymentDay: data.paymentDay,
         penaltyRateBps: data.penaltyRateBps ?? 0,
         earlyRepaymentFeeCents: data.earlyRepaymentFeeCents ?? 0,
-        paidOffCents: data.paidOffCents ?? 0,
+        paidOffCents,
         note: data.note ?? null,
       })
       .returning()
@@ -112,21 +161,56 @@ export function loanRoutes(db: DB) {
     return c.json(formatLoan(created, currentDebtCents), 201);
   });
 
-  // GET /:id — single loan
+  // GET /:id — single loan. A closed loan is still readable; isActive says so.
   router.get('/:id', (c) => {
     const id = c.req.param('id');
     const loan = db.select().from(loans).where(eq(loans.id, id)).get();
-    if (!loan || !loan.isActive) throw notFound('Loan', id);
+    if (!loan) throw notFound('Loan', id);
 
     const currentDebtCents = getLoanCurrentDebt(db, loan.id);
     return c.json(formatLoan(loan, currentDebtCents));
   });
 
-  // PATCH /:id — update loan
+  // POST /:id/close — settle a loan, keeping it on the books
+  router.post('/:id/close', async (c) => {
+    const id = c.req.param('id');
+    const loan = db.select().from(loans).where(eq(loans.id, id)).get();
+    if (!loan) throw notFound('Loan', id);
+
+    let body: Record<string, unknown> = {};
+    try {
+      body = await c.req.json();
+    } catch {
+      // Closing with no explanation is allowed.
+    }
+
+    const parsed = closeLoanSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+
+    // Marking it paid off is what takes it out of the debt totals; isActive
+    // alone would leave the balance in every aggregate that ignores the flag.
+    db.update(loans)
+      .set({
+        isActive: false,
+        paidOffCents: loan.principalCents,
+        closedDate: parsed.data.closedDate ?? new Date().toISOString().slice(0, 10),
+        closureReason: parsed.data.reason ?? null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(loans.id, id))
+      .run();
+
+    const updated = db.select().from(loans).where(eq(loans.id, id)).get()!;
+    return c.json(formatLoan(updated, getLoanCurrentDebt(db, updated.id)));
+  });
+
+  // PATCH /:id — update loan, including reactivating a closed one
   router.patch('/:id', async (c) => {
     const id = c.req.param('id');
     const loan = db.select().from(loans).where(eq(loans.id, id)).get();
-    if (!loan || !loan.isActive) throw notFound('Loan', id);
+    if (!loan) throw notFound('Loan', id);
 
     const body = await c.req.json();
     const parsed = updateLoanSchema.safeParse(body);
@@ -134,8 +218,21 @@ export function loanRoutes(db: DB) {
       throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
     }
 
+    const data = parsed.data;
+    if (data.paidOffCents !== undefined && data.paidOffCents > loan.principalCents) {
+      throw validationError(
+        `paidOffCents (${data.paidOffCents}) cannot exceed principalCents (${loan.principalCents})`,
+      );
+    }
+
     db.update(loans)
-      .set({ ...parsed.data, updatedAt: new Date().toISOString() })
+      .set({
+        ...data,
+        // Reopening a loan clears the closure record rather than leaving a
+        // stale closedDate on an active loan.
+        ...(data.isActive === true ? { closedDate: null, closureReason: null } : {}),
+        updatedAt: new Date().toISOString(),
+      })
       .where(eq(loans.id, id))
       .run();
 
@@ -144,7 +241,8 @@ export function loanRoutes(db: DB) {
     return c.json(formatLoan(updated, currentDebtCents));
   });
 
-  // DELETE /:id — soft delete
+  // DELETE /:id — deactivate. Prefer POST /:id/close, which also settles the
+  // balance; this leaves currentDebt intact for a loan that was entered wrongly.
   router.delete('/:id', (c) => {
     const id = c.req.param('id');
     const loan = db.select().from(loans).where(eq(loans.id, id)).get();
@@ -162,7 +260,7 @@ export function loanRoutes(db: DB) {
   router.get('/:id/schedule', (c) => {
     const id = c.req.param('id');
     const loan = db.select().from(loans).where(eq(loans.id, id)).get();
-    if (!loan || !loan.isActive) throw notFound('Loan', id);
+    if (!loan) throw notFound('Loan', id);
 
     const schedule = generateAmortizationSchedule(db, id);
     const formatted = schedule.map((entry) => ({

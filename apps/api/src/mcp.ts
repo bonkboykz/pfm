@@ -14,15 +14,22 @@ import { scheduledRoutes } from './routes/scheduled.js';
 import { loanRoutes } from './routes/loans.js';
 import { debtListRoutes } from './routes/debts.js';
 import { depositRoutes } from './routes/deposits.js';
+import { auditRoutes } from './routes/audit.js';
+import { auditLogger } from './middleware/audit.js';
 
 /**
  * The same routes the public API serves, minus apiKeyAuth, cors and logger.
  * Authorization happened at the /mcp/:token boundary; re-checking a key we
  * would have to hand ourselves buys nothing.
+ *
+ * Audit logging stays: changes an agent makes are exactly the ones worth being
+ * able to review and undo.
  */
 function createInternalRouter(db: DB) {
   const app = new Hono();
   app.onError(errorHandler);
+
+  app.use('/api/v1/*', auditLogger(db));
 
   app.route('/api/v1/accounts', accountRoutes(db));
   app.route('/api/v1/categories', categoryRoutes(db));
@@ -33,6 +40,7 @@ function createInternalRouter(db: DB) {
   app.route('/api/v1/loans', loanRoutes(db));
   app.route('/api/v1/debts', debtListRoutes(db));
   app.route('/api/v1/deposits', depositRoutes(db));
+  app.route('/api/v1/audit', auditRoutes(db));
 
   return app;
 }

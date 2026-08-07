@@ -7,6 +7,7 @@
     "test": "turbo test",
     "db:migrate": "pnpm --filter @pfm/engine db:migrate",
     "db:seed": "pnpm --filter @pfm/engine db:seed",
+    "db:audit": "pnpm --filter @pfm/api exec tsx ../../scripts/audit-cleanup.ts",
     "start": "pnpm db:migrate && pnpm db:seed && pnpm --filter @pfm/api start"
   },
   "devDependencies": {

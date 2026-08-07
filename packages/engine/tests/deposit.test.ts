@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createDb, type DB } from '../src/db/index.js';
+import { initializeDatabase } from '../src/db/ddl.js';
 import {
   getDepositCurrentBalance,
   getDepositSummary,
@@ -13,54 +14,14 @@ function createAndSeedDb(): DB {
   const db = createDb(':memory:');
   const sqlite = db.$client;
 
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL,
-      on_budget INTEGER NOT NULL DEFAULT 1, currency TEXT NOT NULL DEFAULT 'KZT',
-      sort_order INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1,
-      note TEXT, bank_name TEXT, last_4_digits TEXT, card_type TEXT,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS category_groups (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0,
-      sort_order INTEGER NOT NULL DEFAULT 0, is_hidden INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES category_groups(id),
-      name TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0,
-      target_amount_cents INTEGER, target_type TEXT DEFAULT 'none', target_date TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0, is_hidden INTEGER NOT NULL DEFAULT 0,
-      note TEXT, created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY, account_id TEXT NOT NULL REFERENCES accounts(id),
-      date TEXT NOT NULL, amount_cents INTEGER NOT NULL,
-      payee_id TEXT, payee_name TEXT, category_id TEXT,
-      transfer_account_id TEXT, transfer_transaction_id TEXT,
-      memo TEXT, cleared TEXT NOT NULL DEFAULT 'uncleared',
-      approved INTEGER NOT NULL DEFAULT 1, is_deleted INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS deposits (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL, bank_name TEXT NOT NULL,
-      type TEXT NOT NULL, account_id TEXT, category_id TEXT,
-      initial_amount_cents INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'KZT',
-      annual_rate_bps INTEGER NOT NULL, early_withdrawal_rate_bps INTEGER NOT NULL DEFAULT 0,
-      term_months INTEGER NOT NULL, start_date TEXT NOT NULL, end_date TEXT,
-      capitalization TEXT NOT NULL DEFAULT 'monthly',
-      is_withdrawable INTEGER NOT NULL DEFAULT 0, is_replenishable INTEGER NOT NULL DEFAULT 0,
-      min_balance_cents INTEGER NOT NULL DEFAULT 0, top_up_cents INTEGER NOT NULL DEFAULT 0,
-      note TEXT, is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-    );
-  `);
+  initializeDatabase(sqlite);
 
   const now = new Date().toISOString();
 
   // System records
-  sqlite.prepare(`INSERT INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 1, -1, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 1, -1, 0, ?)`)
     .run('inflow-group', 'Inflow', now);
-  sqlite.prepare(`INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
     .run('ready-to-assign', 'inflow-group', 'Ready to Assign', now);
 
   // Account for deposit with transactions

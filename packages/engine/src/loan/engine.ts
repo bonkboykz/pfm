@@ -1,4 +1,4 @@
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, gte, sql } from 'drizzle-orm';
 import Decimal from 'decimal.js';
 import type { DB } from '../db/index.js';
 import { loans, transactions } from '../db/schema.js';
@@ -9,8 +9,13 @@ export function getLoanCurrentDebt(db: DB, loanId: string): number {
   const loan = db.select().from(loans).where(eq(loans.id, loanId)).get();
   if (!loan) return 0;
 
-  if (!loan.categoryId) return Math.max(0, loan.principalCents - loan.paidOffCents);
+  const openingCents = Math.max(0, loan.principalCents - loan.paidOffCents);
+  if (!loan.categoryId) return openingCents;
 
+  // Payments count only from the loan's start date onward. A category is reused
+  // across loans, so spending that predates this loan belongs to whatever it
+  // replaced — counting it wiped out brand-new loans and every loan whose
+  // startDate is in the future.
   const result = db
     .select({ total: sql<number>`COALESCE(SUM(${transactions.amountCents}), 0)` })
     .from(transactions)
@@ -19,12 +24,15 @@ export function getLoanCurrentDebt(db: DB, loanId: string): number {
         eq(transactions.categoryId, loan.categoryId),
         eq(transactions.isDeleted, false),
         sql`${transactions.transferAccountId} IS NULL`,
+        gte(transactions.date, loan.startDate),
       ),
     )
     .get();
 
-  const totalPayments = Math.abs(result?.total ?? 0);
-  return Math.max(0, loan.principalCents - loan.paidOffCents - totalPayments);
+  // Outflows are negative, so payments are the negated sum. A category left in
+  // net inflow means nothing was repaid, not that the debt grew.
+  const totalPayments = Math.max(0, -(result?.total ?? 0));
+  return Math.max(0, openingCents - totalPayments);
 }
 
 export function getLoanSummary(db: DB, loanId: string): LoanSummary | null {

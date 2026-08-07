@@ -1,127 +1,33 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createDb, type DB } from '../src/db/index.js';
+import { initializeDatabase } from '../src/db/ddl.js';
 import { getLoanCurrentDebt, getLoanSummary, loanToDebtSnapshot, generateAmortizationSchedule } from '../src/loan/engine.js';
 
 function createAndSeedDb(): DB {
   const db = createDb(':memory:');
   const sqlite = db.$client;
 
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      on_budget INTEGER NOT NULL DEFAULT 1,
-      currency TEXT NOT NULL DEFAULT 'KZT',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      note TEXT,
-      bank_name TEXT,
-      last_4_digits TEXT,
-      card_type TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS category_groups (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      is_system INTEGER NOT NULL DEFAULT 0,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_hidden INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      group_id TEXT NOT NULL REFERENCES category_groups(id),
-      name TEXT NOT NULL,
-      is_system INTEGER NOT NULL DEFAULT 0,
-      target_amount_cents INTEGER,
-      target_type TEXT DEFAULT 'none',
-      target_date TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      is_hidden INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS payees (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      last_category_id TEXT REFERENCES categories(id),
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL REFERENCES accounts(id),
-      date TEXT NOT NULL,
-      amount_cents INTEGER NOT NULL,
-      payee_id TEXT REFERENCES payees(id),
-      payee_name TEXT,
-      category_id TEXT REFERENCES categories(id),
-      transfer_account_id TEXT REFERENCES accounts(id),
-      transfer_transaction_id TEXT,
-      memo TEXT,
-      cleared TEXT NOT NULL DEFAULT 'uncleared',
-      approved INTEGER NOT NULL DEFAULT 1,
-      is_deleted INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS monthly_budgets (
-      id TEXT PRIMARY KEY,
-      category_id TEXT NOT NULL REFERENCES categories(id),
-      month TEXT NOT NULL,
-      assigned_cents INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS loans (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      account_id TEXT REFERENCES accounts(id),
-      category_id TEXT REFERENCES categories(id),
-      principal_cents INTEGER NOT NULL,
-      apr_bps INTEGER NOT NULL DEFAULT 0,
-      term_months INTEGER NOT NULL,
-      start_date TEXT NOT NULL,
-      monthly_payment_cents INTEGER NOT NULL,
-      payment_day INTEGER NOT NULL,
-      penalty_rate_bps INTEGER NOT NULL DEFAULT 0,
-      early_repayment_fee_cents INTEGER NOT NULL DEFAULT 0,
-      paid_off_cents INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-  `);
+  initializeDatabase(sqlite);
 
   const now = new Date().toISOString();
 
   // System records
-  sqlite.prepare(`INSERT INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 1, -1, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 1, -1, 0, ?)`)
     .run('inflow-group', 'Inflow', now);
-  sqlite.prepare(`INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
     .run('ready-to-assign', 'inflow-group', 'Ready to Assign', now);
 
   // Account & category for loan
   sqlite.prepare(`INSERT INTO accounts (id, name, type, on_budget, sort_order, is_active, created_at, updated_at) VALUES (?, ?, 'checking', 1, 0, 1, ?, ?)`)
     .run('acc-halyk', 'Halyk Текущий', now, now);
 
-  sqlite.prepare(`INSERT INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 0, 3, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO category_groups (id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, 0, 3, 0, ?)`)
     .run('grp-debt', 'Долги', now);
 
-  sqlite.prepare(`INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 0, 1, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 0, 1, 0, ?)`)
     .run('cat-halyk-credit', 'grp-debt', 'Халық кредит', now);
 
-  sqlite.prepare(`INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 0, 0, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 0, 0, 0, ?)`)
     .run('cat-kaspi-red', 'grp-debt', 'Kaspi Red iPhone', now);
 
   // Loan with payments (Халық кредит — regular loan)

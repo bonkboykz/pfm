@@ -112,9 +112,40 @@ export function assignToCategory(db: DB, categoryId: string, month: string, amou
 
 This lets apps/api, apps/mcp, and tests each create their own db instance.
 
+### Recovery & Data Integrity
+
+Rules learned from a real restore-after-five-months session:
+
+- **Unknown ids are 404 `UNKNOWN_REFERENCE`, never a silent no-op.** `assign_budget`
+  used to accept any string and return the whole budget with `assignedCents: 0`.
+  Routes validate references before writing; bulk routes validate the entire
+  batch first, so nothing is half-applied.
+- **`create_category` / `create_category_group` are idempotent.** A retry returns the
+  existing row with `alreadyExisted: true` instead of minting a duplicate with a
+  new id.
+- **Loan payments count only from `startDate`.** Categories get reused across loans;
+  counting a category's whole history zeroed out new and future-dated loans.
+- **`close_loan` ≠ `delete_loan`.** Closing settles the balance so the loan leaves the
+  debt totals; deleting only hides it and leaves the balance in every aggregate.
+- **Never correct a balance with offsetting transactions.** `POST /accounts/:id/reconcile`
+  writes one adjustment. `set_available` sets a category's Available exactly
+  (negatives allowed) without touching transactions at all.
+- **Every mutation is journalled** by SQLite triggers on `transactions`,
+  `monthly_budgets` and `loans`; the audit middleware groups a request's rows into
+  one batch that `POST /audit/undo` can replay backwards.
+- `pnpm db:audit` reports duplicate categories, repaid-but-active loans, offsetting
+  transaction pairs and dangling category references; `--apply` repairs them after
+  taking a backup.
+
+### Schema changes
+
+DDL lives **only** in `packages/engine/src/db/ddl.ts`. `migrate.ts` and every test
+fixture call `initializeDatabase()`. Do not paste DDL into a test — it used to be
+duplicated across ten files and every schema change broke them one suite at a time.
+
 ### MCP Pattern
 
-`@pfm/mcp` owns a declarative table of 48 tools; each maps arguments to an HTTP
+`@pfm/mcp` owns a declarative table of 58 tools; each maps arguments to an HTTP
 method, path and body. `createMcpServer(dispatch)` takes the dispatch function as
 its first argument, the same dependency-injection shape engine functions use for
 `db`. The API supplies a dispatch that routes into an internal Hono app built from
@@ -135,11 +166,13 @@ Remote endpoint: `POST /mcp/:token`, token = `PFM_MCP_TOKEN` (falls back to
 ### Testing
 
 - Framework: Vitest
-- DB in tests: `createTestDb()` from `apps/api/tests/fixtures/db.ts` — it runs the
-  DDL and seeds the system rows. `createDb(':memory:')` only opens a connection and
+- DB in tests: `createTestDb()` from `apps/api/tests/fixtures/db.ts`, which calls
+  `initializeDatabase()` — the same function `migrate.ts` uses, so a test database
+  cannot drift from production's. `createDb(':memory:')` only opens a connection and
   creates no tables; `packages/engine/src/db/migrate.ts` is a side-effecting script
-  that writes to `./data`, so it cannot be reused from a test. The five older API
-  test files predate the fixture and each carry their own copy of the DDL.
+  that writes to `./data`, so it cannot be reused from a test.
+- `apps/api/tests/recovery-api.test.ts` pins the data-integrity guarantees above.
+  Engine tests call `initializeDatabase(db.$client)` directly.
 - API tests: `app.request()` (no HTTP server needed)
 - Seed test data in `beforeAll` block
 

@@ -230,11 +230,50 @@ describe('budget tools', () => {
   });
 
   it('assigns money, keeping month in the path only', () => {
-    expect(mapping('assign_budget', { month: '2026-08', categoryId: 'cat-rent', amountCents: 15000000 })).toEqual({
+    expect(mapping('assign_budget', { month: '2026-08', categoryId: 'cat-rent', amountCents: 15000000, full: true })).toEqual({
       method: 'POST',
       path: '/api/v1/budget/2026-08/assign',
       body: { categoryId: 'cat-rent', amountCents: 15000000 },
     });
+  });
+
+  it('asks for a minimal reply unless the caller wants the whole month', () => {
+    expect(mapping('assign_budget', { month: '2026-08', categoryId: 'cat-rent', amountCents: 15000000 }).path)
+      .toBe('/api/v1/budget/2026-08/assign?response=minimal');
+  });
+
+  it('sets available to an exact figure, negatives included', () => {
+    expect(mapping('set_available', { month: '2026-08', categoryId: 'cat-rent', amountCents: 0 })).toEqual({
+      method: 'POST',
+      path: '/api/v1/budget/2026-08/set-available?response=minimal',
+      body: { categoryId: 'cat-rent', amountCents: 0 },
+    });
+  });
+
+  it('sends a whole batch of assignments to one endpoint', () => {
+    const assignments = [
+      { categoryId: 'cat-rent', amountCents: 15000000 },
+      { categoryId: 'cat-food', amountCents: 8000000 },
+    ];
+    expect(mapping('bulk_assign_budget', { month: '2026-08', assignments })).toEqual({
+      method: 'POST',
+      path: '/api/v1/budget/2026-08/bulk-assign?response=minimal',
+      body: { assignments },
+    });
+  });
+
+  it('requires confirmation to reset a budget', () => {
+    expect(mapping('reset_budget', { fromMonth: '2026-08', confirm: true })).toEqual({
+      method: 'POST',
+      path: '/api/v1/budget/reset',
+      body: { fromMonth: '2026-08', confirm: true },
+    });
+    expect(tool('reset_budget').schema.safeParse({ fromMonth: '2026-08' }).success).toBe(false);
+  });
+
+  it('reads the reconciliation for a month', () => {
+    expect(mapping('get_rta_reconciliation', { month: '2026-08' }).path)
+      .toBe('/api/v1/budget/2026-08/reconciliation');
   });
 
   it('moves money between categories', () => {
@@ -615,8 +654,71 @@ describe('simulation tools', () => {
   });
 });
 
+describe('recovery tools', () => {
+  it('surfaces deactivated accounts on request', () => {
+    expect(mapping('list_accounts', {}).path).toBe('/api/v1/accounts');
+    expect(mapping('list_accounts', { includeInactive: true }).path)
+      .toBe('/api/v1/accounts?includeInactive=true');
+  });
+
+  it('reconciles an account to its real balance', () => {
+    expect(mapping('reconcile_account', { id: 'acc-1', actualBalanceCents: 49665414 })).toEqual({
+      method: 'POST',
+      path: '/api/v1/accounts/acc-1/reconcile',
+      body: { actualBalanceCents: 49665414 },
+    });
+  });
+
+  it('closes a loan rather than deleting it', () => {
+    expect(mapping('close_loan', { id: 'loan-1', closedDate: '2026-08-07', reason: 'repaid early' })).toEqual({
+      method: 'POST',
+      path: '/api/v1/loans/loan-1/close',
+      body: { closedDate: '2026-08-07', reason: 'repaid early' },
+    });
+  });
+
+  it('lists closed loans and totals when asked', () => {
+    expect(mapping('list_loans', { includeInactive: true, withTotals: true }).path)
+      .toBe('/api/v1/loans?includeInactive=true&withTotals=true');
+  });
+
+  it('accepts a loan quoted as its current balance', () => {
+    const schema = tool('create_loan').schema;
+    const base = {
+      name: 'Kaspi', type: 'installment' as const, termMonths: 3,
+      startDate: '2026-08-03', monthlyPaymentCents: 3350500, paymentDay: 3,
+    };
+    expect(schema.safeParse({ ...base, currentBalanceCents: 10051500 }).success).toBe(true);
+    expect(schema.safeParse({ ...base, principalCents: 10051500 }).success).toBe(true);
+  });
+
+  it('imports and bulk-writes transactions through their own endpoints', () => {
+    expect(mapping('bulk_create_transactions', {
+      transactions: [{ accountId: 'acc-1', date: '2026-08-01', amountCents: -1000 }],
+      skipDuplicates: true,
+    }).path).toBe('/api/v1/transactions/bulk');
+
+    expect(mapping('import_transactions', { accountId: 'acc-1', csv: 'date,amount\n', dryRun: true }).path)
+      .toBe('/api/v1/transactions/import');
+  });
+
+  it('reads and reverts recent changes', () => {
+    expect(mapping('list_recent_changes', { limit: 10, entity: 'transactions' }).path)
+      .toBe('/api/v1/audit?limit=10&entity=transactions');
+    expect(mapping('undo_changes', { batchId: 'batch-1' })).toEqual({
+      method: 'POST',
+      path: '/api/v1/audit/undo',
+      body: { batchId: 'batch-1' },
+    });
+  });
+});
+
 describe('table completeness', () => {
-  it('exposes exactly 48 tools', () => {
-    expect(tools).toHaveLength(48);
+  it('exposes exactly 58 tools', () => {
+    expect(tools).toHaveLength(58);
+  });
+
+  it('names every tool uniquely', () => {
+    expect(new Set(tools.map((t) => t.name)).size).toBe(tools.length);
   });
 });

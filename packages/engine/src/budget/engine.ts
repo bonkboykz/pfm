@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js';
 import { eq, and } from 'drizzle-orm';
+import { createId } from '@paralleldrive/cuid2';
 import { categories, categoryGroups, monthlyBudgets } from '../db/schema.js';
 import type { DB } from '../db/index.js';
 import type { CategoryBudget, BudgetMonth, AccountBalance, ReadyToAssignBreakdown } from './types.js';
@@ -21,7 +22,7 @@ interface AccountRow {
 
 // --- Private helpers ---
 
-function getCategoryAvailable(db: DB, categoryId: string, month: string): number {
+export function getCategoryAvailable(db: DB, categoryId: string, month: string): number {
   const monthEnd = `${month}-31`;
 
   const assignedRow = db.$client.prepare(`
@@ -230,6 +231,71 @@ export function assignToCategory(db: DB, categoryId: string, month: string, amou
   upsertMonthlyBudget(db, categoryId, month, amountCents);
 }
 
+/**
+ * Forces a category's Available to an exact figure for `month`.
+ *
+ * `assignToCategory` only ever sets the current month's assignment and refuses
+ * negatives, so Available inherited from earlier months could not be cleared —
+ * the documented workaround was a pile of mutually-cancelling transactions.
+ * This solves for the month's assignment instead, which is allowed to go
+ * negative; the difference flows back to Ready to Assign.
+ *
+ * It moves money between the category and RTA. It does not destroy money: if
+ * the budget as a whole holds more than the accounts do, the recorded inflows
+ * are wrong and `reconcileAccount` is the tool for that.
+ */
+export function setCategoryAvailable(
+  db: DB,
+  categoryId: string,
+  month: string,
+  targetAvailableCents: number,
+): { assignedCents: number; availableCents: number; deltaCents: number } {
+  const cat = db.select({ id: categories.id, isSystem: categories.isSystem })
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .get();
+
+  if (!cat) {
+    throw new Error(`Category not found: ${categoryId}`);
+  }
+  if (cat.isSystem) {
+    throw new Error('Cannot set available on system category');
+  }
+
+  const currentAvailable = getCategoryAvailable(db, categoryId, month);
+  const delta = new Decimal(targetAvailableCents).minus(currentAvailable);
+
+  const thisMonth = db.select({ assignedCents: monthlyBudgets.assignedCents })
+    .from(monthlyBudgets)
+    .where(and(eq(monthlyBudgets.categoryId, categoryId), eq(monthlyBudgets.month, month)))
+    .get();
+
+  const newAssigned = new Decimal(thisMonth?.assignedCents ?? 0).plus(delta).toNumber();
+  upsertMonthlyBudget(db, categoryId, month, newAssigned);
+
+  return {
+    assignedCents: newAssigned,
+    availableCents: targetAvailableCents,
+    deltaCents: delta.toNumber(),
+  };
+}
+
+/**
+ * Clears every assignment from `fromMonth` onward — "start budgeting again from
+ * here". Carryover from earlier months survives; use `setCategoryAvailable` to
+ * flatten that too.
+ */
+export function resetBudgetFrom(db: DB, fromMonth: string): { clearedRows: number; clearedCents: number } {
+  const affected = db.$client.prepare(`
+    SELECT COUNT(*) as rows, COALESCE(SUM(assigned_cents), 0) as total
+    FROM monthly_budgets WHERE month >= ?
+  `).get(fromMonth) as { rows: number; total: number };
+
+  db.$client.prepare(`DELETE FROM monthly_budgets WHERE month >= ?`).run(fromMonth);
+
+  return { clearedRows: affected.rows, clearedCents: affected.total };
+}
+
 export function moveBetweenCategories(
   db: DB,
   fromId: string,
@@ -278,6 +344,62 @@ export function moveBetweenCategories(
 
   upsertMonthlyBudget(db, fromId, month, fromAssigned);
   upsertMonthlyBudget(db, toId, month, toAssigned);
+}
+
+/**
+ * Writes a single adjustment transaction so an account's computed balance
+ * matches what the bank actually shows.
+ *
+ * This is the supported answer to "the app thinks I have more money than I do".
+ * The adjustment lands in Ready to Assign for on-budget accounts, so the
+ * correction propagates into the budget instead of hiding in a category.
+ */
+export function reconcileAccount(
+  db: DB,
+  accountId: string,
+  actualBalanceCents: number,
+  date: string,
+  memo?: string,
+): { adjustmentCents: number; previousBalanceCents: number; transactionId: string | null } {
+  const acct = db.$client.prepare(
+    `SELECT id, name, on_budget FROM accounts WHERE id = ?`
+  ).get(accountId) as { id: string; name: string; on_budget: number } | undefined;
+
+  if (!acct) {
+    throw new Error(`Account not found: ${accountId}`);
+  }
+
+  const row = db.$client.prepare(`
+    SELECT COALESCE(SUM(amount_cents), 0) as balance
+    FROM transactions WHERE account_id = ? AND is_deleted = 0
+  `).get(accountId) as { balance: number };
+
+  const delta = new Decimal(actualBalanceCents).minus(row.balance).toNumber();
+  if (delta === 0) {
+    return { adjustmentCents: 0, previousBalanceCents: row.balance, transactionId: null };
+  }
+
+  const id = createId();
+  const now = new Date().toISOString();
+
+  db.$client.prepare(`
+    INSERT INTO transactions
+      (id, account_id, date, amount_cents, payee_name, category_id,
+       memo, cleared, approved, is_deleted, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'reconciled', 1, 0, ?, ?)
+  `).run(
+    id,
+    accountId,
+    date,
+    delta,
+    'Reconciliation adjustment',
+    acct.on_budget ? 'ready-to-assign' : null,
+    memo ?? `Balance corrected to ${actualBalanceCents}`,
+    now,
+    now,
+  );
+
+  return { adjustmentCents: delta, previousBalanceCents: row.balance, transactionId: id };
 }
 
 export function getAccountBalances(db: DB): AccountBalance[] {
@@ -335,6 +457,139 @@ export function getReadyToAssignRange(
   }
 
   return { months, minReadyToAssignCents, minMonth };
+}
+
+interface RtaAccountRow {
+  id: string;
+  name: string;
+  type: string;
+  on_budget: number;
+  is_active: number;
+  currency: string;
+  balance: number;
+}
+
+/**
+ * Explains, account by account, why the money in the accounts does not equal
+ * Ready to Assign plus everything sitting in categories.
+ *
+ * The identity the budget maintains is
+ *   RTA + Σ Available = on-budget inflow + on-budget activity
+ * while the accounts hold
+ *   Σ balance = on-budget money + off-budget money.
+ * Everything that separates the two is itemised in `reconciliation` rather than
+ * left for the caller to guess at: off-budget accounts, balances on accounts
+ * that were deactivated but whose transactions still count, uncategorised
+ * spending, and money parked in foreign currency.
+ */
+export function getRtaReconciliation(db: DB, month: string) {
+  const monthEnd = `${month}-31`;
+
+  const accountRows = db.$client.prepare(`
+    SELECT a.id, a.name, a.type, a.on_budget, a.is_active, a.currency,
+      COALESCE(SUM(CASE WHEN t.is_deleted = 0 AND t.date <= ? THEN t.amount_cents ELSE 0 END), 0) as balance
+    FROM accounts a
+    LEFT JOIN transactions t ON t.account_id = a.id
+    GROUP BY a.id
+    ORDER BY a.on_budget DESC, a.sort_order
+  `).all(monthEnd) as RtaAccountRow[];
+
+  const { totalInflowCents, totalAssignedCents, readyToAssignCents } = getReadyToAssign(db, month);
+
+  // Categorised, non-transfer spending on on-budget accounts — the other half
+  // of what the budget accounts for.
+  const activityRow = db.$client.prepare(`
+    SELECT COALESCE(SUM(t.amount_cents), 0) as total
+    FROM transactions t JOIN accounts a ON a.id = t.account_id
+    WHERE a.on_budget = 1 AND t.is_deleted = 0
+      AND t.category_id IS NOT NULL AND t.category_id != 'ready-to-assign'
+      AND t.transfer_account_id IS NULL
+      AND t.date <= ?
+  `).get(monthEnd) as { total: number };
+
+  // Money that moved on an on-budget account but landed in no category at all.
+  // This is invisible in the budget yet fully visible in the balance.
+  const uncategorizedRow = db.$client.prepare(`
+    SELECT COALESCE(SUM(t.amount_cents), 0) as total, COUNT(*) as count
+    FROM transactions t JOIN accounts a ON a.id = t.account_id
+    WHERE a.on_budget = 1 AND t.is_deleted = 0
+      AND t.category_id IS NULL
+      AND t.transfer_account_id IS NULL
+      AND t.date <= ?
+  `).get(monthEnd) as { total: number; count: number };
+
+  // Transfers that crossed the on-budget boundary drain budgeted money into
+  // accounts the budget does not track.
+  const crossBoundaryRow = db.$client.prepare(`
+    SELECT COALESCE(SUM(t.amount_cents), 0) as total
+    FROM transactions t
+      JOIN accounts a ON a.id = t.account_id
+      JOIN accounts b ON b.id = t.transfer_account_id
+    WHERE a.on_budget = 1 AND b.on_budget = 0
+      AND t.is_deleted = 0 AND t.date <= ?
+  `).get(monthEnd) as { total: number };
+
+  const accounts = accountRows.map((r) => ({
+    accountId: r.id,
+    accountName: r.name,
+    type: r.type,
+    onBudget: Boolean(r.on_budget),
+    isActive: Boolean(r.is_active),
+    currency: r.currency,
+    balanceCents: r.balance,
+    /** Only on-budget, active-or-not accounts feed Ready to Assign. */
+    countsTowardBudget: Boolean(r.on_budget),
+  }));
+
+  const sum = (pred: (a: typeof accounts[number]) => boolean) =>
+    accounts.filter(pred).reduce((acc, a) => new Decimal(acc).plus(a.balanceCents).toNumber(), 0);
+
+  const totalBalanceCents = sum(() => true);
+  const onBudgetBalanceCents = sum((a) => a.onBudget);
+  const offBudgetBalanceCents = sum((a) => !a.onBudget);
+  const inactiveBalanceCents = sum((a) => !a.isActive);
+  const foreignCurrencyBalanceCents = sum((a) => a.currency !== 'KZT');
+
+  const totalAvailableCents = new Decimal(totalInflowCents)
+    .plus(activityRow.total)
+    .minus(readyToAssignCents)
+    .toNumber();
+
+  const budgetedTotalCents = new Decimal(readyToAssignCents).plus(totalAvailableCents).toNumber();
+  // On-budget balance decomposes exactly into inflow + activity (which is
+  // budgetedTotal), plus spending that never reached a category, plus the
+  // on-budget leg of transfers that left the budget. Anything left over is a
+  // genuine anomaly.
+  const unexplainedCents = new Decimal(onBudgetBalanceCents)
+    .minus(budgetedTotalCents)
+    .minus(uncategorizedRow.total)
+    .minus(crossBoundaryRow.total)
+    .toNumber();
+
+  return {
+    month,
+    readyToAssignCents,
+    totalAvailableCents,
+    budgetedTotalCents,
+    totalInflowCents,
+    totalAssignedCents,
+    totalBalanceCents,
+    onBudgetBalanceCents,
+    offBudgetBalanceCents,
+    accounts,
+    reconciliation: {
+      /** Σ balance − (RTA + Σ Available). Each line below explains part of it. */
+      gapCents: new Decimal(totalBalanceCents).minus(budgetedTotalCents).toNumber(),
+      offBudgetBalanceCents,
+      inactiveAccountBalanceCents: inactiveBalanceCents,
+      foreignCurrencyBalanceCents,
+      uncategorizedCents: uncategorizedRow.total,
+      uncategorizedCount: uncategorizedRow.count,
+      transfersToOffBudgetCents: crossBoundaryRow.total,
+      /** Non-zero here means a bug or hand-edited data, not a modelling gap. */
+      unexplainedCents,
+    },
+  };
 }
 
 export function getReadyToAssign(db: DB, month: string): ReadyToAssignBreakdown {

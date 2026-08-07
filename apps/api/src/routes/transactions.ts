@@ -5,11 +5,29 @@ import { createId } from '@paralleldrive/cuid2';
 import {
   type DB,
   accounts,
+  categories,
   transactions,
   payees,
   formatMoney,
 } from '@pfm/engine';
-import { notFound, validationError } from '../errors.js';
+import { notFound, validationError, unknownReference } from '../errors.js';
+
+/**
+ * Rejects a category id that does not resolve.
+ *
+ * Transactions used to store whatever string arrived, and a bad id produced a
+ * row that no category query would ever return — money that left an account and
+ * appeared in no budget line.
+ */
+function requireCategoryRef(db: DB, categoryId: string) {
+  const cat = db.select({ id: categories.id }).from(categories).where(eq(categories.id, categoryId)).get();
+  if (!cat) throw unknownReference('categoryId', categoryId, 'GET /api/v1/categories');
+}
+
+function requireAccountRef(db: DB, accountId: string) {
+  const acct = db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, accountId)).get();
+  if (!acct) throw unknownReference('accountId', accountId, 'GET /api/v1/accounts');
+}
 
 const createTransactionSchema = z.object({
   accountId: z.string().min(1),
@@ -30,6 +48,192 @@ const updateTransactionSchema = z.object({
   memo: z.string().nullable().optional(),
   cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
 });
+
+const bulkCreateSchema = z.object({
+  transactions: z.array(createTransactionSchema.omit({ transferAccountId: true })).min(1).max(1000),
+  skipDuplicates: z.boolean().optional().default(false),
+});
+
+const importSchema = z.object({
+  accountId: z.string().min(1),
+  csv: z.string().min(1),
+  dateColumn: z.string().optional(),
+  amountColumn: z.string().optional(),
+  payeeColumn: z.string().optional(),
+  memoColumn: z.string().optional(),
+  dryRun: z.boolean().optional().default(false),
+});
+
+interface ParsedRow {
+  lineNumber: number;
+  date: string;
+  amountCents: number;
+  payeeName: string | null;
+  memo: string | null;
+}
+
+/**
+ * Finds a stored transaction matching on account, date, amount and payee — the
+ * fields a bank statement reproduces identically on every re-export.
+ */
+function findDuplicate(
+  db: DB,
+  r: { accountId: string; date: string; amountCents: number; payeeName?: string | null },
+): string | null {
+  const row = db.$client.prepare(`
+    SELECT id FROM transactions
+    WHERE account_id = ? AND date = ? AND amount_cents = ?
+      AND LOWER(COALESCE(payee_name, '')) = LOWER(?)
+      AND is_deleted = 0
+    LIMIT 1
+  `).get(r.accountId, r.date, r.amountCents, r.payeeName ?? '') as { id: string } | undefined;
+
+  return row?.id ?? null;
+}
+
+/** Splits one CSV line, honouring double-quoted fields and doubled quotes. */
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',' || ch === ';') {
+      out.push(field.trim());
+      field = '';
+    } else {
+      field += ch;
+    }
+  }
+  out.push(field.trim());
+  return out;
+}
+
+/** Accepts 2026-08-07, 07.08.2026 and 07/08/2026; anything else is rejected. */
+function normalizeDate(raw: string): string | null {
+  const s = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  const m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+  if (m) {
+    const [, d, mo, y] = m;
+    return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return null;
+}
+
+/**
+ * Parses a bank amount into integer tiyns.
+ *
+ * Statements use spaces or non-breaking spaces as thousand separators and
+ * either a comma or a dot as the decimal mark, and wrap debits in parentheses.
+ */
+function parseAmountToCents(raw: string): number | null {
+  let s = raw.replace(/[\s  ]/g, '').replace(/[^\d,.\-()]/g, '').trim();
+  if (!s) return null;
+
+  let negative = false;
+  if (s.startsWith('(') && s.endsWith(')')) { negative = true; s = s.slice(1, -1); }
+  if (s.startsWith('-')) { negative = true; s = s.slice(1); }
+
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  const decimalAt = Math.max(lastComma, lastDot);
+
+  let whole = s;
+  let frac = '';
+  // Two digits after the final separator means it is the decimal mark; three
+  // means it was a thousands separator all along.
+  if (decimalAt !== -1 && s.length - decimalAt - 1 <= 2) {
+    whole = s.slice(0, decimalAt);
+    frac = s.slice(decimalAt + 1);
+  }
+
+  whole = whole.replace(/[,.]/g, '');
+  if (!/^\d*$/.test(whole) || !/^\d*$/.test(frac)) return null;
+  if (!whole && !frac) return null;
+
+  const cents = Number(whole || '0') * 100 + Number((frac + '00').slice(0, 2));
+  return negative ? -cents : cents;
+}
+
+function parseCsv(
+  csv: string,
+  cols: { dateColumn?: string; amountColumn?: string; payeeColumn?: string; memoColumn?: string },
+): ParsedRow[] {
+  const lines = csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length < 2) throw new Error('CSV needs a header row and at least one data row');
+
+  const header = splitCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/^﻿/, ''));
+
+  const findCol = (explicit: string | undefined, candidates: string[], label: string) => {
+    if (explicit) {
+      const i = header.indexOf(explicit.toLowerCase());
+      if (i === -1) throw new Error(`Column '${explicit}' not found. Header: ${header.join(', ')}`);
+      return i;
+    }
+    for (const cand of candidates) {
+      const i = header.findIndex((h) => h.includes(cand));
+      if (i !== -1) return i;
+    }
+    throw new Error(`Could not find a ${label} column. Header: ${header.join(', ')}. Pass ${label}Column explicitly.`);
+  };
+
+  const dateIdx = findCol(cols.dateColumn, ['date', 'дата'], 'date');
+  const amountIdx = findCol(cols.amountColumn, ['amount', 'сумма'], 'amount');
+
+  const optionalCol = (explicit: string | undefined, candidates: string[]) => {
+    if (explicit) {
+      const i = header.indexOf(explicit.toLowerCase());
+      return i === -1 ? -1 : i;
+    }
+    for (const cand of candidates) {
+      const i = header.findIndex((h) => h.includes(cand));
+      if (i !== -1) return i;
+    }
+    return -1;
+  };
+
+  const payeeIdx = optionalCol(cols.payeeColumn, ['payee', 'description', 'получател', 'назначен', 'операц']);
+  const memoIdx = optionalCol(cols.memoColumn, ['memo', 'note', 'коммент', 'примечан']);
+
+  const rows: ParsedRow[] = [];
+  const problems: string[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const cells = splitCsvLine(lines[i]);
+    const date = normalizeDate(cells[dateIdx] ?? '');
+    const amountCents = parseAmountToCents(cells[amountIdx] ?? '');
+
+    if (date === null) { problems.push(`line ${i + 1}: unparseable date '${cells[dateIdx] ?? ''}'`); continue; }
+    if (amountCents === null) { problems.push(`line ${i + 1}: unparseable amount '${cells[amountIdx] ?? ''}'`); continue; }
+
+    rows.push({
+      lineNumber: i + 1,
+      date,
+      amountCents,
+      payeeName: payeeIdx === -1 ? null : (cells[payeeIdx] || null),
+      memo: memoIdx === -1 ? null : (cells[memoIdx] || null),
+    });
+  }
+
+  // A statement that mostly fails to parse means the wrong columns were picked;
+  // importing the surviving handful would quietly lose the rest.
+  if (problems.length && problems.length > rows.length) {
+    throw new Error(`Most rows failed to parse: ${problems.slice(0, 5).join('; ')}`);
+  }
+
+  return rows;
+}
 
 function resolvePayee(db: DB, payeeName: string | undefined, categoryId: string | undefined | null) {
   if (!payeeName) return { payeeId: null, payeeName: null };
@@ -102,12 +306,13 @@ export function transactionRoutes(db: DB) {
 
     // Validate source account
     const sourceAcct = db.select().from(accounts).where(eq(accounts.id, data.accountId)).get();
-    if (!sourceAcct) throw notFound('Account', data.accountId);
+    if (!sourceAcct) throw unknownReference('accountId', data.accountId, 'GET /api/v1/accounts');
+    if (data.categoryId) requireCategoryRef(db, data.categoryId);
 
     // Transfer flow
     if (data.transferAccountId) {
       const targetAcct = db.select().from(accounts).where(eq(accounts.id, data.transferAccountId)).get();
-      if (!targetAcct) throw notFound('Account', data.transferAccountId);
+      if (!targetAcct) throw unknownReference('transferAccountId', data.transferAccountId, 'GET /api/v1/accounts');
 
       const tx1Id = createId();
       const tx2Id = createId();
@@ -174,6 +379,169 @@ export function transactionRoutes(db: DB) {
     return c.json(formatTx(created), 201);
   });
 
+  // POST /bulk — many transactions in one all-or-nothing write
+  router.post('/bulk', async (c) => {
+    const body = await c.req.json();
+    const parsed = bulkCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+
+    const { transactions: rows, skipDuplicates } = parsed.data;
+
+    // Every reference is checked before a single row is written; a bad id at
+    // position 40 must not leave the first 39 committed.
+    for (const [i, r] of rows.entries()) {
+      try {
+        requireAccountRef(db, r.accountId);
+        if (r.categoryId) requireCategoryRef(db, r.categoryId);
+      } catch (err) {
+        (err as Error).message += ` (transactions[${i}])`;
+        throw err;
+      }
+    }
+
+    const created: string[] = [];
+    const skipped: Array<{ index: number; reason: string; existingId: string }> = [];
+
+    db.$client.transaction(() => {
+      for (const [i, r] of rows.entries()) {
+        if (skipDuplicates) {
+          const dup = findDuplicate(db, r);
+          if (dup) {
+            skipped.push({ index: i, reason: 'duplicate', existingId: dup });
+            continue;
+          }
+        }
+
+        const { payeeId, payeeName } = resolvePayee(db, r.payeeName, r.categoryId);
+        const id = createId();
+        const now = new Date().toISOString();
+
+        db.insert(transactions).values({
+          id,
+          accountId: r.accountId,
+          date: r.date,
+          amountCents: r.amountCents,
+          payeeId,
+          payeeName,
+          categoryId: r.categoryId ?? null,
+          memo: r.memo ?? null,
+          cleared: r.cleared ?? 'uncleared',
+          createdAt: now,
+          updatedAt: now,
+        }).run();
+
+        created.push(id);
+      }
+    })();
+
+    return c.json({
+      created: created.length,
+      skipped: skipped.length,
+      transactionIds: created,
+      skippedDetail: skipped,
+    }, 201);
+  });
+
+  // POST /import — CSV in, deduplicated against what is already stored
+  router.post('/import', async (c) => {
+    const body = await c.req.json();
+    const parsed = importSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+
+    const { accountId, csv, dateColumn, amountColumn, payeeColumn, memoColumn, dryRun } = parsed.data;
+    requireAccountRef(db, accountId);
+
+    let rows: ParsedRow[];
+    try {
+      rows = parseCsv(csv, { dateColumn, amountColumn, payeeColumn, memoColumn });
+    } catch (err) {
+      throw validationError((err as Error).message);
+    }
+
+    if (!rows.length) {
+      throw validationError('CSV contained no data rows');
+    }
+
+    const toInsert: ParsedRow[] = [];
+    const duplicates: Array<{ row: number; date: string; amountCents: number; payeeName: string | null; existingId: string }> = [];
+
+    // Deduplication is by date + amount + payee, matched against rows already
+    // stored and against earlier rows in this same file, so re-importing an
+    // overlapping statement is safe.
+    const seenInFile = new Set<string>();
+
+    for (const r of rows) {
+      const key = `${r.date}|${r.amountCents}|${(r.payeeName ?? '').toLowerCase()}`;
+      const existing = findDuplicate(db, { accountId, ...r });
+
+      if (existing) {
+        duplicates.push({ row: r.lineNumber, date: r.date, amountCents: r.amountCents, payeeName: r.payeeName, existingId: existing });
+      } else if (seenInFile.has(key)) {
+        duplicates.push({ row: r.lineNumber, date: r.date, amountCents: r.amountCents, payeeName: r.payeeName, existingId: 'earlier-row-in-file' });
+      } else {
+        seenInFile.add(key);
+        toInsert.push(r);
+      }
+    }
+
+    if (dryRun) {
+      return c.json({
+        dryRun: true,
+        parsed: rows.length,
+        wouldImport: toInsert.length,
+        duplicates: duplicates.length,
+        duplicateDetail: duplicates,
+        preview: toInsert.slice(0, 10).map((r) => ({
+          date: r.date,
+          amountCents: r.amountCents,
+          amountFormatted: formatMoney(r.amountCents),
+          payeeName: r.payeeName,
+          memo: r.memo,
+        })),
+      });
+    }
+
+    const createdIds: string[] = [];
+
+    db.$client.transaction(() => {
+      for (const r of toInsert) {
+        const { payeeId, payeeName } = resolvePayee(db, r.payeeName ?? undefined, undefined);
+        const id = createId();
+        const now = new Date().toISOString();
+
+        db.insert(transactions).values({
+          id,
+          accountId,
+          date: r.date,
+          amountCents: r.amountCents,
+          payeeId,
+          payeeName,
+          categoryId: null,
+          memo: r.memo ?? null,
+          cleared: 'cleared',
+          createdAt: now,
+          updatedAt: now,
+        }).run();
+
+        createdIds.push(id);
+      }
+    })();
+
+    return c.json({
+      dryRun: false,
+      parsed: rows.length,
+      imported: createdIds.length,
+      duplicates: duplicates.length,
+      duplicateDetail: duplicates,
+      transactionIds: createdIds,
+      note: 'Imported rows are uncategorised. Assign categories so they reach the budget.',
+    }, 201);
+  });
+
   // GET /:id — single transaction
   router.get('/:id', (c) => {
     const id = c.req.param('id');
@@ -204,6 +572,8 @@ export function transactionRoutes(db: DB) {
     }
 
     const data = parsed.data;
+    if (data.categoryId) requireCategoryRef(db, data.categoryId);
+
     const now = new Date().toISOString();
 
     // Handle payee update

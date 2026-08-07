@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { createDb, type DB } from '@pfm/engine';
+import { createDb, initializeDatabase, type DB } from '@pfm/engine';
 import { createApp } from '../src/app.js';
 import type { Hono } from 'hono';
 
@@ -18,47 +18,11 @@ function createMinimalDb(): DB {
   const sqlite = db.$client;
   const now = new Date().toISOString();
 
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL, type TEXT NOT NULL,
-      on_budget INTEGER NOT NULL DEFAULT 1, currency TEXT NOT NULL DEFAULT 'KZT',
-      sort_order INTEGER NOT NULL DEFAULT 0, is_active INTEGER NOT NULL DEFAULT 1,
-      note TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS category_groups (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0,
-      sort_order INTEGER NOT NULL DEFAULT 0, is_hidden INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES category_groups(id),
-      name TEXT NOT NULL, is_system INTEGER NOT NULL DEFAULT 0,
-      target_amount_cents INTEGER, target_type TEXT DEFAULT 'none',
-      target_date TEXT, sort_order INTEGER NOT NULL DEFAULT 0,
-      is_hidden INTEGER NOT NULL DEFAULT 0, note TEXT, created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS payees (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE,
-      last_category_id TEXT, created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY, account_id TEXT NOT NULL, date TEXT NOT NULL,
-      amount_cents INTEGER NOT NULL, payee_id TEXT, payee_name TEXT,
-      category_id TEXT, transfer_account_id TEXT, transfer_transaction_id TEXT,
-      memo TEXT, cleared TEXT NOT NULL DEFAULT 'uncleared',
-      approved INTEGER NOT NULL DEFAULT 1, is_deleted INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS monthly_budgets (
-      id TEXT PRIMARY KEY, category_id TEXT NOT NULL, month TEXT NOT NULL,
-      assigned_cents INTEGER NOT NULL DEFAULT 0, note TEXT,
-      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-    );
-  `);
+  initializeDatabase(sqlite);
 
-  sqlite.prepare(`INSERT INTO category_groups VALUES (?, ?, 1, -1, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO category_groups VALUES (?, ?, 1, -1, 0, ?)`)
     .run('inflow-group', 'Inflow', now);
-  sqlite.prepare(`INSERT INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
+  sqlite.prepare(`INSERT OR IGNORE INTO categories (id, group_id, name, is_system, sort_order, is_hidden, created_at) VALUES (?, ?, ?, 1, 0, 0, ?)`)
     .run('ready-to-assign', 'inflow-group', 'Ready to Assign', now);
 
   return db;

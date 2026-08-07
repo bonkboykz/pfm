@@ -1,15 +1,20 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import {
   type DB,
+  categories,
   getBudgetMonth,
   assignToCategory,
   moveBetweenCategories,
+  setCategoryAvailable,
+  resetBudgetFrom,
   getReadyToAssignRange,
   getReadyToAssign,
+  getRtaReconciliation,
   formatMoney,
 } from '@pfm/engine';
-import { validationError } from '../errors.js';
+import { validationError, unknownReference } from '../errors.js';
 
 const monthRegex = /^\d{4}-\d{2}$/;
 
@@ -23,6 +28,86 @@ const moveSchema = z.object({
   toCategoryId: z.string().min(1),
   amountCents: z.number().int().positive(),
 });
+
+const setAvailableSchema = z.object({
+  categoryId: z.string().min(1),
+  amountCents: z.number().int(),
+});
+
+const bulkAssignSchema = z.object({
+  assignments: z.array(z.object({
+    categoryId: z.string().min(1),
+    amountCents: z.number().int().min(0),
+  })).min(1).max(500),
+});
+
+const resetSchema = z.object({
+  fromMonth: z.string().regex(monthRegex),
+  confirm: z.literal(true),
+});
+
+/**
+ * Rejects a category id the caller only believes in.
+ *
+ * Assignment used to accept any string and report success against a budget the
+ * category was not in, so a mistyped or stale id looked like it had worked.
+ */
+function requireCategory(db: DB, categoryId: string) {
+  const cat = db.select({ id: categories.id, isSystem: categories.isSystem, name: categories.name })
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .get();
+
+  if (!cat) throw unknownReference('categoryId', categoryId, 'GET /api/v1/categories');
+  if (cat.isSystem) {
+    throw validationError(`Category '${cat.name}' is a system category and cannot be budgeted directly`);
+  }
+  return cat;
+}
+
+function formatCategory(cb: ReturnType<typeof getBudgetMonth>['categoryBudgets'][number]) {
+  return {
+    categoryId: cb.categoryId,
+    categoryName: cb.categoryName,
+    assignedCents: cb.assignedCents,
+    assignedFormatted: formatMoney(cb.assignedCents),
+    activityCents: cb.activityCents,
+    activityFormatted: formatMoney(cb.activityCents),
+    availableCents: cb.availableCents,
+    availableFormatted: formatMoney(cb.availableCents),
+    targetAmountCents: cb.targetAmountCents,
+    targetType: cb.targetType,
+    isUnderfunded: cb.isUnderfunded,
+    isOverspent: cb.isOverspent,
+  };
+}
+
+/**
+ * The reply a mutation owes its caller: what changed, and what is left to
+ * assign. The full month is 22 categories of unchanged rows — nine assignments
+ * in a row returned nine near-identical copies of it.
+ */
+function formatMinimalResponse(
+  budget: ReturnType<typeof getBudgetMonth>,
+  touchedIds: string[],
+) {
+  const touched = new Set(touchedIds);
+  return {
+    month: budget.month,
+    readyToAssignCents: budget.readyToAssignCents,
+    readyToAssignFormatted: formatMoney(budget.readyToAssignCents),
+    totalAssignedCents: budget.totalAssignedCents,
+    totalAssignedFormatted: formatMoney(budget.totalAssignedCents),
+    categories: budget.categoryBudgets
+      .filter((cb) => touched.has(cb.categoryId))
+      .map(formatCategory),
+  };
+}
+
+/** `?response=minimal` on any budget mutation. Full month stays the default. */
+function wantsMinimal(c: { req: { query: (k: string) => string | undefined } }) {
+  return c.req.query('response') === 'minimal';
+}
 
 function formatBudgetResponse(budget: ReturnType<typeof getBudgetMonth>) {
   // Group flat categoryBudgets by groupId
@@ -41,20 +126,7 @@ function formatBudgetResponse(budget: ReturnType<typeof getBudgetMonth>) {
       });
     }
 
-    groupMap.get(cb.groupId)!.categories.push({
-      categoryId: cb.categoryId,
-      categoryName: cb.categoryName,
-      assignedCents: cb.assignedCents,
-      assignedFormatted: formatMoney(cb.assignedCents),
-      activityCents: cb.activityCents,
-      activityFormatted: formatMoney(cb.activityCents),
-      availableCents: cb.availableCents,
-      availableFormatted: formatMoney(cb.availableCents),
-      targetAmountCents: cb.targetAmountCents,
-      targetType: cb.targetType,
-      isUnderfunded: cb.isUnderfunded,
-      isOverspent: cb.isOverspent,
-    });
+    groupMap.get(cb.groupId)!.categories.push(formatCategory(cb));
   }
 
   return {
@@ -131,10 +203,134 @@ export function budgetRoutes(db: DB) {
       throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
     }
 
+    requireCategory(db, parsed.data.categoryId);
     assignToCategory(db, parsed.data.categoryId, month, parsed.data.amountCents);
 
     const budget = getBudgetMonth(db, month);
-    return c.json(formatBudgetResponse(budget));
+    return c.json(
+      wantsMinimal(c)
+        ? formatMinimalResponse(budget, [parsed.data.categoryId])
+        : formatBudgetResponse(budget),
+    );
+  });
+
+  // POST /:month/bulk-assign — many assignments, all-or-nothing
+  router.post('/:month/bulk-assign', async (c) => {
+    const month = c.req.param('month');
+    if (!monthRegex.test(month)) {
+      throw validationError('Month must be YYYY-MM format');
+    }
+
+    const body = await c.req.json();
+    const parsed = bulkAssignSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+
+    const { assignments } = parsed.data;
+
+    const duplicates = assignments
+      .map((a) => a.categoryId)
+      .filter((id, i, all) => all.indexOf(id) !== i);
+    if (duplicates.length) {
+      throw validationError(`Duplicate categoryId in batch: ${[...new Set(duplicates)].join(', ')}`);
+    }
+
+    // Validate every id before writing anything, so a bad id at position 40
+    // cannot leave the first 39 applied.
+    for (const a of assignments) requireCategory(db, a.categoryId);
+
+    db.$client.transaction(() => {
+      for (const a of assignments) {
+        assignToCategory(db, a.categoryId, month, a.amountCents);
+      }
+    })();
+
+    const budget = getBudgetMonth(db, month);
+    const touched = assignments.map((a) => a.categoryId);
+    return c.json({
+      applied: assignments.length,
+      ...(wantsMinimal(c)
+        ? formatMinimalResponse(budget, touched)
+        : formatBudgetResponse(budget)),
+    });
+  });
+
+  // POST /:month/set-available — force Available to an exact figure
+  router.post('/:month/set-available', async (c) => {
+    const month = c.req.param('month');
+    if (!monthRegex.test(month)) {
+      throw validationError('Month must be YYYY-MM format');
+    }
+
+    const body = await c.req.json();
+    const parsed = setAvailableSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+
+    requireCategory(db, parsed.data.categoryId);
+    const result = setCategoryAvailable(db, parsed.data.categoryId, month, parsed.data.amountCents);
+
+    const budget = getBudgetMonth(db, month);
+    return c.json({
+      categoryId: parsed.data.categoryId,
+      deltaCents: result.deltaCents,
+      deltaFormatted: formatMoney(result.deltaCents),
+      ...(wantsMinimal(c)
+        ? formatMinimalResponse(budget, [parsed.data.categoryId])
+        : formatBudgetResponse(budget)),
+    });
+  });
+
+  // POST /reset — clear assignments from a month onward
+  router.post('/reset', async (c) => {
+    const body = await c.req.json();
+    const parsed = resetSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(
+        'Requires fromMonth (YYYY-MM) and confirm: true — this deletes every assignment from that month onward',
+      );
+    }
+
+    const result = resetBudgetFrom(db, parsed.data.fromMonth);
+    const budget = getBudgetMonth(db, parsed.data.fromMonth);
+
+    return c.json({
+      fromMonth: parsed.data.fromMonth,
+      clearedRows: result.clearedRows,
+      clearedCents: result.clearedCents,
+      clearedFormatted: formatMoney(result.clearedCents),
+      readyToAssignCents: budget.readyToAssignCents,
+      readyToAssignFormatted: formatMoney(budget.readyToAssignCents),
+    });
+  });
+
+  // GET /:month/reconciliation — why accounts and budget disagree
+  router.get('/:month/reconciliation', (c) => {
+    const month = c.req.param('month');
+    if (!monthRegex.test(month)) {
+      throw validationError('Month must be YYYY-MM format');
+    }
+
+    const r = getRtaReconciliation(db, month);
+    return c.json({
+      ...r,
+      readyToAssignFormatted: formatMoney(r.readyToAssignCents),
+      totalAvailableFormatted: formatMoney(r.totalAvailableCents),
+      totalBalanceFormatted: formatMoney(r.totalBalanceCents),
+      onBudgetBalanceFormatted: formatMoney(r.onBudgetBalanceCents),
+      offBudgetBalanceFormatted: formatMoney(r.offBudgetBalanceCents),
+      accounts: r.accounts.map((a) => ({
+        ...a,
+        balanceFormatted: formatMoney(a.balanceCents, a.currency),
+      })),
+      reconciliation: {
+        ...r.reconciliation,
+        gapFormatted: formatMoney(r.reconciliation.gapCents),
+        unexplainedFormatted: formatMoney(r.reconciliation.unexplainedCents),
+      },
+    });
   });
 
   // POST /:month/move — move between categories
@@ -150,6 +346,9 @@ export function budgetRoutes(db: DB) {
       throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
     }
 
+    requireCategory(db, parsed.data.fromCategoryId);
+    requireCategory(db, parsed.data.toCategoryId);
+
     moveBetweenCategories(
       db,
       parsed.data.fromCategoryId,
@@ -159,7 +358,11 @@ export function budgetRoutes(db: DB) {
     );
 
     const budget = getBudgetMonth(db, month);
-    return c.json(formatBudgetResponse(budget));
+    return c.json(
+      wantsMinimal(c)
+        ? formatMinimalResponse(budget, [parsed.data.fromCategoryId, parsed.data.toCategoryId])
+        : formatBudgetResponse(budget),
+    );
   });
 
   // GET /:month/ready-to-assign — breakdown

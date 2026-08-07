@@ -76,7 +76,7 @@ describe('MCP endpoint auth', () => {
 });
 
 describe('MCP endpoint protocol', () => {
-  it('lists all 48 tools', async () => {
+  it('lists the whole tool table', async () => {
     const res = await rpc(`/mcp/${TOKEN}`, {
       jsonrpc: '2.0',
       id: 2,
@@ -86,8 +86,13 @@ describe('MCP endpoint protocol', () => {
 
     expect(res.status).toBe(200);
     const payload = await res.json();
-    expect(payload.result.tools).toHaveLength(48);
-    expect(payload.result.tools.map((t: { name: string }) => t.name)).toContain('get_budget');
+    expect(payload.result.tools).toHaveLength(58);
+    const names = payload.result.tools.map((t: { name: string }) => t.name);
+    expect(names).toContain('get_budget');
+    expect(names).toEqual(expect.arrayContaining([
+      'set_available', 'bulk_assign_budget', 'close_loan',
+      'get_rta_reconciliation', 'import_transactions', 'undo_changes',
+    ]));
   });
 
   it('calls a tool against the real routes', async () => {

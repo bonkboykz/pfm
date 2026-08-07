@@ -11,7 +11,9 @@ import { scheduledRoutes } from './routes/scheduled.js';
 import { loanRoutes } from './routes/loans.js';
 import { debtListRoutes } from './routes/debts.js';
 import { depositRoutes } from './routes/deposits.js';
+import { auditRoutes } from './routes/audit.js';
 import { apiKeyAuth } from './middleware/auth.js';
+import { auditLogger } from './middleware/audit.js';
 import { errorHandler } from './errors.js';
 import { mcpRoutes } from './mcp.js';
 
@@ -30,6 +32,7 @@ export function createApp(db: DB) {
   app.route('/mcp', mcpRoutes(db));
 
   app.use('/api/v1/*', apiKeyAuth());
+  app.use('/api/v1/*', auditLogger(db));
 
   app.route('/api/v1/accounts', accountRoutes(db));
   app.route('/api/v1/categories', categoryRoutes(db));
@@ -40,6 +43,7 @@ export function createApp(db: DB) {
   app.route('/api/v1/loans', loanRoutes(db));
   app.route('/api/v1/debts', debtListRoutes(db));
   app.route('/api/v1/deposits', depositRoutes(db));
+  app.route('/api/v1/audit', auditRoutes(db));
 
   return app;
 }

@@ -5,9 +5,16 @@ import {
   type DB,
   accounts,
   getAccountBalances,
+  reconcileAccount,
   formatMoney,
 } from '@pfm/engine';
 import { notFound, validationError } from '../errors.js';
+
+const reconcileSchema = z.object({
+  actualBalanceCents: z.number().int(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  memo: z.string().optional(),
+});
 
 const createAccountSchema = z.object({
   name: z.string().min(1),
@@ -43,30 +50,88 @@ function formatAccountBalance(ab: { accountId: string; accountName: string; type
 export function accountRoutes(db: DB) {
   const router = new Hono();
 
-  // GET / — list all accounts with balances
+  // GET / — list accounts with balances (?includeInactive=true for closed ones)
   router.get('/', (c) => {
+    const includeInactive = c.req.query('includeInactive') === 'true';
+
+    const accts = includeInactive
+      ? db.select().from(accounts).orderBy(accounts.sortOrder).all()
+      : db.select().from(accounts).where(eq(accounts.isActive, true)).orderBy(accounts.sortOrder).all();
+
+    // getAccountBalances covers active accounts only. A deactivated account
+    // keeps its transactions, and those still move Ready to Assign, so its
+    // balance has to be computable or the totals look unexplainable.
     const balances = getAccountBalances(db);
-    const accts = db.select().from(accounts).where(eq(accounts.isActive, true)).orderBy(accounts.sortOrder).all();
+    const balanceOf = (id: string) => {
+      const known = balances.find((b) => b.accountId === id);
+      if (known) return known;
+      const row = db.$client.prepare(`
+        SELECT
+          COALESCE(SUM(CASE WHEN cleared IN ('cleared','reconciled') THEN amount_cents ELSE 0 END), 0) as cleared,
+          COALESCE(SUM(CASE WHEN cleared = 'uncleared' THEN amount_cents ELSE 0 END), 0) as uncleared
+        FROM transactions WHERE account_id = ? AND is_deleted = 0
+      `).get(id) as { cleared: number; uncleared: number };
+      return {
+        accountId: id,
+        clearedCents: row.cleared,
+        unclearedCents: row.uncleared,
+        balanceCents: row.cleared + row.uncleared,
+      };
+    };
 
     const result = accts.map((acct) => {
-      const bal = balances.find((b) => b.accountId === acct.id);
+      const bal = balanceOf(acct.id);
       return {
         id: acct.id,
         name: acct.name,
         type: acct.type,
         onBudget: acct.onBudget,
         currency: acct.currency,
+        isActive: acct.isActive,
         sortOrder: acct.sortOrder,
-        balanceCents: bal?.balanceCents ?? 0,
-        balanceFormatted: formatMoney(bal?.balanceCents ?? 0, acct.currency),
-        clearedCents: bal?.clearedCents ?? 0,
-        clearedFormatted: formatMoney(bal?.clearedCents ?? 0, acct.currency),
-        unclearedCents: bal?.unclearedCents ?? 0,
-        unclearedFormatted: formatMoney(bal?.unclearedCents ?? 0, acct.currency),
+        balanceCents: bal.balanceCents,
+        balanceFormatted: formatMoney(bal.balanceCents, acct.currency),
+        clearedCents: bal.clearedCents,
+        clearedFormatted: formatMoney(bal.clearedCents, acct.currency),
+        unclearedCents: bal.unclearedCents,
+        unclearedFormatted: formatMoney(bal.unclearedCents, acct.currency),
       };
     });
 
     return c.json(result);
+  });
+
+  // POST /:id/reconcile — one adjustment transaction to match the real balance
+  router.post('/:id/reconcile', async (c) => {
+    const id = c.req.param('id');
+    const acct = db.select().from(accounts).where(eq(accounts.id, id)).get();
+    if (!acct) throw notFound('Account', id);
+
+    const body = await c.req.json();
+    const parsed = reconcileSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+
+    const result = reconcileAccount(
+      db,
+      id,
+      parsed.data.actualBalanceCents,
+      parsed.data.date ?? new Date().toISOString().slice(0, 10),
+      parsed.data.memo,
+    );
+
+    return c.json({
+      accountId: id,
+      accountName: acct.name,
+      previousBalanceCents: result.previousBalanceCents,
+      previousBalanceFormatted: formatMoney(result.previousBalanceCents, acct.currency),
+      actualBalanceCents: parsed.data.actualBalanceCents,
+      actualBalanceFormatted: formatMoney(parsed.data.actualBalanceCents, acct.currency),
+      adjustmentCents: result.adjustmentCents,
+      adjustmentFormatted: formatMoney(result.adjustmentCents, acct.currency),
+      transactionId: result.transactionId,
+    });
   });
 
   // POST / — create account

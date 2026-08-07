@@ -34,10 +34,24 @@ export const tools: ToolDef[] = [
   {
     name: 'list_accounts',
     description:
-      'List all active accounts with computed balances. Each entry carries balanceCents plus balanceFormatted, and the cleared/uncleared split. Start here to discover account IDs.',
-    schema: z.object({}),
+      'List accounts with computed balances. Each entry carries balanceCents plus balanceFormatted, the cleared/uncleared split, and the onBudget, currency and isActive flags. Pass includeInactive to also see deactivated accounts — their transactions still move Ready to Assign, so an unexplained total is often one of them. Start here to discover account IDs.',
+    schema: z.object({ includeInactive: z.boolean().optional() }),
     method: 'GET',
-    path: () => '/api/v1/accounts',
+    path: (a) => `/api/v1/accounts${qs({ includeInactive: a.includeInactive })}`,
+  },
+  {
+    name: 'reconcile_account',
+    description:
+      "Correct an account's balance to what the bank actually shows, by writing one adjustment transaction for the difference. Use this when the computed balance has drifted from reality — never a pile of hand-made offsetting transactions. On on-budget accounts the adjustment lands in Ready to Assign.",
+    schema: z.object({
+      id: z.string(),
+      actualBalanceCents: z.number().int(),
+      date: z.string().optional(),
+      memo: z.string().optional(),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/accounts/${a.id}/reconcile`,
+    body: omitId,
   },
   {
     name: 'get_account',
@@ -176,15 +190,66 @@ export const tools: ToolDef[] = [
   {
     name: 'assign_budget',
     description:
-      'Set the amount assigned to a category for a month (YYYY-MM). amountCents is the new total for that month in tiyn, not a delta, and must be zero or positive.',
+      'Set the amount assigned to a category for a month (YYYY-MM). amountCents is the new total for that month in tiyn, not a delta, and must be zero or positive. An unknown categoryId is rejected with UNKNOWN_REFERENCE rather than silently accepted. Defaults to returning only the touched category and the new Ready to Assign; pass full=true for the whole month.',
     schema: z.object({
       month: z.string(),
       categoryId: z.string().min(1),
       amountCents: z.number().int().min(0),
+      full: z.boolean().optional(),
     }),
     method: 'POST',
-    path: (a) => `/api/v1/budget/${a.month}/assign`,
+    path: (a) => `/api/v1/budget/${a.month}/assign${a.full ? '' : '?response=minimal'}`,
     body: (a) => ({ categoryId: a.categoryId, amountCents: a.amountCents }),
+  },
+  {
+    name: 'bulk_assign_budget',
+    description:
+      'Assign to many categories in one month in a single all-or-nothing write. Every categoryId is validated before anything is stored, so a bad id cannot leave the batch half-applied. Prefer this over a run of assign_budget calls.',
+    schema: z.object({
+      month: z.string(),
+      assignments: z.array(z.object({
+        categoryId: z.string().min(1),
+        amountCents: z.number().int().min(0),
+      })).min(1),
+      full: z.boolean().optional(),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/budget/${a.month}/bulk-assign${a.full ? '' : '?response=minimal'}`,
+    body: (a) => ({ assignments: a.assignments }),
+  },
+  {
+    name: 'set_available',
+    description:
+      "Force a category's Available to an exact figure for a month, including zero — the way to clear carryover inherited from earlier months, which assign_budget cannot do because it only sets the current month and refuses negatives. The difference moves to or from Ready to Assign. This shuffles money between the budget's own buckets; if the budget holds more than the accounts do, the inflows are wrong and reconcile_account is the fix.",
+    schema: z.object({
+      month: z.string(),
+      categoryId: z.string().min(1),
+      amountCents: z.number().int(),
+      full: z.boolean().optional(),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/budget/${a.month}/set-available${a.full ? '' : '?response=minimal'}`,
+    body: (a) => ({ categoryId: a.categoryId, amountCents: a.amountCents }),
+  },
+  {
+    name: 'reset_budget',
+    description:
+      'Delete every assignment from fromMonth (YYYY-MM) onward — "start budgeting again from here". Requires confirm: true. Carryover from months before fromMonth survives; clear that with set_available. Destructive, and undoable only via undo_changes.',
+    schema: z.object({
+      fromMonth: z.string(),
+      confirm: z.literal(true),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/budget/reset',
+    body: (a) => a,
+  },
+  {
+    name: 'get_rta_reconciliation',
+    description:
+      'Explain why the money in the accounts does not equal Ready to Assign plus everything sitting in categories. Returns every account with its balance, onBudget, currency and isActive, then itemises the gap: off-budget balances, deactivated accounts, foreign currency, uncategorised spending and transfers that left the budget. A non-zero unexplainedCents means a real anomaly, not a modelling gap.',
+    schema: z.object({ month: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/budget/${a.month}/reconciliation`,
   },
   {
     name: 'move_budget',
@@ -250,6 +315,43 @@ export const tools: ToolDef[] = [
     }),
     method: 'POST',
     path: () => '/api/v1/transactions',
+    body: (a) => a,
+  },
+  {
+    name: 'bulk_create_transactions',
+    description:
+      'Record many transactions in one all-or-nothing write. Every accountId and categoryId is validated before anything is stored. Set skipDuplicates to drop rows matching an existing date + amount + payee on the same account. Transfers are not supported here — use create_transaction for those.',
+    schema: z.object({
+      transactions: z.array(z.object({
+        accountId: z.string().min(1),
+        date: z.string(),
+        amountCents: z.number().int(),
+        payeeName: z.string().optional(),
+        categoryId: z.string().optional(),
+        memo: z.string().optional(),
+        cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
+      })).min(1),
+      skipDuplicates: z.boolean().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/transactions/bulk',
+    body: (a) => a,
+  },
+  {
+    name: 'import_transactions',
+    description:
+      'Import a bank statement CSV into one account, skipping rows that duplicate an existing date + amount + payee. Column names are detected from the header (English or Russian) and can be overridden. Dates accept YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY; amounts accept spaces as thousand separators, comma or dot decimals, and parentheses for debits. Run with dryRun first to see what would land. Imported rows arrive uncategorised.',
+    schema: z.object({
+      accountId: z.string().min(1),
+      csv: z.string().min(1),
+      dateColumn: z.string().optional(),
+      amountColumn: z.string().optional(),
+      payeeColumn: z.string().optional(),
+      memoColumn: z.string().optional(),
+      dryRun: z.boolean().optional(),
+    }),
+    method: 'POST',
+    path: () => '/api/v1/transactions/import',
     body: (a) => a,
   },
   {
@@ -345,10 +447,26 @@ export const tools: ToolDef[] = [
   {
     name: 'list_loans',
     description:
-      'List bank loans with current outstanding debt, monthly payment and progress. Amounts are tiyn; aprBps is basis points (1850 = 18.50%).',
-    schema: z.object({}),
+      'List bank loans with current outstanding debt, monthly payment and progress. Amounts are tiyn; aprBps is basis points (1850 = 18.50%). Pass includeInactive to also see closed loans, and withTotals for the summed active debt.',
+    schema: z.object({
+      includeInactive: z.boolean().optional(),
+      withTotals: z.boolean().optional(),
+    }),
     method: 'GET',
-    path: () => '/api/v1/loans',
+    path: (a) => `/api/v1/loans${qs({ includeInactive: a.includeInactive, withTotals: a.withTotals })}`,
+  },
+  {
+    name: 'close_loan',
+    description:
+      'Close a paid-off loan: marks it inactive, settles the outstanding balance to zero and records when and why. This is the right way to retire a loan — delete_loan only hides it and leaves its balance in the debt totals, which is how repaid loans end up inflating what you owe. The loan stays readable by id and via list_loans(includeInactive).',
+    schema: z.object({
+      id: z.string(),
+      closedDate: z.string().optional(),
+      reason: z.string().optional(),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/loans/${a.id}/close`,
+    body: omitId,
   },
   {
     name: 'get_loan',
@@ -361,13 +479,14 @@ export const tools: ToolDef[] = [
   {
     name: 'create_loan',
     description:
-      'Create a loan. principalCents and monthlyPaymentCents are tiyn, aprBps is basis points, startDate is YYYY-MM-DD, paymentDay is 1–28. paidOffCents records principal already repaid before this loan was entered.',
+      'Create a loan. Amounts are tiyn, aprBps is basis points, startDate is YYYY-MM-DD, paymentDay is 1–28. Quote the bank statement directly with currentBalanceCents — what is left to repay. Use principalCents plus paidOffCents only when you genuinely know the original sum and how much of it is already repaid; do not reconstruct them by arithmetic.',
     schema: z.object({
       name: z.string().min(1),
       type: z.enum(['loan', 'installment', 'credit_line']),
       accountId: z.string().optional(),
       categoryId: z.string().optional(),
-      principalCents: z.number().int().positive(),
+      currentBalanceCents: z.number().int().min(0).optional(),
+      principalCents: z.number().int().positive().optional(),
       aprBps: z.number().int().min(0).optional(),
       termMonths: z.number().int().positive(),
       startDate: z.string(),
@@ -385,7 +504,7 @@ export const tools: ToolDef[] = [
   {
     name: 'update_loan',
     description:
-      'Update a loan. Principal, APR, term and start date are deliberately not editable — recreate the loan if those were entered wrong.',
+      'Update a loan. Principal, APR, term and start date are deliberately not editable — recreate the loan if those were entered wrong. isActive false retires a loan without settling its balance; to retire one that is actually repaid, use close_loan instead. Setting isActive true reopens a closed loan and clears its closure record.',
     schema: z.object({
       id: z.string(),
       name: z.string().min(1).optional(),
@@ -396,6 +515,7 @@ export const tools: ToolDef[] = [
       penaltyRateBps: z.number().int().min(0).optional(),
       earlyRepaymentFeeCents: z.number().int().min(0).optional(),
       paidOffCents: z.number().int().min(0).optional(),
+      isActive: z.boolean().optional(),
       note: z.string().nullable().optional(),
     }),
     method: 'PATCH',
@@ -666,6 +786,35 @@ export const tools: ToolDef[] = [
     }),
     method: 'POST',
     path: () => '/api/v1/simulate/deposit-compare',
+    body: (a) => a,
+  },
+
+  // ===== Audit =====
+  {
+    name: 'list_recent_changes',
+    description:
+      'Review what was changed recently, newest first, grouped into batches — one batch per request, so a bulk import reads as a single entry. Each batch carries the batchId that undo_changes takes. Filter by entity (transactions, monthly_budgets, loans). Use this to check your own work before trusting it.',
+    schema: z.object({
+      limit: z.number().int().min(1).max(500).optional(),
+      entity: z.enum(['transactions', 'monthly_budgets', 'loans']).optional(),
+      batchId: z.string().optional(),
+      includeReverted: z.boolean().optional(),
+    }),
+    method: 'GET',
+    path: (a) => `/api/v1/audit${qs({
+      limit: a.limit,
+      entity: a.entity,
+      batchId: a.batchId,
+      includeReverted: a.includeReverted,
+    })}`,
+  },
+  {
+    name: 'undo_changes',
+    description:
+      'Roll back every change a single batch made, restoring the prior state of each row it touched. Get the batchId from list_recent_changes. Covers transactions, budget assignments and loans. The rollback is itself recorded, so history stays complete.',
+    schema: z.object({ batchId: z.string().min(1) }),
+    method: 'POST',
+    path: () => '/api/v1/audit/undo',
     body: (a) => a,
   },
 ];
