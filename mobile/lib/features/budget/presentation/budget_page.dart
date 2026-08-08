@@ -12,6 +12,7 @@ import '../cubit/budget_cubit.dart';
 import '../data/budget_models.dart';
 import '../data/budget_repository.dart';
 import 'widgets/assign_sheet.dart';
+import 'widgets/category_picker.dart';
 import 'widgets/move_sheet.dart';
 
 class BudgetPage extends StatelessWidget {
@@ -255,6 +256,22 @@ class _RtaCard extends StatelessWidget {
 
   final BudgetData data;
 
+  /// Раздача денег начинается с выбора категории, а не с прокрутки до неё:
+  /// сумма на этой карточке — то, ради чего экран открывают.
+  Future<void> _distribute(BuildContext context) async {
+    final cubit = context.read<BudgetCubit>();
+    final month = data.month;
+
+    final picked = await pickCategory(
+      context,
+      month: month,
+      title: 'Куда распределить',
+    );
+    if (picked == null || !context.mounted) return;
+
+    await showAssignSheet(context, cubit, month: month, category: picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -268,75 +285,106 @@ class _RtaCard extends StatelessWidget {
       _ => (LucideIcons.alertTriangle, 'Роздано больше'),
     };
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadii.card),
+      child: InkWell(
+        onTap: () => _distribute(context),
         borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Ink(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Готово к распределению',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Готово к распределению',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          formatMoneySmart(month.readyToAssignCents),
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontSize: 34,
+                            fontWeight: FontWeight.w800,
+                            fontFeatures: kTabularFigures,
+                            color: color,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      formatMoneySmart(month.readyToAssignCents),
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w800,
-                        fontFeatures: kTabularFigures,
-                        color: color,
-                      ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppColors.forAvailableSoft(cents),
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
                     ),
-                  ],
-                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(badgeIcon, size: 14, color: color),
+                        const SizedBox(width: 6),
+                        Text(
+                          badgeText,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: AppColors.forAvailableSoft(cents),
-                  borderRadius: BorderRadius.circular(AppRadii.pill),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(badgeIcon, size: 14, color: color),
-                    const SizedBox(width: 6),
-                    Text(
-                      badgeText,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 12,
+              if (data.hasFutureSqueeze) ...[
+                const SizedBox(height: 14),
+                _FutureSqueeze(overview: data.overview!),
+              ],
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: AppColors.border),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(LucideIcons.arrowRightLeft,
+                      size: 15, color: AppColors.accent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      cents > 0
+                          ? 'Распределить по категориям'
+                          : 'Изменить назначения',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: color,
+                        color: AppColors.accent,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const Icon(LucideIcons.chevronRight,
+                      size: 16, color: AppColors.accent),
+                ],
               ),
             ],
           ),
-          if (data.hasFutureSqueeze) ...[
-            const SizedBox(height: 14),
-            _FutureSqueeze(overview: data.overview!),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -812,7 +860,14 @@ class _CategoryRow extends StatelessWidget {
                   month: month,
                   fixedTo: category,
                 ),
-              ),
+              )
+            // Without this the row reads as a read-only fact and nobody
+            // discovers that tapping it is how money gets assigned.
+            else ...[
+              const SizedBox(width: 6),
+              const Icon(LucideIcons.chevronRight,
+                  size: 16, color: AppColors.textMuted),
+            ],
           ],
         ),
       ),

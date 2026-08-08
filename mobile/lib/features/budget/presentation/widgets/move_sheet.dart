@@ -5,6 +5,7 @@ import '../../../../app/theme.dart';
 import '../../../../core/money/money.dart';
 import '../../cubit/budget_cubit.dart';
 import '../../data/budget_models.dart';
+import 'category_picker.dart';
 
 /// `POST /budget/:month/move`. Opened either to cover an overspent category
 /// (target fixed, amount prefilled with the shortfall) or to move money out of
@@ -66,16 +67,13 @@ class _MoveSheetState extends State<_MoveSheet> {
 
   Future<void> _pick({required bool isSource}) async {
     final exclude = isSource ? _to?.categoryId : _from?.categoryId;
-    final picked = await showModalBottomSheet<CategoryBudget>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _CategoryPicker(
-        month: widget.month,
-        excludeCategoryId: exclude,
-        title: isSource ? 'Откуда взять' : 'Куда перевести',
-        // Only categories holding money can be a source.
-        onlyWithMoney: isSource,
-      ),
+    final picked = await pickCategory(
+      context,
+      month: widget.month,
+      excludeCategoryId: exclude,
+      title: isSource ? 'Откуда взять' : 'Куда перевести',
+      // Only categories holding money can be a source.
+      onlyWithMoney: isSource,
     );
     if (picked == null || !mounted) return;
     setState(() => isSource ? _from = picked : _to = picked);
@@ -135,7 +133,7 @@ class _MoveSheetState extends State<_MoveSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _Grabber(),
+            const SheetGrabber(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
               child: Column(
@@ -316,115 +314,6 @@ class _Picker extends StatelessWidget {
       ],
     );
   }
-}
-
-class _CategoryPicker extends StatelessWidget {
-  const _CategoryPicker({
-    required this.month,
-    required this.title,
-    required this.excludeCategoryId,
-    required this.onlyWithMoney,
-  });
-
-  final BudgetMonth month;
-  final String title;
-  final String? excludeCategoryId;
-  final bool onlyWithMoney;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.7,
-      maxChildSize: 0.9,
-      builder: (context, controller) {
-        final rows = <Widget>[];
-        for (final group in month.groups) {
-          final categories = group.categories
-              .where((c) => c.categoryId != excludeCategoryId)
-              .where((c) => !onlyWithMoney || c.availableCents > 0)
-              .toList();
-          if (categories.isEmpty) continue;
-
-          rows.add(Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
-            child: Text(
-              group.groupName,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ));
-          for (final c in categories) {
-            rows.add(ListTile(
-              title: Text(c.categoryName),
-              trailing: Text(
-                formatMoneySmart(c.availableCents),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: kTabularFigures,
-                  color: AppColors.forAvailable(c.availableCents),
-                ),
-              ),
-              onTap: () => Navigator.of(context).pop(c),
-            ));
-          }
-        }
-
-        return Column(
-          children: [
-            const _Grabber(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(title,
-                        style: theme.textTheme.titleLarge?.copyWith(fontSize: 18)),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: rows.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'Нет категорий с доступными деньгами',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                      ),
-                    )
-                  : ListView(controller: controller, children: rows),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _Grabber extends StatelessWidget {
-  const _Grabber();
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: 10, bottom: 6),
-          height: 4,
-          width: 40,
-          decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-          ),
-        ),
-      );
 }
 
 class _Note extends StatelessWidget {

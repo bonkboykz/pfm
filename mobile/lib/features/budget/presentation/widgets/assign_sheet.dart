@@ -6,6 +6,7 @@ import '../../../../core/dates/months.dart';
 import '../../../../core/money/money.dart';
 import '../../cubit/budget_cubit.dart';
 import '../../data/budget_models.dart';
+import 'category_picker.dart';
 import 'move_sheet.dart';
 
 /// `POST /budget/:month/assign` — the endpoint SETS the month's assignment
@@ -103,17 +104,7 @@ class _AssignSheetState extends State<_AssignSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 10, bottom: 6),
-                height: 4,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(AppRadii.pill),
-                ),
-              ),
-            ),
+            const SheetGrabber(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
               child: Column(
