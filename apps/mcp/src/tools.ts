@@ -230,6 +230,18 @@ export const tools: ToolDef[] = [
     body: (a) => ({ allowNegativeRta: a.allowNegativeRta ?? false }),
   },
   {
+    name: 'copy_month_assignments',
+    description:
+      'Make a month a copy of another one: every category gets the amount it was assigned in fromMonth, including zero. This is a replacement, not a merge — a category assigned this month but not in the source is cleared. If the source month has nothing assigned at all, nothing is written and sourceEmpty comes back true.',
+    schema: z.object({
+      month: z.string(),
+      fromMonth: z.string(),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/budget/${a.month}/copy-from`,
+    body: (a) => ({ fromMonth: a.fromMonth }),
+  },
+  {
     name: 'set_available',
     description:
       "Force a category's Available to an exact figure for a month, including zero — the way to clear carryover inherited from earlier months, which assign_budget cannot do because it only sets the current month and refuses negatives. The difference moves to or from Ready to Assign. This shuffles money between the budget's own buckets; if the budget holds more than the accounts do, the inflows are wrong and reconcile_account is the fix.",

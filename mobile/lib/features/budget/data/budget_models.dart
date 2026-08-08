@@ -199,6 +199,34 @@ class AssignTargetsResult {
       );
 }
 
+/// Итог `POST /budget/:month/copy-from`.
+class CopyMonthResult {
+  final int changedCount;
+
+  /// Сколько категорий обнулено, потому что в источнике им не назначали.
+  final int clearedCount;
+
+  /// В источнике не назначено ничего — копирование не выполнялось.
+  final bool sourceEmpty;
+  final BudgetMonth month;
+
+  const CopyMonthResult({
+    required this.changedCount,
+    required this.clearedCount,
+    required this.sourceEmpty,
+    required this.month,
+  });
+
+  factory CopyMonthResult.fromJson(Map<String, dynamic> json) => CopyMonthResult(
+        changedCount: ((json['applied'] as List?) ?? const []).length,
+        clearedCount: (json['clearedCount'] as num?)?.toInt() ?? 0,
+        sourceEmpty: json['sourceEmpty'] == true,
+        month: BudgetMonth.fromJson(
+          ((json['budget'] as Map?) ?? const {}).cast<String, dynamic>(),
+        ),
+      );
+}
+
 class RtaMonth {
   final String month;
   final int readyToAssignCents;

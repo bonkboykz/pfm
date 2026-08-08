@@ -44,6 +44,16 @@ class BudgetRepository {
     return BudgetMonth.fromJson((json as Map).cast<String, dynamic>());
   }
 
+  /// Делает месяц копией другого — заменой, а не слиянием: категория, которой
+  /// в источнике не назначали, обнуляется. Пустой источник ничего не трогает.
+  Future<CopyMonthResult> copyFrom(String month, String fromMonth) async {
+    final json = await _api.post(
+      '/api/v1/budget/$month/copy-from',
+      body: {'fromMonth': fromMonth},
+    );
+    return CopyMonthResult.fromJson((json as Map).cast<String, dynamic>());
+  }
+
   /// Раздаёт по целям и останавливается на нуле Ready to Assign.
   /// Суммы и порядок считает движок — клиенту остаётся показать итог.
   Future<AssignTargetsResult> assignTargets(String month) async {

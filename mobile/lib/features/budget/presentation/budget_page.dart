@@ -483,18 +483,6 @@ class _QuickActions extends StatelessWidget {
     final cubit = context.read<BudgetCubit>();
     final underfunded = month.totalUnderfundedCents;
 
-    Future<void> run(Future<String?> Function() action) async {
-      final error = await action();
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error ?? 'Готово'),
-          backgroundColor:
-              error == null ? AppColors.textPrimary : AppColors.negative,
-        ),
-      );
-    }
-
     return Row(
       children: [
         if (underfunded > 0)
@@ -568,14 +556,40 @@ class _QuickActions extends StatelessWidget {
           onTap: busy
               ? null
               : () async {
+                  final previous = formatMonthInline(shiftMonth(month.month, -1));
                   final ok = await _confirm(
                     context,
                     title: 'Скопировать прошлый месяц?',
+                    // Это замена, а не слияние — и раньше диалог обещал замену,
+                    // а делал слияние. Про обнуление надо сказать вслух.
                     body: 'Назначения этого месяца будут заменены значениями '
-                        'из ${formatMonthInline(shiftMonth(month.month, -1))}.',
-                    action: 'Скопировать',
+                        'из $previous. Категории, которым в $previous не '
+                        'назначали, обнулятся.',
+                    action: 'Заменить',
                   );
-                  if (ok) await run(cubit.copyPreviousMonth);
+                  if (!ok) return;
+
+                  final outcome = await cubit.copyPreviousMonth();
+                  if (!context.mounted) return;
+
+                  final message = switch (outcome) {
+                    CopyMonthOutcome(:final error?) => error,
+                    CopyMonthOutcome(sourceEmpty: true) =>
+                      'В $previous ничего не назначено — оставили как было',
+                    CopyMonthOutcome(changedCount: 0) =>
+                      'Уже как в $previous — менять нечего',
+                    CopyMonthOutcome(:final changedCount, :final clearedCount) =>
+                      'Изменено категорий: $changedCount'
+                          '${clearedCount > 0 ? ', обнулено $clearedCount' : ''}',
+                  };
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(message),
+                      backgroundColor: outcome.error != null
+                          ? AppColors.negative
+                          : AppColors.textPrimary,
+                    ),
+                  );
                 },
         ),
       ],

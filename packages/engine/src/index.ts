@@ -27,6 +27,7 @@ export {
   getBudgetMonth,
   assignToCategory,
   assignToTargets,
+  copyMonthAssignments,
   moveBetweenCategories,
   getAccountBalances,
   getReadyToAssignRange,

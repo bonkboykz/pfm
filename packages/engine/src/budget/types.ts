@@ -50,6 +50,26 @@ export interface AssignToTargetsResult {
   stoppedAtZeroRta: boolean;
 }
 
+export interface CopiedAssignment {
+  categoryId: string;
+  categoryName: string;
+  /** Назначение до копирования. */
+  fromCents: number;
+  /** Назначение после — сумма того же месяца в источнике. */
+  toCents: number;
+}
+
+export interface CopyMonthResult {
+  /** Только категории, у которых сумма изменилась. */
+  applied: CopiedAssignment[];
+  /** Сколько категорий обнулено, потому что в источнике им не назначали. */
+  clearedCount: number;
+  /** В источнике не назначено ничего — копирование не выполнялось. */
+  sourceEmpty: boolean;
+  totalAssignedCents: number;
+  readyToAssignCents: number;
+}
+
 export interface AccountBalance {
   accountId: string;
   accountName: string;

@@ -25,6 +25,21 @@ class AssignTargetsOutcome {
   });
 }
 
+/// Чем закончилось копирование месяца.
+class CopyMonthOutcome {
+  final String? error;
+  final int changedCount;
+  final int clearedCount;
+  final bool sourceEmpty;
+
+  const CopyMonthOutcome({
+    this.error,
+    this.changedCount = 0,
+    this.clearedCount = 0,
+    this.sourceEmpty = false,
+  });
+}
+
 class BudgetState extends Equatable {
   final BudgetStatus status;
   final String month;
@@ -135,28 +150,31 @@ class BudgetCubit extends Cubit<BudgetState> {
     }
   }
 
-  /// Replays the previous month's assignments onto the selected month.
-  Future<String?> copyPreviousMonth() async {
+  /// Делает выбранный месяц копией предыдущего.
+  ///
+  /// Это замена, а не слияние: категория, которой в прошлом месяце не
+  /// назначали, обнуляется. Копирование выполняет сервер одним запросом —
+  /// цикл из N вызовов мог упасть на середине, оставив месяц частично
+  /// скопированным.
+  Future<CopyMonthOutcome> copyPreviousMonth() async {
     emit(state.copyWith(busy: true));
     try {
-      final previous = await _repo.monthOnly(shiftMonth(state.month, -1));
-      final sources =
-          previous.allCategories.where((c) => c.assignedCents != 0).toList();
-      if (sources.isEmpty) {
-        emit(state.copyWith(busy: false));
-        return 'В прошлом месяце ничего не назначено';
-      }
+      final result =
+          await _repo.copyFrom(state.month, shiftMonth(state.month, -1));
+      if (!result.sourceEmpty) _emitMonth(result.month);
       emit(state.copyWith(busy: false));
-      return _mutateMany([
-        for (final c in sources)
-          () => _repo.assign(state.month, c.categoryId, c.assignedCents),
-      ]);
+      if (!result.sourceEmpty) await _refreshOverview();
+      return CopyMonthOutcome(
+        changedCount: result.changedCount,
+        clearedCount: result.clearedCount,
+        sourceEmpty: result.sourceEmpty,
+      );
     } on ApiException catch (e) {
       emit(state.copyWith(busy: false));
-      return humanizeApiError(e);
+      return CopyMonthOutcome(error: humanizeApiError(e));
     } catch (e) {
       emit(state.copyWith(busy: false));
-      return e.toString();
+      return CopyMonthOutcome(error: e.toString());
     }
   }
 

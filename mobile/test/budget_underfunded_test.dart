@@ -14,9 +14,10 @@ import 'package:pfm_mobile/features/budget/presentation/budget_page.dart';
 /// заранее, если денег на все цели не хватит.
 
 class _FakeApi implements ApiClient {
-  _FakeApi({this.rtaCents = 50000000});
+  _FakeApi({this.rtaCents = 50000000, this.sourceEmpty = false});
 
   final int rtaCents;
+  final bool sourceEmpty;
   final List<({String path, Object? body})> posts = [];
 
   @override
@@ -30,6 +31,18 @@ class _FakeApi implements ApiClient {
   @override
   Future<dynamic> post(String path, {Object? body}) async {
     posts.add((path: path, body: body));
+    if (path.contains('copy-from')) {
+      return {
+        'applied': sourceEmpty
+            ? const []
+            : [
+                {'categoryId': 'c-rent', 'fromCents': 2000000, 'toCents': 0},
+              ],
+        'clearedCount': sourceEmpty ? 0 : 1,
+        'sourceEmpty': sourceEmpty,
+        'budget': _month(rtaCents),
+      };
+    }
     if (path.contains('assign-targets')) {
       // Свободно меньше, чем просят цели → раздача обрывается.
       final short = rtaCents < 23000000;
@@ -188,5 +201,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('не хватило'), findsOneWidget);
+  });
+
+  group('Как в прошлом', () {
+    testWidgets('диалог честно предупреждает об обнулении', (tester) async {
+      final api = _FakeApi();
+      await pump(tester, api);
+
+      await tester.tap(find.text('Как в прошлом'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('обнулятся'), findsOneWidget);
+      // Кнопка называет действие своим именем.
+      expect(find.text('Заменить'), findsOneWidget);
+    });
+
+    testWidgets('шлёт один copy-from, а не цикл assign', (tester) async {
+      final api = _FakeApi();
+      await pump(tester, api);
+
+      await tester.tap(find.text('Как в прошлом'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Заменить'));
+      await tester.pumpAndSettle();
+
+      expect(api.posts, hasLength(1));
+      expect(api.posts.single.path, '/api/v1/budget/2026-08/copy-from');
+      expect(api.posts.single.body, {'fromMonth': '2026-07'});
+    });
+
+    testWidgets('пустой источник не выдаётся за успех', (tester) async {
+      final api = _FakeApi(sourceEmpty: true);
+      await pump(tester, api);
+
+      await tester.tap(find.text('Как в прошлом'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Заменить'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('ничего не назначено'), findsOneWidget);
+    });
   });
 }

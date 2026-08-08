@@ -9,6 +9,7 @@ import type {
   AccountBalance,
   ReadyToAssignBreakdown,
   AssignToTargetsResult,
+  CopyMonthResult,
 } from './types.js';
 
 // --- Raw SQL row types ---
@@ -395,6 +396,72 @@ export function assignToTargets(
     readyToAssignCents: after.readyToAssignCents,
     remainingUnderfundedCents: after.totalUnderfundedCents,
     stoppedAtZeroRta: !unlimited && totalAdded.lessThan(totalNeeded),
+  };
+}
+
+/**
+ * Делает месяц копией другого: каждая категория получает ту сумму, что была
+ * назначена ей в `fromMonth`, **включая ноль**.
+ *
+ * Раньше это собирал клиент и копировал только категории с ненулевой суммой в
+ * источнике. Категория, которой назначили в текущем месяце, но не назначали в
+ * прошлом, сохраняла своё значение — получался месяц, не похожий ни на
+ * прошлый, ни на текущий, хотя диалог обещал замену.
+ *
+ * Пустой источник — не повод обнулить весь месяц: это почти наверняка промах
+ * пользователя, поэтому такой вызов ничего не делает и говорит `sourceEmpty`.
+ */
+export function copyMonthAssignments(
+  db: DB,
+  fromMonth: string,
+  toMonth: string,
+): CopyMonthResult {
+  if (fromMonth === toMonth) {
+    throw new Error('Cannot copy a month onto itself');
+  }
+
+  const source = getBudgetMonth(db, fromMonth);
+  const target = getBudgetMonth(db, toMonth);
+
+  const sourceAssigned = new Map(
+    source.categoryBudgets.map(c => [c.categoryId, c.assignedCents]),
+  );
+  const sourceEmpty = source.categoryBudgets.every(c => c.assignedCents === 0);
+
+  if (sourceEmpty) {
+    return {
+      applied: [],
+      clearedCount: 0,
+      sourceEmpty: true,
+      totalAssignedCents: target.totalAssignedCents,
+      readyToAssignCents: target.readyToAssignCents,
+    };
+  }
+
+  const changes = target.categoryBudgets
+    .map(c => ({
+      categoryId: c.categoryId,
+      categoryName: c.categoryName,
+      fromCents: c.assignedCents,
+      toCents: sourceAssigned.get(c.categoryId) ?? 0,
+    }))
+    .filter(c => c.fromCents !== c.toCents);
+
+  if (changes.length > 0) {
+    db.$client.transaction(() => {
+      for (const change of changes) {
+        upsertMonthlyBudget(db, change.categoryId, toMonth, change.toCents);
+      }
+    })();
+  }
+
+  const after = getBudgetMonth(db, toMonth);
+  return {
+    applied: changes,
+    clearedCount: changes.filter(c => c.toCents === 0).length,
+    sourceEmpty: false,
+    totalAssignedCents: after.totalAssignedCents,
+    readyToAssignCents: after.readyToAssignCents,
   };
 }
 

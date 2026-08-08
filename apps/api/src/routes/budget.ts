@@ -7,6 +7,7 @@ import {
   getBudgetMonth,
   assignToCategory,
   assignToTargets,
+  copyMonthAssignments,
   moveBetweenCategories,
   setCategoryAvailable,
   resetBudgetFrom,
@@ -54,6 +55,10 @@ const resetSchema = z.object({
  */
 const assignTargetsSchema = z.object({
   allowNegativeRta: z.boolean().optional(),
+});
+
+const copyMonthSchema = z.object({
+  fromMonth: z.string().regex(monthRegex),
 });
 
 /**
@@ -396,6 +401,42 @@ export function budgetRoutes(db: DB) {
       remainingUnderfundedCents: result.remainingUnderfundedCents,
       remainingUnderfundedFormatted: formatMoney(result.remainingUnderfundedCents),
       stoppedAtZeroRta: result.stoppedAtZeroRta,
+      budget: formatBudgetResponse(getBudgetMonth(db, month)),
+    });
+  });
+
+  // POST /:month/copy-from — make this month a copy of another
+  router.post('/:month/copy-from', async (c) => {
+    const month = c.req.param('month');
+    if (!monthRegex.test(month)) {
+      throw validationError('Month must be YYYY-MM format');
+    }
+
+    const body = await c.req.json();
+    const parsed = copyMonthSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError('Requires fromMonth in YYYY-MM format');
+    }
+    if (parsed.data.fromMonth === month) {
+      throw validationError('fromMonth and the target month must differ');
+    }
+
+    const result = copyMonthAssignments(db, parsed.data.fromMonth, month);
+
+    return c.json({
+      month,
+      fromMonth: parsed.data.fromMonth,
+      applied: result.applied.map((a) => ({
+        ...a,
+        fromFormatted: formatMoney(a.fromCents),
+        toFormatted: formatMoney(a.toCents),
+      })),
+      clearedCount: result.clearedCount,
+      sourceEmpty: result.sourceEmpty,
+      totalAssignedCents: result.totalAssignedCents,
+      totalAssignedFormatted: formatMoney(result.totalAssignedCents),
+      readyToAssignCents: result.readyToAssignCents,
+      readyToAssignFormatted: formatMoney(result.readyToAssignCents),
       budget: formatBudgetResponse(getBudgetMonth(db, month)),
     });
   });
