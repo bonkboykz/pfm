@@ -26,6 +26,7 @@ export type { CategoryBudget, BudgetMonth, AccountBalance, ReadyToAssignBreakdow
 export {
   getBudgetMonth,
   assignToCategory,
+  assignToTargets,
   moveBetweenCategories,
   getAccountBalances,
   getReadyToAssignRange,

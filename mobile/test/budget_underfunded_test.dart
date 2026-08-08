@@ -9,11 +9,14 @@ import 'package:pfm_mobile/core/storage/token_storage.dart';
 import 'package:pfm_mobile/features/budget/data/budget_models.dart';
 import 'package:pfm_mobile/features/budget/presentation/budget_page.dart';
 
-/// «Недофинансировано» раньше считалось на клиенте как `цель − назначено` и
-/// назначалось полной суммой цели каждый месяц — для целей типа «накопить до N»
-/// это финансовая ошибка. Теперь сумму считает движок, а клиент только шлёт её.
+/// Раздача по целям: суммы, порядок и останов на нуле RTA считает движок.
+/// Клиент обязан позвать ручку, а не собирать раздачу сам, и обязан сказать
+/// заранее, если денег на все цели не хватит.
 
 class _FakeApi implements ApiClient {
+  _FakeApi({this.rtaCents = 50000000});
+
+  final int rtaCents;
   final List<({String path, Object? body})> posts = [];
 
   @override
@@ -21,20 +24,30 @@ class _FakeApi implements ApiClient {
     if (path.contains('rta-overview')) {
       throw ApiException('overview недоступен', status: 500);
     }
-    return _month();
+    return _month(rtaCents);
   }
 
   @override
   Future<dynamic> post(String path, {Object? body}) async {
     posts.add((path: path, body: body));
-    return _month();
+    if (path.contains('assign-targets')) {
+      // Свободно меньше, чем просят цели → раздача обрывается.
+      final short = rtaCents < 23000000;
+      return {
+        'totalAddedCents': short ? rtaCents : 23000000,
+        'remainingUnderfundedCents': short ? 23000000 - rtaCents : 0,
+        'stoppedAtZeroRta': short,
+        'budget': _month(short ? 0 : rtaCents - 23000000, funded: true),
+      };
+    }
+    return _month(rtaCents);
   }
 
   @override
-  Future<dynamic> patch(String path, {Object? body}) async => _month();
+  Future<dynamic> patch(String path, {Object? body}) async => _month(rtaCents);
 
   @override
-  Future<dynamic> delete(String path) async => _month();
+  Future<dynamic> delete(String path) async => _month(rtaCents);
 
   @override
   Dio get dio => throw UnimplementedError();
@@ -73,10 +86,10 @@ Map<String, dynamic> _category(
       'isOverspent': false,
     };
 
-Map<String, dynamic> _month() => {
+Map<String, dynamic> _month(int rtaCents, {bool funded = false}) => {
       'month': '2026-08',
-      'readyToAssignCents': 50000000,
-      'readyToAssignFormatted': '500 000 ₸',
+      'readyToAssignCents': rtaCents,
+      'readyToAssignFormatted': '',
       'totalAssignedCents': 2000000,
       'totalAssignedFormatted': '',
       'totalActivityCents': 0,
@@ -85,18 +98,17 @@ Map<String, dynamic> _month() => {
       'totalAvailableFormatted': '',
       'overspentCents': 0,
       'overspentFormatted': '',
-      'totalUnderfundedCents': 23000000,
-      'totalUnderfundedFormatted': '230 000 ₸',
+      'totalUnderfundedCents': funded ? 0 : 23000000,
+      'totalUnderfundedFormatted': '',
       'groups': [
         {
           'groupId': 'g1',
           'groupName': 'Обязательные',
           'categories': [
-            // Частично назначена: не хватает 30 000 ₸ сверх имеющихся 20 000 ₸.
-            _category('c-rent', 'Аренда', assigned: 2000000, underfunded: 3000000),
-            // Не назначено ничего: не хватает всех 200 000 ₸.
-            _category('c-food', 'Продукты', assigned: 0, underfunded: 20000000),
-            // Цель закрыта — в раздачу попасть не должна.
+            _category('c-rent', 'Аренда',
+                assigned: 2000000, underfunded: funded ? 0 : 3000000),
+            _category('c-food', 'Продукты',
+                assigned: 0, underfunded: funded ? 0 : 20000000),
             _category('c-net', 'Интернет', assigned: 5000000, underfunded: 0),
           ],
         },
@@ -104,13 +116,10 @@ Map<String, dynamic> _month() => {
     };
 
 void main() {
-  late _FakeApi api;
-
   setUpAll(() => initializeDateFormatting('ru'));
-  setUp(() => api = _FakeApi());
   tearDown(() => sl.reset());
 
-  Future<void> pump(WidgetTester tester) async {
+  Future<void> pump(WidgetTester tester, _FakeApi api) async {
     sl.registerSingleton<ApiClient>(api);
     await tester.pumpWidget(
       MaterialApp(theme: buildTheme(), home: const BudgetPage()),
@@ -118,40 +127,66 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  test('сумма к отправке — недостающее плюс уже назначенное', () {
-    // `POST /assign` ЗАДАЁТ назначение месяца, а не прибавляет к нему.
-    final category = CategoryBudget.fromJson(
-      _category('c', 'Тест', assigned: 2000000, underfunded: 3000000),
-    );
-
-    expect(category.assignToCloseTargetCents, 5000000);
-  });
-
   test('totalUnderfundedCents берётся с сервера, а не суммируется на клиенте',
       () {
-    final month = BudgetMonth.fromJson(_month());
+    final month = BudgetMonth.fromJson(_month(50000000));
 
     expect(month.totalUnderfundedCents, 23000000);
     expect(month.underfunded.map((c) => c.categoryId), ['c-rent', 'c-food']);
   });
 
-  testWidgets('кнопка шлёт один bulk-assign с суммами движка', (tester) async {
-    await pump(tester);
+  test('разбирает итог раздачи с остановом', () {
+    final result = AssignTargetsResult.fromJson({
+      'totalAddedCents': 1000000,
+      'remainingUnderfundedCents': 22000000,
+      'stoppedAtZeroRta': true,
+      'budget': _month(0),
+    });
 
-    expect(find.textContaining('Недофинансировано'), findsOneWidget);
+    expect(result.totalAddedCents, 1000000);
+    expect(result.remainingUnderfundedCents, 22000000);
+    expect(result.stoppedAtZeroRta, true);
+    expect(result.month.month, '2026-08');
+  });
+
+  testWidgets('кнопка зовёт assign-targets, а не собирает раздачу сама',
+      (tester) async {
+    final api = _FakeApi();
+    await pump(tester, api);
 
     await tester.tap(find.textContaining('Недофинансировано'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Назначить'));
     await tester.pumpAndSettle();
 
-    expect(api.posts, hasLength(1), reason: 'цикл из N запросов вернулся');
-    expect(api.posts.single.path, '/api/v1/budget/2026-08/bulk-assign');
-    expect(api.posts.single.body, {
-      'assignments': [
-        {'categoryId': 'c-rent', 'amountCents': 5000000},
-        {'categoryId': 'c-food', 'amountCents': 20000000},
-      ],
-    });
+    expect(api.posts, hasLength(1));
+    expect(api.posts.single.path, '/api/v1/budget/2026-08/assign-targets');
+    expect(api.posts.single.body, {'allowNegativeRta': false});
+    expect(find.textContaining('Роздано'), findsOneWidget);
+  });
+
+  testWidgets('при нехватке денег предупреждает ДО раздачи', (tester) async {
+    // Свободно 100 000 ₸, цели просят 230 000 ₸.
+    final api = _FakeApi(rtaCents: 10000000);
+    await pump(tester, api);
+
+    await tester.tap(find.textContaining('Недофинансировано'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('раздача остановится'), findsOneWidget);
+    expect(find.textContaining('останется недофинансировано'), findsOneWidget);
+  });
+
+  testWidgets('после частичной раздачи говорит, сколько не хватило',
+      (tester) async {
+    final api = _FakeApi(rtaCents: 10000000);
+    await pump(tester, api);
+
+    await tester.tap(find.textContaining('Недофинансировано'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Назначить'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('не хватило'), findsOneWidget);
   });
 }

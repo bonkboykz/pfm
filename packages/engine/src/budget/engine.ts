@@ -3,7 +3,13 @@ import { eq, and } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 import { categories, categoryGroups, monthlyBudgets } from '../db/schema.js';
 import type { DB } from '../db/index.js';
-import type { CategoryBudget, BudgetMonth, AccountBalance, ReadyToAssignBreakdown } from './types.js';
+import type {
+  CategoryBudget,
+  BudgetMonth,
+  AccountBalance,
+  ReadyToAssignBreakdown,
+  AssignToTargetsResult,
+} from './types.js';
 
 // --- Raw SQL row types ---
 
@@ -45,9 +51,11 @@ function monthsUntil(month: string, targetDate: string): number {
  *   иначе накопительная категория перестала бы просить деньги навсегда.
  * - `target_balance` — «дополнить до N». Считается от Available, то есть
  *   остаток с прошлых месяцев засчитывается, а перерасход увеличивает запрос.
- * - `target_by_date` — то же, но недостающее делится на оставшиеся месяцы и
- *   округляется вверх, чтобы к дате точно хватило. Без даты вырождается в
- *   `target_balance`.
+ * - `target_by_date` — доля этого месяца: недостающее НА НАЧАЛО месяца делится
+ *   на оставшиеся месяцы и округляется вверх, а из доли вычитается уже
+ *   назначенное в этом месяце. Без вычитания категория продолжала бы просить
+ *   деньги после того, как свою долю уже получила: остаток делился на то же
+ *   число месяцев заново. Без даты вырождается в `target_balance`.
  */
 function computeUnderfunded(
   targetAmountCents: number | null,
@@ -64,13 +72,20 @@ function computeUnderfunded(
     return gap.greaterThan(0) ? gap.toNumber() : 0;
   }
 
-  const gap = new Decimal(targetAmountCents).minus(availableCents);
-  if (!gap.greaterThan(0)) return 0;
-
   if (targetType === 'target_by_date' && targetDate) {
-    return gap.div(monthsUntil(month, targetDate)).ceil().toNumber();
+    // Available уже включает назначенное в этом месяце — для расчёта доли
+    // нужен остаток, с которым месяц начинался.
+    const carriedOver = new Decimal(availableCents).minus(assignedThisMonthCents);
+    const needed = new Decimal(targetAmountCents).minus(carriedOver);
+    if (!needed.greaterThan(0)) return 0;
+
+    const share = needed.div(monthsUntil(month, targetDate)).ceil();
+    const left = share.minus(assignedThisMonthCents);
+    return left.greaterThan(0) ? left.toNumber() : 0;
   }
-  return gap.toNumber();
+
+  const gap = new Decimal(targetAmountCents).minus(availableCents);
+  return gap.greaterThan(0) ? gap.toNumber() : 0;
 }
 
 export function getCategoryAvailable(db: DB, categoryId: string, month: string): number {
@@ -269,6 +284,117 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
     categoryBudgets,
     overspentCents: overspent.toNumber(),
     totalUnderfundedCents: totalUnderfunded.toNumber(),
+  };
+}
+
+/**
+ * Раздаёт деньги по недофинансированным целям и **останавливается на нуле
+ * Ready to Assign**.
+ *
+ * До этого раздачу собирал клиент: он брал все цели и назначал их полностью,
+ * не глядя на RTA, — при пустом бюджете это молча уводило его глубоко в минус.
+ * YNAB в этом месте прекращает раздачу, и это правило принадлежит движку, а не
+ * кнопке: тем же поведением пользуется агент.
+ *
+ * Порядок раздачи — **подмножество** приоритета YNAB: сначала цели с датой
+ * (ближайшая первая), потом остальные в порядке бюджета. Полного порядка из
+ * шести уровней здесь нет: он требует запланированных транзакций и категорий
+ * платежа по кредитке, которых в модели пока нет.
+ *
+ * Последняя категория финансируется частично — так каждый оставшийся тиын
+ * попадает в дело, как и у YNAB.
+ */
+export function assignToTargets(
+  db: DB,
+  month: string,
+  opts: { allowNegativeRta?: boolean } = {},
+): AssignToTargetsResult {
+  const budget = getBudgetMonth(db, month);
+
+  const queue = budget.categoryBudgets
+    .filter(c => c.underfundedCents > 0)
+    .map((c, index) => ({ ...c, index }))
+    .sort((a, b) => {
+      // Дата — обещание конкретному сроку, поэтому она вперёд всего остального.
+      if (a.targetDate && b.targetDate) {
+        return a.targetDate === b.targetDate
+          ? a.index - b.index
+          : a.targetDate < b.targetDate ? -1 : 1;
+      }
+      if (a.targetDate) return -1;
+      if (b.targetDate) return 1;
+      return a.index - b.index;
+    });
+
+  let remaining = new Decimal(budget.readyToAssignCents);
+  const unlimited = opts.allowNegativeRta === true;
+
+  if (queue.length === 0) {
+    return {
+      applied: [],
+      totalAddedCents: 0,
+      readyToAssignCents: budget.readyToAssignCents,
+      remainingUnderfundedCents: 0,
+      stoppedAtZeroRta: false,
+    };
+  }
+
+  const totalNeeded = queue.reduce(
+    (acc, c) => acc.plus(c.underfundedCents),
+    new Decimal(0),
+  );
+
+  if (!unlimited && remaining.lessThanOrEqualTo(0)) {
+    return {
+      applied: [],
+      totalAddedCents: 0,
+      readyToAssignCents: budget.readyToAssignCents,
+      remainingUnderfundedCents: totalNeeded.toNumber(),
+      stoppedAtZeroRta: true,
+    };
+  }
+
+  const plan: { category: typeof queue[number]; addedCents: number }[] = [];
+  for (const category of queue) {
+    if (!unlimited && remaining.lessThanOrEqualTo(0)) break;
+
+    const wanted = new Decimal(category.underfundedCents);
+    const added = unlimited ? wanted : Decimal.min(wanted, remaining);
+    if (added.lessThanOrEqualTo(0)) continue;
+
+    plan.push({ category, addedCents: added.toNumber() });
+    remaining = remaining.minus(added);
+  }
+
+  db.$client.transaction(() => {
+    for (const { category, addedCents } of plan) {
+      // `assignToCategory` ЗАДАЁТ назначение месяца, поэтому прибавляем сами.
+      upsertMonthlyBudget(
+        db,
+        category.categoryId,
+        month,
+        new Decimal(category.assignedCents).plus(addedCents).toNumber(),
+      );
+    }
+  })();
+
+  const after = getBudgetMonth(db, month);
+  const totalAdded = plan.reduce(
+    (acc, p) => acc.plus(p.addedCents),
+    new Decimal(0),
+  );
+
+  return {
+    applied: plan.map(({ category, addedCents }) => ({
+      categoryId: category.categoryId,
+      categoryName: category.categoryName,
+      addedCents,
+      assignedCents: new Decimal(category.assignedCents).plus(addedCents).toNumber(),
+    })),
+    totalAddedCents: totalAdded.toNumber(),
+    readyToAssignCents: after.readyToAssignCents,
+    remainingUnderfundedCents: after.totalUnderfundedCents,
+    stoppedAtZeroRta: !unlimited && totalAdded.lessThan(totalNeeded),
   };
 }
 

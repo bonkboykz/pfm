@@ -218,6 +218,18 @@ export const tools: ToolDef[] = [
     body: (a) => ({ assignments: a.assignments }),
   },
   {
+    name: 'assign_to_targets',
+    description:
+      'Fund every underfunded target for the month in one call, stopping when Ready to Assign hits zero — the answer to "distribute my salary". Amounts come from the engine per target type, so no arithmetic is needed on the caller side. Targets with a date are funded first (nearest first), then the rest in budget order; the last category may be funded partially. Returns what was applied, the new Ready to Assign, what is still short, and stoppedAtZeroRta. Set allowNegativeRta to overspend the budget deliberately.',
+    schema: z.object({
+      month: z.string(),
+      allowNegativeRta: z.boolean().optional(),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/budget/${a.month}/assign-targets`,
+    body: (a) => ({ allowNegativeRta: a.allowNegativeRta ?? false }),
+  },
+  {
     name: 'set_available',
     description:
       "Force a category's Available to an exact figure for a month, including zero — the way to clear carryover inherited from earlier months, which assign_budget cannot do because it only sets the current month and refuses negatives. The difference moves to or from Ready to Assign. This shuffles money between the budget's own buckets; if the budget holds more than the accounts do, the inflows are wrong and reconcile_account is the fix.",

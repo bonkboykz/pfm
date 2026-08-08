@@ -6,6 +6,7 @@ import {
   categories,
   getBudgetMonth,
   assignToCategory,
+  assignToTargets,
   moveBetweenCategories,
   setCategoryAvailable,
   resetBudgetFrom,
@@ -45,6 +46,14 @@ const bulkAssignSchema = z.object({
 const resetSchema = z.object({
   fromMonth: z.string().regex(monthRegex),
   confirm: z.literal(true),
+});
+
+/**
+ * `allowNegativeRta` — сознательный перерасход бюджета. По умолчанию раздача
+ * останавливается на нуле Ready to Assign, как в YNAB.
+ */
+const assignTargetsSchema = z.object({
+  allowNegativeRta: z.boolean().optional(),
 });
 
 /**
@@ -347,6 +356,47 @@ export function budgetRoutes(db: DB) {
       ...(wantsMinimal(c)
         ? formatMinimalResponse(budget, [parsed.data.categoryId])
         : formatBudgetResponse(budget)),
+    });
+  });
+
+  // POST /:month/assign-targets — fund underfunded targets, stop at zero RTA
+  router.post('/:month/assign-targets', async (c) => {
+    const month = c.req.param('month');
+    if (!monthRegex.test(month)) {
+      throw validationError('Month must be YYYY-MM format');
+    }
+
+    // Тело необязательное: без него раздача ограничена деньгами в RTA.
+    let allowNegativeRta = false;
+    try {
+      const body = await c.req.json();
+      const parsed = assignTargetsSchema.safeParse(body);
+      if (!parsed.success) {
+        throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+      }
+      allowNegativeRta = parsed.data.allowNegativeRta ?? false;
+    } catch (e) {
+      if (e instanceof Error && e.name === 'ApiError') throw e;
+      // Пустое или неразобранное тело — оставляем безопасное поведение.
+    }
+
+    const result = assignToTargets(db, month, { allowNegativeRta });
+
+    return c.json({
+      month,
+      applied: result.applied.map((a) => ({
+        ...a,
+        addedFormatted: formatMoney(a.addedCents),
+        assignedFormatted: formatMoney(a.assignedCents),
+      })),
+      totalAddedCents: result.totalAddedCents,
+      totalAddedFormatted: formatMoney(result.totalAddedCents),
+      readyToAssignCents: result.readyToAssignCents,
+      readyToAssignFormatted: formatMoney(result.readyToAssignCents),
+      remainingUnderfundedCents: result.remainingUnderfundedCents,
+      remainingUnderfundedFormatted: formatMoney(result.remainingUnderfundedCents),
+      stoppedAtZeroRta: result.stoppedAtZeroRta,
+      budget: formatBudgetResponse(getBudgetMonth(db, month)),
     });
   });
 

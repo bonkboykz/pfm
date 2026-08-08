@@ -62,11 +62,6 @@ class CategoryBudget {
   bool get hasTarget =>
       targetAmountCents != null && targetType != null && targetType != 'none';
 
-  /// Сумма, которую надо отправить в `POST /assign`, чтобы закрыть цель.
-  /// Эндпоинт ЗАДАЁТ назначение месяца, а не прибавляет к нему, поэтому к
-  /// недостающему прибавляется уже назначенное.
-  int get assignToCloseTargetCents => assignedCents + underfundedCents;
-
   /// Amount that has to arrive here to bring `available` back to zero.
   int get overspentCents => availableCents < 0 ? -availableCents : 0;
 }
@@ -174,6 +169,34 @@ class BudgetMonth {
     }
     return null;
   }
+}
+
+/// Итог `POST /budget/:month/assign-targets`.
+class AssignTargetsResult {
+  final int totalAddedCents;
+  final int remainingUnderfundedCents;
+
+  /// Деньги кончились раньше целей — часть категорий осталась без финансирования.
+  final bool stoppedAtZeroRta;
+  final BudgetMonth month;
+
+  const AssignTargetsResult({
+    required this.totalAddedCents,
+    required this.remainingUnderfundedCents,
+    required this.stoppedAtZeroRta,
+    required this.month,
+  });
+
+  factory AssignTargetsResult.fromJson(Map<String, dynamic> json) =>
+      AssignTargetsResult(
+        totalAddedCents: (json['totalAddedCents'] as num?)?.toInt() ?? 0,
+        remainingUnderfundedCents:
+            (json['remainingUnderfundedCents'] as num?)?.toInt() ?? 0,
+        stoppedAtZeroRta: json['stoppedAtZeroRta'] == true,
+        month: BudgetMonth.fromJson(
+          ((json['budget'] as Map?) ?? const {}).cast<String, dynamic>(),
+        ),
+      );
 }
 
 class RtaMonth {

@@ -714,8 +714,8 @@ describe('recovery tools', () => {
 });
 
 describe('table completeness', () => {
-  it('exposes exactly 59 tools', () => {
-    expect(tools).toHaveLength(59);
+  it('exposes exactly 60 tools', () => {
+    expect(tools).toHaveLength(60);
   });
 
   it('names every tool uniquely', () => {

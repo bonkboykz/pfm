@@ -30,6 +30,26 @@ export interface BudgetMonth {
   totalUnderfundedCents: number;
 }
 
+export interface AssignedTarget {
+  categoryId: string;
+  categoryName: string;
+  /** Сколько добавлено сверх уже назначенного. */
+  addedCents: number;
+  /** Назначение месяца после раздачи. */
+  assignedCents: number;
+}
+
+export interface AssignToTargetsResult {
+  applied: AssignedTarget[];
+  totalAddedCents: number;
+  /** Ready to Assign после раздачи. */
+  readyToAssignCents: number;
+  /** Сколько цели просят сверх того, что удалось раздать. */
+  remainingUnderfundedCents: number;
+  /** Деньги кончились раньше целей — часть категорий осталась недофинансирована. */
+  stoppedAtZeroRta: boolean;
+}
+
 export interface AccountBalance {
   accountId: string;
   accountName: string;

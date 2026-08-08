@@ -145,7 +145,7 @@ duplicated across ten files and every schema change broke them one suite at a ti
 
 ### MCP Pattern
 
-`@pfm/mcp` owns a declarative table of 58 tools; each maps arguments to an HTTP
+`@pfm/mcp` owns a declarative table of 60 tools; each maps arguments to an HTTP
 method, path and body. `createMcpServer(dispatch)` takes the dispatch function as
 its first argument, the same dependency-injection shape engine functions use for
 `db`. The API supplies a dispatch that routes into an internal Hono app built from

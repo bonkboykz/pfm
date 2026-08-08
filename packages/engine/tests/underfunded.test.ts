@@ -203,6 +203,37 @@ describe('underfundedCents по типам цели', () => {
       expect(underfunded(db, id)).toBe(30_000_000);
     });
 
+    it('назначенная доля месяца закрывает запрос до следующего месяца', () => {
+      const db = seed();
+      const id = category(db, 'tbd-share-paid', {
+        type: 'target_by_date',
+        amount: 30_000_000,
+        date: '2026-11-30',
+      });
+      assignToCategory(db, id, PREV, 10_000_000);
+      // Доля августа — 50 000 ₸ из недостающих 200 000 ₸ на четыре месяца.
+      expect(underfunded(db, id)).toBe(5_000_000);
+
+      assignToCategory(db, id, MONTH, 5_000_000);
+
+      // Раньше остаток делился на те же четыре месяца заново и категория
+      // просила ещё, хотя свою долю уже получила.
+      expect(underfunded(db, id)).toBe(0);
+    });
+
+    it('частично назначенная доля просит только разницу', () => {
+      const db = seed();
+      const id = category(db, 'tbd-share-partial', {
+        type: 'target_by_date',
+        amount: 30_000_000,
+        date: '2026-11-30',
+      });
+      assignToCategory(db, id, PREV, 10_000_000);
+      assignToCategory(db, id, MONTH, 2_000_000);
+
+      expect(underfunded(db, id)).toBe(3_000_000);
+    });
+
     it('без даты ведёт себя как target_balance', () => {
       const db = seed();
       const id = category(db, 'tbd-nodate', {

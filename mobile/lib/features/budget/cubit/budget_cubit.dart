@@ -9,6 +9,22 @@ import '../data/budget_repository.dart';
 
 enum BudgetStatus { initial, loading, ready, error }
 
+/// Чем закончилась раздача по целям — этого достаточно, чтобы сказать
+/// пользователю правду, включая «денег хватило не на всех».
+class AssignTargetsOutcome {
+  final String? error;
+  final int addedCents;
+  final int remainingCents;
+  final bool stoppedAtZeroRta;
+
+  const AssignTargetsOutcome({
+    this.error,
+    this.addedCents = 0,
+    this.remainingCents = 0,
+    this.stoppedAtZeroRta = false,
+  });
+}
+
 class BudgetState extends Equatable {
   final BudgetStatus status;
   final String month;
@@ -88,22 +104,35 @@ class BudgetCubit extends Cubit<BudgetState> {
   Future<String?> move(String fromId, String toId, int amountCents) =>
       _mutate(() => _repo.move(state.month, fromId, toId, amountCents));
 
-  /// Дофинансирует все категории, которым не хватает до цели.
+  /// Дофинансирует цели и останавливается на нуле Ready to Assign.
   ///
-  /// Суммы считает движок (`underfundedCents`) — у каждого типа цели своя
-  /// формула, и повторять её здесь значит расходиться с сервером. Пишется всё
-  /// одним запросом: цикл из N вызовов мог упасть на середине и оставить месяц
-  /// наполовину розданным.
-  Future<String?> assignUnderfunded() async {
+  /// Суммы, порядок и сам останов считает движок: у каждого типа цели своя
+  /// формула, а раздача без оглядки на RTA уводила его в минус. Клиенту
+  /// остаётся показать итог.
+  Future<AssignTargetsOutcome> assignUnderfunded() async {
     final budget = state.data?.month;
-    if (budget == null) return null;
-    final targets = budget.underfunded;
-    if (targets.isEmpty) return null;
+    if (budget == null || budget.underfunded.isEmpty) {
+      return const AssignTargetsOutcome();
+    }
 
-    return _mutate(() => _repo.bulkAssign(state.month, [
-          for (final c in targets)
-            (categoryId: c.categoryId, amountCents: c.assignToCloseTargetCents),
-        ]));
+    emit(state.copyWith(busy: true));
+    try {
+      final result = await _repo.assignTargets(state.month);
+      _emitMonth(result.month);
+      emit(state.copyWith(busy: false));
+      await _refreshOverview();
+      return AssignTargetsOutcome(
+        addedCents: result.totalAddedCents,
+        remainingCents: result.remainingUnderfundedCents,
+        stoppedAtZeroRta: result.stoppedAtZeroRta,
+      );
+    } on ApiException catch (e) {
+      emit(state.copyWith(busy: false));
+      return AssignTargetsOutcome(error: humanizeApiError(e));
+    } catch (e) {
+      emit(state.copyWith(busy: false));
+      return AssignTargetsOutcome(error: e.toString());
+    }
   }
 
   /// Replays the previous month's assignments onto the selected month.

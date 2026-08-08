@@ -508,15 +508,55 @@ class _QuickActions extends StatelessWidget {
               onTap: busy
                   ? null
                   : () async {
+                      // Сказать про нехватку заранее, а не после раздачи:
+                      // сервер остановится на нуле RTA, и половина категорий
+                      // останется ни с чем.
+                      final free = month.readyToAssignCents;
+                      final short = underfunded - (free > 0 ? free : 0);
                       final ok = await _confirm(
                         context,
                         title: 'Дофинансировать цели?',
-                        body: 'Категорий не хватает: ${month.underfunded.length}. '
-                            'Каждой будет назначено недостающее до цели — '
-                            'всего ${formatMoneySmart(underfunded)}.',
+                        body: [
+                          'Категорий не хватает: ${month.underfunded.length}, '
+                              'всего ${formatMoneySmart(underfunded)}.',
+                          if (short > 0)
+                            'Свободно только ${formatMoneySmart(free > 0 ? free : 0)} — '
+                                'раздача остановится, ${formatMoneySmart(short)} '
+                                'останется недофинансировано.'
+                          else
+                            'Каждой будет назначено недостающее до цели.',
+                        ].join(' '),
                         action: 'Назначить',
                       );
-                      if (ok) await run(cubit.assignUnderfunded);
+                      if (!ok) return;
+
+                      final outcome = await cubit.assignUnderfunded();
+                      if (!context.mounted) return;
+
+                      final message = switch (outcome) {
+                        AssignTargetsOutcome(:final error?) => error,
+                        AssignTargetsOutcome(addedCents: 0) =>
+                          'Свободных денег нет — ничего не роздано',
+                        AssignTargetsOutcome(
+                          stoppedAtZeroRta: true,
+                          :final addedCents,
+                          :final remainingCents,
+                        ) =>
+                          'Роздано ${formatMoneySmart(addedCents)}, '
+                              'не хватило ${formatMoneySmart(remainingCents)}',
+                        AssignTargetsOutcome(:final addedCents) =>
+                          'Роздано ${formatMoneySmart(addedCents)}',
+                      };
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(message),
+                          backgroundColor: outcome.error != null
+                              ? AppColors.negative
+                              : outcome.stoppedAtZeroRta
+                                  ? AppColors.warning
+                                  : AppColors.textPrimary,
+                        ),
+                      );
                     },
             ),
           ),

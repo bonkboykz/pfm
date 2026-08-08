@@ -44,23 +44,14 @@ class BudgetRepository {
     return BudgetMonth.fromJson((json as Map).cast<String, dynamic>());
   }
 
-  /// Sets many assignments in one SQLite transaction. The server validates
-  /// every category id before writing anything, so this cannot leave the month
-  /// half-assigned the way a loop of `assign` calls can.
-  Future<BudgetMonth> bulkAssign(
-    String month,
-    List<({String categoryId, int amountCents})> assignments,
-  ) async {
+  /// Раздаёт по целям и останавливается на нуле Ready to Assign.
+  /// Суммы и порядок считает движок — клиенту остаётся показать итог.
+  Future<AssignTargetsResult> assignTargets(String month) async {
     final json = await _api.post(
-      '/api/v1/budget/$month/bulk-assign',
-      body: {
-        'assignments': [
-          for (final a in assignments)
-            {'categoryId': a.categoryId, 'amountCents': a.amountCents},
-        ],
-      },
+      '/api/v1/budget/$month/assign-targets',
+      body: const {'allowNegativeRta': false},
     );
-    return BudgetMonth.fromJson((json as Map).cast<String, dynamic>());
+    return AssignTargetsResult.fromJson((json as Map).cast<String, dynamic>());
   }
 
   Future<BudgetMonth> move(
