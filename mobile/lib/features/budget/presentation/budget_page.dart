@@ -556,15 +556,16 @@ class _QuickActions extends StatelessWidget {
           onTap: busy
               ? null
               : () async {
-                  final previous = formatMonthInline(shiftMonth(month.month, -1));
+                  final previous =
+                      formatMonthGenitive(shiftMonth(month.month, -1));
                   final ok = await _confirm(
                     context,
                     title: 'Скопировать прошлый месяц?',
                     // Это замена, а не слияние — и раньше диалог обещал замену,
                     // а делал слияние. Про обнуление надо сказать вслух.
                     body: 'Назначения этого месяца будут заменены значениями '
-                        'из $previous. Категории, которым в $previous не '
-                        'назначали, обнулятся.',
+                        'из $previous. Категории, которым тогда не назначали, '
+                        'обнулятся.',
                     action: 'Заменить',
                   );
                   if (!ok) return;
@@ -574,10 +575,11 @@ class _QuickActions extends StatelessWidget {
 
                   final message = switch (outcome) {
                     CopyMonthOutcome(:final error?) => error,
+                    // Предложный падеж intl не даёт, поэтому здесь без месяца.
                     CopyMonthOutcome(sourceEmpty: true) =>
-                      'В $previous ничего не назначено — оставили как было',
+                      'В прошлом месяце ничего не назначено — оставили как было',
                     CopyMonthOutcome(changedCount: 0) =>
-                      'Уже как в $previous — менять нечего',
+                      'Уже как в прошлом месяце — менять нечего',
                     CopyMonthOutcome(:final changedCount, :final clearedCount) =>
                       'Изменено категорий: $changedCount'
                           '${clearedCount > 0 ? ', обнулено $clearedCount' : ''}',
