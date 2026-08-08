@@ -88,17 +88,22 @@ class BudgetCubit extends Cubit<BudgetState> {
   Future<String?> move(String fromId, String toId, int amountCents) =>
       _mutate(() => _repo.move(state.month, fromId, toId, amountCents));
 
-  /// Tops every category with a target up to that target.
+  /// Дофинансирует все категории, которым не хватает до цели.
+  ///
+  /// Суммы считает движок (`underfundedCents`) — у каждого типа цели своя
+  /// формула, и повторять её здесь значит расходиться с сервером. Пишется всё
+  /// одним запросом: цикл из N вызовов мог упасть на середине и оставить месяц
+  /// наполовину розданным.
   Future<String?> assignUnderfunded() async {
     final budget = state.data?.month;
     if (budget == null) return null;
     final targets = budget.underfunded;
     if (targets.isEmpty) return null;
 
-    return _mutateMany([
-      for (final c in targets)
-        () => _repo.assign(state.month, c.categoryId, c.targetAmountCents!),
-    ]);
+    return _mutate(() => _repo.bulkAssign(state.month, [
+          for (final c in targets)
+            (categoryId: c.categoryId, amountCents: c.assignToCloseTargetCents),
+        ]));
   }
 
   /// Replays the previous month's assignments onto the selected month.

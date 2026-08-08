@@ -16,6 +16,12 @@ class CategoryBudget {
   final String availableFormatted;
   final int? targetAmountCents;
   final String? targetType;
+  final String? targetDate;
+
+  /// Сколько ещё надо назначить в этом месяце, чтобы цель осталась на треке.
+  /// Считает движок: у каждого `targetType` своя формула, и повторить её на
+  /// клиенте значит завести вторую метрику под тем же словом.
+  final int underfundedCents;
   final bool isUnderfunded;
   final bool isOverspent;
 
@@ -30,6 +36,8 @@ class CategoryBudget {
     required this.availableFormatted,
     required this.targetAmountCents,
     required this.targetType,
+    required this.targetDate,
+    required this.underfundedCents,
     required this.isUnderfunded,
     required this.isOverspent,
   });
@@ -45,6 +53,8 @@ class CategoryBudget {
         availableFormatted: (json['availableFormatted'] ?? '').toString(),
         targetAmountCents: (json['targetAmountCents'] as num?)?.toInt(),
         targetType: json['targetType']?.toString(),
+        targetDate: json['targetDate']?.toString(),
+        underfundedCents: (json['underfundedCents'] as num?)?.toInt() ?? 0,
         isUnderfunded: json['isUnderfunded'] == true,
         isOverspent: json['isOverspent'] == true,
       );
@@ -52,12 +62,10 @@ class CategoryBudget {
   bool get hasTarget =>
       targetAmountCents != null && targetType != null && targetType != 'none';
 
-  /// How much more this month would need to reach its target.
-  int get underfundedCents {
-    if (!hasTarget) return 0;
-    final gap = targetAmountCents! - assignedCents;
-    return gap > 0 ? gap : 0;
-  }
+  /// Сумма, которую надо отправить в `POST /assign`, чтобы закрыть цель.
+  /// Эндпоинт ЗАДАЁТ назначение месяца, а не прибавляет к нему, поэтому к
+  /// недостающему прибавляется уже назначенное.
+  int get assignToCloseTargetCents => assignedCents + underfundedCents;
 
   /// Amount that has to arrive here to bring `available` back to zero.
   int get overspentCents => availableCents < 0 ? -availableCents : 0;
@@ -104,6 +112,8 @@ class BudgetMonth {
   final String totalAvailableFormatted;
   final int overspentCents;
   final String overspentFormatted;
+  final int totalUnderfundedCents;
+  final String totalUnderfundedFormatted;
   final List<BudgetGroup> groups;
 
   const BudgetMonth({
@@ -118,6 +128,8 @@ class BudgetMonth {
     required this.totalAvailableFormatted,
     required this.overspentCents,
     required this.overspentFormatted,
+    required this.totalUnderfundedCents,
+    required this.totalUnderfundedFormatted,
     required this.groups,
   });
 
@@ -137,6 +149,10 @@ class BudgetMonth {
             (json['totalAvailableFormatted'] ?? '').toString(),
         overspentCents: (json['overspentCents'] as num?)?.toInt() ?? 0,
         overspentFormatted: (json['overspentFormatted'] ?? '').toString(),
+        totalUnderfundedCents:
+            (json['totalUnderfundedCents'] as num?)?.toInt() ?? 0,
+        totalUnderfundedFormatted:
+            (json['totalUnderfundedFormatted'] ?? '').toString(),
         groups: ((json['groups'] as List?) ?? const [])
             .whereType<Map>()
             .map((g) => BudgetGroup.fromJson(g.cast<String, dynamic>()))
@@ -151,9 +167,6 @@ class BudgetMonth {
 
   List<CategoryBudget> get overspent =>
       allCategories.where((c) => c.overspentCents > 0).toList();
-
-  int get totalUnderfundedCents =>
-      underfunded.fold(0, (acc, c) => acc + c.underfundedCents);
 
   String? groupNameOf(String categoryId) {
     for (final g in groups) {

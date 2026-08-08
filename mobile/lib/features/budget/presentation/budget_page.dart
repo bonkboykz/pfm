@@ -511,8 +511,9 @@ class _QuickActions extends StatelessWidget {
                       final ok = await _confirm(
                         context,
                         title: 'Дофинансировать цели?',
-                        body: 'Категорий с целями: ${month.underfunded.length}. '
-                            'Им будет назначена полная сумма цели.',
+                        body: 'Категорий не хватает: ${month.underfunded.length}. '
+                            'Каждой будет назначено недостающее до цели — '
+                            'всего ${formatMoneySmart(underfunded)}.',
                         action: 'Назначить',
                       );
                       if (ok) await run(cubit.assignUnderfunded);

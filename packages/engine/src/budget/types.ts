@@ -8,6 +8,13 @@ export interface CategoryBudget {
   availableCents: number;
   targetAmountCents: number | null;
   targetType: string | null;
+  targetDate: string | null;
+  /**
+   * Сколько ещё надо назначить в этом месяце, чтобы цель осталась на треке.
+   * Ноль, если цели нет или она уже закрыта. Считается по-разному для каждого
+   * `targetType` — см. `computeUnderfunded`.
+   */
+  underfundedCents: number;
   isUnderfunded: boolean;
   isOverspent: boolean;
 }
@@ -20,6 +27,7 @@ export interface BudgetMonth {
   totalAvailableCents: number;
   categoryBudgets: CategoryBudget[];
   overspentCents: number;
+  totalUnderfundedCents: number;
 }
 
 export interface AccountBalance {

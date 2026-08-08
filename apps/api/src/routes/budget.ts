@@ -78,6 +78,9 @@ function formatCategory(cb: ReturnType<typeof getBudgetMonth>['categoryBudgets']
     availableFormatted: formatMoney(cb.availableCents),
     targetAmountCents: cb.targetAmountCents,
     targetType: cb.targetType,
+    targetDate: cb.targetDate,
+    underfundedCents: cb.underfundedCents,
+    underfundedFormatted: formatMoney(cb.underfundedCents),
     isUnderfunded: cb.isUnderfunded,
     isOverspent: cb.isOverspent,
   };
@@ -142,6 +145,8 @@ function formatBudgetResponse(budget: ReturnType<typeof getBudgetMonth>) {
     totalAvailableFormatted: formatMoney(budget.totalAvailableCents),
     overspentCents: budget.overspentCents,
     overspentFormatted: formatMoney(budget.overspentCents),
+    totalUnderfundedCents: budget.totalUnderfundedCents,
+    totalUnderfundedFormatted: formatMoney(budget.totalUnderfundedCents),
     groups: Array.from(groupMap.values()),
   };
 }

@@ -22,6 +22,57 @@ interface AccountRow {
 
 // --- Private helpers ---
 
+/**
+ * Сколько месяцев остаётся на цель, считая текущий: с `month` по месяц
+ * `targetDate` включительно. Прошедшая дата и дата в текущем месяце дают 1 —
+ * копить больше некогда, нужна вся сумма сразу.
+ */
+function monthsUntil(month: string, targetDate: string): number {
+  const [fromYear, fromMonth] = month.split('-').map(Number);
+  const [toYear, toMonth] = targetDate.split('-').map(Number);
+  if (!toYear || !toMonth) return 1;
+
+  const diff = (toYear - fromYear) * 12 + (toMonth - fromMonth);
+  return diff > 0 ? diff + 1 : 1;
+}
+
+/**
+ * Сколько ещё надо назначить категории в `month`, чтобы её цель осталась на
+ * треке. Каждый тип цели спрашивает своё:
+ *
+ * - `monthly_funding` — «отложить ещё N в этом месяце». Считается от
+ *   назначенного ЗА ЭТОТ МЕСЯЦ: перекатившийся остаток цель не закрывает,
+ *   иначе накопительная категория перестала бы просить деньги навсегда.
+ * - `target_balance` — «дополнить до N». Считается от Available, то есть
+ *   остаток с прошлых месяцев засчитывается, а перерасход увеличивает запрос.
+ * - `target_by_date` — то же, но недостающее делится на оставшиеся месяцы и
+ *   округляется вверх, чтобы к дате точно хватило. Без даты вырождается в
+ *   `target_balance`.
+ */
+function computeUnderfunded(
+  targetAmountCents: number | null,
+  targetType: string | null,
+  targetDate: string | null,
+  month: string,
+  assignedThisMonthCents: number,
+  availableCents: number,
+): number {
+  if (targetAmountCents == null || !targetType || targetType === 'none') return 0;
+
+  if (targetType === 'monthly_funding') {
+    const gap = new Decimal(targetAmountCents).minus(assignedThisMonthCents);
+    return gap.greaterThan(0) ? gap.toNumber() : 0;
+  }
+
+  const gap = new Decimal(targetAmountCents).minus(availableCents);
+  if (!gap.greaterThan(0)) return 0;
+
+  if (targetType === 'target_by_date' && targetDate) {
+    return gap.div(monthsUntil(month, targetDate)).ceil().toNumber();
+  }
+  return gap.toNumber();
+}
+
 export function getCategoryAvailable(db: DB, categoryId: string, month: string): number {
   const monthEnd = `${month}-31`;
 
@@ -78,6 +129,7 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
     groupName: categoryGroups.name,
     targetAmountCents: categories.targetAmountCents,
     targetType: categories.targetType,
+    targetDate: categories.targetDate,
   }).from(categories)
     .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
     .where(and(eq(categories.isSystem, false), eq(categories.isHidden, false)))
@@ -163,6 +215,7 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
   let totalAvailable = new Decimal(0);
   let overspent = new Decimal(0);
   let totalAssignedThisMonth = new Decimal(0);
+  let totalUnderfunded = new Decimal(0);
 
   const categoryBudgets: CategoryBudget[] = cats.map(cat => {
     const assigned = assignedMap.get(cat.id) ?? 0;
@@ -180,10 +233,15 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
     }
 
     const isOverspent = available < 0;
-    const isUnderfunded =
-      cat.targetAmountCents != null &&
-      cat.targetType !== 'none' &&
-      available < cat.targetAmountCents;
+    const underfundedCents = computeUnderfunded(
+      cat.targetAmountCents,
+      cat.targetType,
+      cat.targetDate,
+      month,
+      assigned,
+      available,
+    );
+    totalUnderfunded = totalUnderfunded.plus(underfundedCents);
 
     return {
       categoryId: cat.id,
@@ -195,7 +253,9 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
       availableCents: available,
       targetAmountCents: cat.targetAmountCents,
       targetType: cat.targetType ?? null,
-      isUnderfunded,
+      targetDate: cat.targetDate ?? null,
+      underfundedCents,
+      isUnderfunded: underfundedCents > 0,
       isOverspent,
     };
   });
@@ -208,6 +268,7 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
     totalAvailableCents: totalAvailable.toNumber(),
     categoryBudgets,
     overspentCents: overspent.toNumber(),
+    totalUnderfundedCents: totalUnderfunded.toNumber(),
   };
 }
 

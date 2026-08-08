@@ -40,7 +40,9 @@ export interface CategoryBudget {
   availableCents: number;      // Cumulative all time
   targetAmountCents: number | null;
   targetType: string | null;
-  isUnderfunded: boolean;
+  targetDate: string | null;
+  underfundedCents: number;    // Ещё надо назначить в этом месяце, см. ниже
+  isUnderfunded: boolean;      // === underfundedCents > 0
   isOverspent: boolean;
 }
 
@@ -52,8 +54,28 @@ export interface BudgetMonth {
   totalAvailableCents: number;
   categoryBudgets: CategoryBudget[];
   overspentCents: number;
+  totalUnderfundedCents: number;
 }
+```
 
+### Недофинансирование по типам цели
+
+`underfundedCents` — сколько ещё надо назначить категории **в этом месяце**,
+чтобы её цель осталась на треке. У каждого `targetType` своя формула, потому
+что типы спрашивают разное:
+
+| `targetType` | Формула | Смысл |
+|---|---|---|
+| `none` (или нет суммы) | `0` | Цели нет |
+| `monthly_funding` | `max(0, target − assignedThisMonth)` | «Отложить ещё N в этом месяце». Перекатившийся остаток цель **не** закрывает, иначе накопительная категория перестала бы просить деньги навсегда |
+| `target_balance` | `max(0, target − available)` | «Дополнить до N». Остаток с прошлых месяцев засчитывается, перерасход увеличивает запрос |
+| `target_by_date` | `ceil(max(0, target − available) / monthsUntil(month, targetDate))` | То же, но недостающее делится на оставшиеся месяцы (текущий включительно) и округляется вверх. Без даты вырождается в `target_balance`; просроченная дата и дата в текущем месяце требуют всю сумму сразу |
+
+`POST /budget/:month/assign` **задаёт** назначение месяца, а не прибавляет к
+нему, поэтому закрыть цель одной категории — это назначить
+`assignedCents + underfundedCents`.
+
+```typescript
 export interface AccountBalance {
   accountId: string;
   accountName: string;
