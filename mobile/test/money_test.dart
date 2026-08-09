@@ -38,11 +38,48 @@ void main() {
       expect(formatMoneySmart(7), '0,07 ₸');
     });
 
-    test('behaves like formatMoney from one whole unit up', () {
+    test('показывает тиыны у любой суммы, где они есть', () {
+      // Раньше дробная часть выживала только у сумм меньше тенге, и
+      // «192 034,65 ₸» на экране превращалось в «192 034 ₸».
+      expect(formatMoneySmart(19203465), '192 034,65 ₸');
+      expect(formatMoneySmart(-123456), '-1 234,56 ₸');
+      expect(formatMoneySmart(1031507), '10 315,07 ₸');
+    });
+
+    test('круглые суммы остаются без запятой', () {
       expect(formatMoneySmart(0), '0 ₸');
       expect(formatMoneySmart(100), '1 ₸');
-      expect(formatMoneySmart(-123456), '-1 234 ₸');
+      expect(formatMoneySmart(2500000), '25 000 ₸');
+      expect(formatMoneySmart(-2000000), '-20 000 ₸');
+    });
+
+    test('дробная часть не теряет ведущий ноль', () {
+      expect(formatMoneySmart(100005), '1 000,05 ₸');
+      expect(formatMoneySmart(-100005), '-1 000,05 ₸');
+    });
+
+    test('работает с другими валютами', () {
       expect(formatMoneySmart(-50, currency: 'CNY'), '-¥0,50');
+      expect(formatMoneySmart(123456, currency: 'USD'), r'$1 234,56');
+      expect(formatMoneySmart(123400, currency: 'USD'), r'$1 234');
+    });
+
+    test('итог не расходится со слагаемыми на экране', () {
+      // Класс ошибки, из-за которого сумма платежей по кредитам сходилась
+      // то в 192 034 ₸, то в 192 035 ₸: усечённые строки не складываются.
+      // С видимыми тиынами читатель может сложить их сам и получить то же.
+      const parts = [3115400, 6523500, 13664865, 2547800, 1890200, 1461700];
+      final total = parts.reduce((a, b) => a + b);
+
+      expect(parts.map(formatMoneySmart).toList(), [
+        '31 154 ₸',
+        '65 235 ₸',
+        '136 648,65 ₸',
+        '25 478 ₸',
+        '18 902 ₸',
+        '14 617 ₸',
+      ]);
+      expect(formatMoneySmart(total), '292 034,65 ₸');
     });
   });
 

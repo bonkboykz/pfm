@@ -14,8 +14,8 @@ String humanizeApiError(Object error) {
   if (insufficient != null) {
     final have = int.parse(insufficient.group(1)!);
     final want = int.parse(insufficient.group(2)!);
-    return 'Недостаточно средств в категории: доступно ${formatMoney(have)}, '
-        'нужно ${formatMoney(want)}';
+    return 'Недостаточно средств в категории: доступно ${formatMoneySmart(have)}, '
+        'нужно ${formatMoneySmart(want)}';
   }
 
   if (message.contains('Cannot assign to system category')) {

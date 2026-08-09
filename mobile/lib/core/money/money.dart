@@ -34,17 +34,22 @@ String formatMoney(int amountCents, {String currency = 'KZT'}) {
   return _decorate(groupDigits(amount.abs()), amount < 0, currency);
 }
 
-/// Like [formatMoney] but keeps sub-unit amounts visible.
+/// Формат для экрана: тиыны показываются всегда, когда они есть.
 ///
-/// The engine truncates, so a 93-tiyn overspend renders as "0 ₸" while still
-/// being flagged as overspent — a red pill reading zero. Anything under one
-/// whole unit therefore gets two decimals instead.
+/// [formatMoney] усекает, и это врало дважды. Перерасход в 93 тиына рисовался
+/// как «0 ₸» с красной плашкой, а шесть платежей по кредитам давали в сумме
+/// 192 034 ₸ при поштучном усечении против 192 035 ₸ при сложении до
+/// округления — расхождение, которое невозможно объяснить, глядя на экран.
+///
+/// Круглые суммы остаются без дробной части: «25 000 ₸», а не «25 000,00 ₸».
 String formatMoneySmart(int amountCents, {String currency = 'KZT'}) {
-  if (amountCents != 0 && amountCents.abs() < 100) {
-    final fraction = amountCents.abs().toString().padLeft(2, '0');
-    return _decorate('0,$fraction', amountCents < 0, currency);
-  }
-  return formatMoney(amountCents, currency: currency);
+  final abs = amountCents.abs();
+  final fraction = abs % 100;
+  if (fraction == 0) return formatMoney(amountCents, currency: currency);
+
+  final body =
+      '${groupDigits(abs ~/ 100)},${fraction.toString().padLeft(2, '0')}';
+  return _decorate(body, amountCents < 0, currency);
 }
 
 String _decorate(String absStr, bool isNegative, String currency) {
