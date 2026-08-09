@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.4.0
+version: 0.5.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -28,6 +28,10 @@ assigned to a category. Budget balanced when Ready to Assign = 0.
 ```bash
 AUTH="Authorization: Bearer $PFM_API_KEY"
 ```
+
+The same server also speaks MCP at `POST /mcp/:token`, where the token is
+`PFM_MCP_TOKEN` and falls back to `PFM_API_KEY`. If MCP tools are available,
+prefer them — this file is the curl fallback, and both hit the same routes.
 
 ---
 
@@ -277,12 +281,19 @@ Returns:
   "month": "2026-02",
   "readyToAssignCents": -8500000,
   "readyToAssignFormatted": "-85 000 ₸",
-  "isOverAssigned": true,
-  "categoryGroups": [
+  "totalAssignedCents": 49680314,
+  "totalActivityCents": -18326900,
+  "totalAvailableCents": 31353342,
+  "overspentCents": 16658272,
+  "totalUnderfundedCents": 25565000,
+  "totalUnderfundedFormatted": "255 650 ₸",
+  "groups": [
     {
+      "groupId": "wzu35dfp8ed1rnhawmmhcb6s",
       "groupName": "Постоянные расходы",
       "categories": [
         {
+          "categoryId": "s3c6l7k77digzwovtd8sppkv",
           "categoryName": "Аренда",
           "assignedCents": 15000000,
           "assignedFormatted": "150 000 ₸",
@@ -290,6 +301,12 @@ Returns:
           "activityFormatted": "-150 000 ₸",
           "availableCents": 0,
           "availableFormatted": "0 ₸",
+          "targetAmountCents": 15000000,
+          "targetType": "monthly_funding",
+          "targetDate": null,
+          "underfundedCents": 0,
+          "underfundedFormatted": "0 ₸",
+          "isUnderfunded": false,
           "isOverspent": false
         }
       ]
@@ -297,6 +314,19 @@ Returns:
   ]
 }
 ```
+
+**`underfundedCents` is the number to act on**, not something to derive. It is
+how much this category still needs **this month** to keep its target on track,
+and each `targetType` computes it differently:
+
+| `targetType` | What it asks for |
+|---|---|
+| `monthly_funding` | `target − assigned this month`. Carryover does **not** satisfy it — a monthly goal wants money every month |
+| `target_balance` | `target − available`. Carryover counts; overspending increases the ask |
+| `target_by_date` | the shortfall spread over the months left until `targetDate`, rounded up |
+
+`isUnderfunded` is exactly `underfundedCents > 0`. `totalUnderfundedCents` on the
+month is their sum. Do not recompute any of this from `targetAmountCents`.
 
 ### Assign money to a category
 
@@ -345,6 +375,66 @@ curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/bulk-assign?response=minimal
 
 `?response=minimal` works on `assign`, `move`, `bulk-assign` and `set-available`.
 It returns only the touched categories and the new RTA instead of the whole month.
+
+### Fund every target at once — "распредели зарплату"
+
+One call does the whole month: it walks the underfunded targets and **stops when
+Ready to Assign hits zero**. Amounts come from the engine, so there is no
+arithmetic to do on your side.
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/assign-targets" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "allowNegativeRta": false }' | jq
+```
+
+Order: targets with a date first (nearest first), then the rest in budget order.
+The last category may be funded partially so no tenge is left idle.
+
+The reply is the whole story — read it before saying "done":
+
+| Field | Meaning |
+|---|---|
+| `applied[]` | `categoryId`, `addedCents`, `assignedCents` after the write |
+| `totalAddedCents` | how much actually went out |
+| `readyToAssignCents` | RTA afterwards |
+| `remainingUnderfundedCents` | what the targets still want |
+| `stoppedAtZeroRta` | `true` when the money ran out before the targets did |
+
+`stoppedAtZeroRta: true` with `totalAddedCents: 0` means there was nothing to
+distribute. **Say so** — do not report a successful distribution.
+
+`allowNegativeRta: true` funds everything and lets RTA go negative. Only use it
+when the user has asked for exactly that.
+
+### Make a month a copy of another
+
+Every category gets the amount it was assigned in `fromMonth`, **including
+zero** — this is a replacement, not a merge. A category funded this month but
+not in the source is cleared.
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-02/copy-from" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "fromMonth": "2026-01" }' | jq
+```
+
+`sourceEmpty: true` means the source month had nothing assigned and **nothing
+was written** — copying an empty month would wipe the target, which is almost
+always a mistake. `applied[]` lists only what changed; `clearedCount` is how
+many categories were zeroed.
+
+### What will run short in the next N days
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/forecast?days=60&onlyShort=true" | jq
+```
+
+Expands every recurring rule into its occurrences, buckets them by the month
+they actually fall in, and carries spending across month boundaries. `days` is
+1…730. Returns `shortfallCents` and `firstShortDate` per category, plus
+`uncategorizedUpcoming` for rules with no category — those are invisible to the
+budget until someone categorises them.
 
 ### Clear Available inherited from earlier months
 
@@ -407,11 +497,38 @@ Response fields include both raw cents and formatted strings:
 | `NOT_FOUND` | 404 — the thing you asked to read does not exist |
 | `UNKNOWN_REFERENCE` | 404 — a **write** named an id that does not resolve |
 | `UNAUTHORIZED` | 401 — missing or wrong API key |
+| `INTERNAL_ERROR` | 500 — anything else. Carries no detail about the cause |
 
 `UNKNOWN_REFERENCE` is never returned as a success. If an id you are holding
-stops resolving, re-read it: the id a `create` returns is canonical, and a
-retried create returns the existing row with `alreadyExisted: true` rather than
-making a second copy.
+stops resolving, re-read it — the id a `create` returns is canonical.
+
+There is **no rate limiting and no upstream-timeout code**: an expired key, a
+missing permission and a crashed request are not distinguishable from each
+other. A 500 tells you the call failed and nothing more.
+
+## Retrying a failed call
+
+There is **no idempotency key**. Whether a retry is safe depends on the
+endpoint, so check this table before repeating anything that failed:
+
+| Safe to retry | Why |
+|---|---|
+| `assign`, `set-available`, `bulk-assign` | They **set** an absolute amount, so a second identical call changes nothing |
+| `assign-targets`, `copy-from` | Recomputed from current state; once satisfied they report zero applied |
+| `POST /categories` | Deduplicates by name and returns the existing row with `alreadyExisted: true` |
+| `POST /transactions/bulk` with `skipDuplicates: true` | Skips matches on date + amount + payee |
+| `POST /transactions/import` | Always deduplicates |
+
+| **Not** safe to retry | Why |
+|---|---|
+| `POST /transactions` (single) | No deduplication — a retry creates a second transaction |
+| `POST /budget/:month/move` | **Relative** operation: a retry moves the money twice |
+| `POST /accounts`, `/loans`, `/deposits`, `/debts`, `/scheduled` | No deduplication |
+| `POST /scheduled/process` | Depends on how far `nextDate` has already advanced |
+
+When a write fails ambiguously — a timeout, a dropped connection — do **not**
+blindly retry the unsafe ones. Read the state back first (`GET /transactions`
+with a narrow date filter, or `GET /audit?limit=5`) and only then decide.
 
 ## Audit and undo
 
@@ -427,6 +544,52 @@ curl -s -X POST "$PFM_API_URL/api/v1/audit/undo" \
   -H "$AUTH" -H "Content-Type: application/json" \
   -d '{ "batchId": "BATCH_ID" }' | jq
 ```
+
+Undo covers `transactions`, `monthly_budgets` and `loans`. Rows changed outside
+the API show up as `DIRECT` and cannot be rolled back as a batch.
+
+Every mutating response carries its `X-Audit-Batch` header — keep it when you do
+something big, it is the handle for undoing it.
+
+## Editing and removing things
+
+These exist but are easy to miss; without them the only tool left is `delete`
+plus a fresh `create`, which loses the id and its history.
+
+```bash
+# Transactions: read one, then fix it (the usual move after an import)
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions/TX_ID" | jq
+curl -s -X PATCH "$PFM_API_URL/api/v1/transactions/TX_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "categoryId": "CAT_ID", "memo": "Магнум, продукты" }' | jq
+
+# Categories: rename, retarget, hide
+curl -s -X PATCH "$PFM_API_URL/api/v1/categories/CAT_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "name": "Продукты", "targetAmountCents": 15000000,
+        "targetType": "monthly_funding" }' | jq
+curl -s -X DELETE "$PFM_API_URL/api/v1/categories/CAT_ID" -H "$AUTH" | jq
+
+# Accounts: rename, deactivate
+curl -s -X PATCH "$PFM_API_URL/api/v1/accounts/ACC_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" -d '{ "name": "Kaspi Gold" }' | jq
+curl -s -X DELETE "$PFM_API_URL/api/v1/accounts/ACC_ID" -H "$AUTH" | jq
+
+# Scheduled rules: change the amount or the date, or drop the rule
+curl -s -X PATCH "$PFM_API_URL/api/v1/scheduled/RULE_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "amountCents": -1549000 }' | jq
+curl -s -X DELETE "$PFM_API_URL/api/v1/scheduled/RULE_ID" -H "$AUTH" | jq
+```
+
+**Deactivation has no inverse over the API.** `DELETE` on an account or a
+deposit sets `isActive = false`, and the corresponding `PATCH` schema does not
+accept `isActive`, so it cannot be undone from here. Same for a hidden category.
+Loans are the exception — `PATCH /loans/:id` does take `isActive`. Warn the user
+before deactivating anything else.
+
+`DELETE /debts/:id` is the one **physical** delete in the whole API; every other
+delete is soft. It cannot be undone at all.
 
 ## Debt Payoff Simulator
 
@@ -752,6 +915,33 @@ curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/deposits/{id}" | jq
 ---
 
 ## Typical Workflows
+
+### "Пришла зарплата, распредели"
+
+1. Record the income: `POST /transactions` with a positive amount and
+   `categoryId` = the Ready to Assign category.
+2. `POST /budget/{month}/assign-targets` — one call funds every target and stops
+   at zero RTA.
+3. Read `stoppedAtZeroRta` and `remainingUnderfundedCents` from the reply and
+   tell the user what did **not** get funded. Never report a clean distribution
+   when the money ran out.
+4. Anything left over is genuinely free: `GET /budget/rta-overview` shows whether
+   later months already claim it.
+
+### "Что у меня с бюджетом в этом месяце?"
+
+There is no single summary call. Ask for these and combine:
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-02" | jq \
+  '{rta: .readyToAssignFormatted, overspent: .overspentFormatted,
+    underfunded: .totalUnderfundedFormatted}'
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/forecast?days=60&onlyShort=true" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-02/reconciliation" | jq '.unexplainedCents'
+```
+
+A non-zero `unexplainedCents` means the data itself is off — fix that before
+giving advice built on it.
 
 ### "Сколько свободных денег / сколько можно назначить?"
 1. `GET /api/v1/budget/rta-overview` → use `minReadyToAssignFormatted` as the answer
