@@ -13,6 +13,49 @@ void main() {
         status: 500,
       );
 
+  group('сервер недоступен', () {
+    // Во время выката Railway гасит старый контейнер раньше, чем поднимает
+    // новый, и Dio отдаёт свой многоабзацный текст про 502 со ссылкой на MDN.
+    // Он попадал на экран как есть.
+    const dioProse =
+        'This exception was thrown because the response has a status code of '
+        '502 and RequestOptions.validateStatus was configured to throw for '
+        'this status code. The status code of 502 has the following meaning: '
+        '"Server error - the server failed to fulfil an apparently valid '
+        'request". Read more about status codes at '
+        'https://developer.mozilla.org/en-US/docs/Web/HTTP/Status';
+
+    test('502 объясняется по-человечески, без текста Dio', () {
+      final message = humanizeApiError(ApiException(dioProse, status: 502));
+
+      expect(message, 'Сервер перезапускается. Попробуйте через минуту.');
+      expect(message, isNot(contains('mozilla')));
+      expect(message, isNot(contains('RequestOptions')));
+    });
+
+    test('503 и 504 объясняются так же', () {
+      for (final status in [503, 504]) {
+        expect(
+          humanizeApiError(ApiException(dioProse, status: status)),
+          'Сервер перезапускается. Попробуйте через минуту.',
+        );
+      }
+    });
+
+    test('без ответа вообще — это связь, а не сервер', () {
+      expect(
+        humanizeApiError(ApiException('Connection refused')),
+        'Нет связи с сервером. Проверьте интернет.',
+      );
+    });
+
+    test('прочие 5xx не выдают английский текст наружу', () {
+      final message = humanizeApiError(ApiException(dioProse, status: 599));
+
+      expect(message, 'Сервер не смог выполнить запрос.');
+    });
+  });
+
   test('renders insufficient-available with formatted amounts', () {
     expect(
       humanizeApiError(engineError('Insufficient available: 1240000 < 5000000')),

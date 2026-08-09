@@ -40,8 +40,22 @@ String humanizeApiError(Object error) {
   if (error.isUnauthorized) {
     return 'Нужен API-ключ';
   }
-  if (error.status == 500 && error.code == 'INTERNAL_ERROR') {
+
+  // Ниже — сбои транспорта, а не бизнес-логики. Их текст приходит от Dio:
+  // многоабзацное описание статуса со ссылкой на MDN, которое однажды уехало
+  // прямо на экран бюджета. Наружу оно попадать не должно никогда.
+  final status = error.status;
+  if (status == null) {
+    return 'Нет связи с сервером. Проверьте интернет.';
+  }
+  if (status == 502 || status == 503 || status == 504) {
+    return 'Сервер перезапускается. Попробуйте через минуту.';
+  }
+  if (status == 500 && error.code == 'INTERNAL_ERROR') {
     return 'Сервер не смог выполнить запрос: $message';
+  }
+  if (status >= 500) {
+    return 'Сервер не смог выполнить запрос.';
   }
 
   final suggestion = error.suggestion;

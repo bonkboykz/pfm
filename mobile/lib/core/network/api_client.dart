@@ -79,8 +79,20 @@ class ApiClient {
           status: e.response?.statusCode,
         );
       }
+      // `e.message` у Dio — это абзац про статус со ссылкой на MDN. Он не для
+      // человека и не для логов; наружу отдаём тип сбоя, а разбор — на
+      // humanizeApiError.
       throw ApiException(
-        e.message ?? 'Network error',
+        switch (e.type) {
+          DioExceptionType.connectionTimeout ||
+          DioExceptionType.sendTimeout ||
+          DioExceptionType.receiveTimeout =>
+            'Request timed out',
+          DioExceptionType.connectionError => 'Connection failed',
+          DioExceptionType.badCertificate => 'Bad TLS certificate',
+          DioExceptionType.cancel => 'Request cancelled',
+          _ => 'HTTP ${e.response?.statusCode ?? '?'}',
+        },
         status: e.response?.statusCode,
       );
     }
