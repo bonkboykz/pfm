@@ -8,6 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../app/theme.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
+import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/text/plural.dart';
 import '../cubit/reports_cubit.dart';
@@ -31,7 +32,7 @@ class ReportsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-        create: (_) => ReportsCubit(ReportsRepository(sl<ApiClient>()))..load(),
+        create: (_) => ReportsCubit(ReportsRepository(sl<ApiClient>()), bus: sl<DataBus>())..load(),
         child: const _ReportsView(),
       );
 }

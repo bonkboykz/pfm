@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:pfm_mobile/app/theme.dart';
 import 'package:pfm_mobile/core/di/di.dart';
+import 'package:pfm_mobile/core/events/data_bus.dart';
 import 'package:pfm_mobile/core/network/api_client.dart';
 import 'package:pfm_mobile/core/storage/token_storage.dart';
 import 'package:pfm_mobile/features/budget/data/budget_models.dart';
@@ -134,6 +135,7 @@ void main() {
 
   Future<void> pump(WidgetTester tester, _FakeApi api) async {
     sl.registerSingleton<ApiClient>(api);
+  sl.registerSingleton<DataBus>(DataBus());
     await tester.pumpWidget(
       MaterialApp(theme: buildTheme(), home: const BudgetPage()),
     );

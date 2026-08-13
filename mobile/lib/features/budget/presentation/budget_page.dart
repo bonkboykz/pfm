@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../core/dates/months.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
+import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../cubit/budget_cubit.dart';
 import '../data/budget_models.dart';
@@ -21,7 +22,8 @@ class BudgetPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => BlocProvider(
         create: (_) =>
-            BudgetCubit(BudgetRepository(sl<ApiClient>()))..load(),
+            BudgetCubit(BudgetRepository(sl<ApiClient>()), bus: sl<DataBus>())
+              ..load(),
         child: const _BudgetView(),
       );
 }

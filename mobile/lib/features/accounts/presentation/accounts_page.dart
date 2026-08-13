@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../app/theme.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
+import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../cubit/accounts_cubit.dart';
 import '../data/accounts_models.dart';
@@ -27,7 +28,9 @@ class AccountsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => BlocProvider(
         create: (_) =>
-            AccountsCubit(AccountsRepository(sl<ApiClient>()))..load(),
+            AccountsCubit(AccountsRepository(sl<ApiClient>()),
+                bus: sl<DataBus>())
+              ..load(),
         child: const _AccountsView(),
       );
 }

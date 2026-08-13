@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_errors.dart';
 import '../../accounts/data/accounts_models.dart';
@@ -127,9 +128,11 @@ class TransactionsState extends Equatable {
 class TransactionsCubit extends Cubit<TransactionsState> {
   final TransactionsRepository _repo;
   final AccountsRepository _accounts;
+  final DataBus? _bus;
 
-  TransactionsCubit(this._repo, this._accounts)
-      : super(const TransactionsState());
+  TransactionsCubit(this._repo, this._accounts, {DataBus? bus})
+      : _bus = bus,
+        super(const TransactionsState());
 
   static String _fmt(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
 
@@ -265,6 +268,7 @@ class TransactionsCubit extends Cubit<TransactionsState> {
         cleared: cleared ? 'cleared' : 'uncleared',
       );
       await load();
+      _bus?.emit(DataChange.transactions);
       return null;
     } on ApiException catch (e) {
       return humanizeApiError(e);
@@ -295,6 +299,7 @@ class TransactionsCubit extends Cubit<TransactionsState> {
         cleared: cleared ? 'cleared' : 'uncleared',
       );
       await load();
+      _bus?.emit(DataChange.transactions);
       return null;
     } on ApiException catch (e) {
       return humanizeApiError(e);
@@ -307,6 +312,7 @@ class TransactionsCubit extends Cubit<TransactionsState> {
     try {
       await _repo.delete(id);
       await load();
+      _bus?.emit(DataChange.transactions);
       return null;
     } on ApiException catch (e) {
       return humanizeApiError(e);

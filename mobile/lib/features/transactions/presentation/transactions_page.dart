@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../core/dates/months.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
+import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../../accounts/data/accounts_repository.dart';
 import '../cubit/transactions_cubit.dart';
@@ -22,6 +23,7 @@ class TransactionsPage extends StatelessWidget {
         create: (_) => TransactionsCubit(
           TransactionsRepository(sl<ApiClient>()),
           AccountsRepository(sl<ApiClient>()),
+          bus: sl<DataBus>(),
         )..load(),
         child: const _TransactionsView(),
       );

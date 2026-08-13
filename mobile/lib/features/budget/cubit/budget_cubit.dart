@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/dates/months.dart';
+import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_errors.dart';
 import '../data/budget_models.dart';
@@ -83,21 +86,50 @@ class BudgetState extends Equatable {
 
 class BudgetCubit extends Cubit<BudgetState> {
   final BudgetRepository _repo;
+  final DataBus? _bus;
+  StreamSubscription<DataChange>? _sub;
 
-  BudgetCubit(this._repo) : super(BudgetState(month: currentMonth()));
+  BudgetCubit(this._repo, {DataBus? bus})
+      : _bus = bus,
+        super(BudgetState(month: currentMonth())) {
+    _sub = bus?.stream.listen(_onExternalChange);
+  }
+
+  /// Бюджет зависит от операций и от счетов (стартовый баланс нового счёта —
+  /// это приход, то есть Ready to Assign). На собственные назначения не
+  /// реагирует: их результат уже пришёл в ответе мутации, а подписка на себя
+  /// дала бы петлю.
+  void _onExternalChange(DataChange change) {
+    if (isClosed) return;
+    if (change == DataChange.transactions || change == DataChange.accounts) {
+      load();
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _sub?.cancel();
+    return super.close();
+  }
 
   Future<void> load() async {
+    // Загрузку теперь может начать чужое событие, и вкладку успевают закрыть
+    // прямо посреди запроса — emit после close роняет bloc.
+    if (isClosed) return;
     emit(state.copyWith(status: BudgetStatus.loading));
     try {
       final data = await _repo.load(state.month);
+      if (isClosed) return;
       emit(state.copyWith(status: BudgetStatus.ready, data: data));
     } on ApiException catch (e) {
+      if (isClosed) return;
       emit(state.copyWith(
         status: BudgetStatus.error,
         error: humanizeApiError(e),
         unauthorized: e.isUnauthorized,
       ));
     } catch (e) {
+      if (isClosed) return;
       emit(state.copyWith(status: BudgetStatus.error, error: e.toString()));
     }
   }
@@ -135,6 +167,7 @@ class BudgetCubit extends Cubit<BudgetState> {
       final result = await _repo.assignTargets(state.month);
       _emitMonth(result.month);
       emit(state.copyWith(busy: false));
+      _bus?.emit(DataChange.budget);
       await _refreshOverview();
       return AssignTargetsOutcome(
         addedCents: result.totalAddedCents,
@@ -163,7 +196,10 @@ class BudgetCubit extends Cubit<BudgetState> {
           await _repo.copyFrom(state.month, shiftMonth(state.month, -1));
       if (!result.sourceEmpty) _emitMonth(result.month);
       emit(state.copyWith(busy: false));
-      if (!result.sourceEmpty) await _refreshOverview();
+      if (!result.sourceEmpty) {
+        _bus?.emit(DataChange.budget);
+        await _refreshOverview();
+      }
       return CopyMonthOutcome(
         changedCount: result.changedCount,
         clearedCount: result.clearedCount,
@@ -204,6 +240,7 @@ class BudgetCubit extends Cubit<BudgetState> {
 
     if (latest != null) _emitMonth(latest);
     emit(state.copyWith(busy: false));
+    _bus?.emit(DataChange.budget);
     await _refreshOverview();
     return null;
   }

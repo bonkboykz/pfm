@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:pfm_mobile/app/theme.dart';
 import 'package:pfm_mobile/core/di/di.dart';
+import 'package:pfm_mobile/core/events/data_bus.dart';
 import 'package:pfm_mobile/core/network/api_client.dart';
 import 'package:pfm_mobile/core/storage/token_storage.dart';
 import 'package:pfm_mobile/features/budget/presentation/budget_page.dart';
@@ -100,6 +101,7 @@ Map<String, dynamic> _month() => {
 
 Future<void> _pumpBudget(WidgetTester tester, _FakeApi api) async {
   sl.registerSingleton<ApiClient>(api);
+  sl.registerSingleton<DataBus>(DataBus());
   await tester.pumpWidget(
     MaterialApp(theme: buildTheme(), home: const BudgetPage()),
   );

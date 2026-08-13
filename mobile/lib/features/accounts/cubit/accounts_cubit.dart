@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_errors.dart';
 import '../data/accounts_models.dart';
@@ -40,21 +43,46 @@ class AccountsState extends Equatable {
 
 class AccountsCubit extends Cubit<AccountsState> {
   final AccountsRepository _repo;
+  final DataBus? _bus;
+  StreamSubscription<DataChange>? _sub;
 
-  AccountsCubit(this._repo) : super(const AccountsState());
+  AccountsCubit(this._repo, {DataBus? bus})
+      : _bus = bus,
+        super(const AccountsState()) {
+    _sub = bus?.stream.listen(_onExternalChange);
+  }
+
+  /// Балансы считаются из операций, поэтому запись на вкладке «Операции»
+  /// меняет и этот экран. На собственные события не подписываемся.
+  void _onExternalChange(DataChange change) {
+    if (isClosed) return;
+    if (change == DataChange.transactions) load();
+  }
+
+  @override
+  Future<void> close() {
+    _sub?.cancel();
+    return super.close();
+  }
 
   Future<void> load() async {
+    // Загрузку может начать чужое событие, а вкладку успевают закрыть посреди
+    // запроса — emit после close роняет bloc.
+    if (isClosed) return;
     emit(state.copyWith(status: AccountsStatus.loading));
     try {
       final data = await _repo.list();
+      if (isClosed) return;
       emit(state.copyWith(status: AccountsStatus.ready, data: data));
     } on ApiException catch (e) {
+      if (isClosed) return;
       emit(state.copyWith(
         status: AccountsStatus.error,
         error: humanizeApiError(e),
         unauthorized: e.isUnauthorized,
       ));
     } catch (e) {
+      if (isClosed) return;
       emit(state.copyWith(status: AccountsStatus.error, error: e.toString()));
     }
   }
@@ -75,6 +103,7 @@ class AccountsCubit extends Cubit<AccountsState> {
       );
       // POST returns the raw row without balances — refetch instead of patching.
       await load();
+      _bus?.emit(DataChange.accounts);
       return null;
     } on ApiException catch (e) {
       return humanizeApiError(e);
