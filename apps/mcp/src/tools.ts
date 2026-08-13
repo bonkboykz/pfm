@@ -338,7 +338,7 @@ export const tools: ToolDef[] = [
   {
     name: 'create_transaction',
     description:
-      'Record a transaction. amountCents is tiyn: negative for spending, positive for income. Supplying transferAccountId makes it a transfer between two accounts — the API writes both paired sides and leaves them uncategorised, which is correct and must not be "fixed" by also passing categoryId.',
+      'Record a transaction. amountCents is tiyn: negative for spending, positive for income. Supplying transferAccountId makes it a transfer between two accounts — the API writes both paired sides and leaves them uncategorised, which is correct and must not be "fixed" by also passing categoryId. Omitting categoryId for a payee seen before fills in that payee\'s last category; passing it explicitly always wins.',
     schema: z.object({
       accountId: z.string().min(1),
       date: z.string(),
@@ -376,7 +376,7 @@ export const tools: ToolDef[] = [
   {
     name: 'import_transactions',
     description:
-      'Import a bank statement CSV into one account, skipping rows that duplicate an existing date + amount + payee. Column names are detected from the header (English or Russian) and can be overridden. Dates accept YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY; amounts accept spaces as thousand separators, comma or dot decimals, and parentheses for debits. Run with dryRun first to see what would land. Imported rows arrive uncategorised.',
+      'Import a bank statement CSV into one account, skipping rows that duplicate an existing date + amount + payee. Column names are detected from the header (English or Russian) and can be overridden. Dates accept YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY; amounts accept spaces as thousand separators, comma or dot decimals, and parentheses for debits. Run with dryRun first to see what would land. Rows whose payee is already known arrive with that payee\'s last category and the response counts them in categorised; the rest arrive uncategorised.',
     schema: z.object({
       accountId: z.string().min(1),
       csv: z.string().min(1),

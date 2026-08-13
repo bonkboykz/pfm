@@ -259,6 +259,36 @@ function resolvePayee(db: DB, payeeName: string | undefined, categoryId: string 
   return { payeeId: created.id, payeeName };
 }
 
+/**
+ * Последняя категория этого плательщика.
+ *
+ * `last_category_id` писался с первого дня и не читался нигде: база знала, что
+ * «Магнум» это продукты, и молчала об этом на каждой новой операции. Это
+ * подсказка, а не правило — она применяется только когда категорию не назвали.
+ */
+function suggestCategory(db: DB, payeeName: string | undefined | null): string | null {
+  if (!payeeName) return null;
+
+  const payee = db
+    .select({ lastCategoryId: payees.lastCategoryId })
+    .from(payees)
+    .where(eq(payees.name, payeeName))
+    .get();
+
+  if (!payee?.lastCategoryId) return null;
+
+  // Скрытую категорию не предлагаем: её убрали с глаз, и молча возвращать её
+  // на новой операции значит воскрешать то, что пользователь закрыл. Удалённой
+  // категории может уже не быть вовсе — тогда ссылка тоже мертва.
+  const category = db
+    .select({ id: categories.id, isHidden: categories.isHidden })
+    .from(categories)
+    .where(eq(categories.id, payee.lastCategoryId))
+    .get();
+
+  return category && !category.isHidden ? category.id : null;
+}
+
 function formatTx(tx: any) {
   return {
     ...tx,
@@ -359,6 +389,7 @@ export function transactionRoutes(db: DB) {
     }
 
     // Regular transaction
+    const categoryId = data.categoryId ?? suggestCategory(db, data.payeeName);
     const { payeeId, payeeName } = resolvePayee(db, data.payeeName, data.categoryId);
 
     const created = db
@@ -369,7 +400,7 @@ export function transactionRoutes(db: DB) {
         amountCents: data.amountCents,
         payeeId,
         payeeName,
-        categoryId: data.categoryId ?? null,
+        categoryId,
         memo: data.memo ?? null,
         cleared: data.cleared ?? 'uncleared',
       })
@@ -414,6 +445,7 @@ export function transactionRoutes(db: DB) {
           }
         }
 
+        const categoryId = r.categoryId ?? suggestCategory(db, r.payeeName);
         const { payeeId, payeeName } = resolvePayee(db, r.payeeName, r.categoryId);
         const id = createId();
         const now = new Date().toISOString();
@@ -425,7 +457,7 @@ export function transactionRoutes(db: DB) {
           amountCents: r.amountCents,
           payeeId,
           payeeName,
-          categoryId: r.categoryId ?? null,
+          categoryId,
           memo: r.memo ?? null,
           cleared: r.cleared ?? 'uncleared',
           createdAt: now,
@@ -489,10 +521,13 @@ export function transactionRoutes(db: DB) {
     }
 
     if (dryRun) {
+      // Предпросмотр обязан показывать то, что получится: если он молчит о
+      // категориях, а импорт их проставляет, предпросмотр врёт.
       return c.json({
         dryRun: true,
         parsed: rows.length,
         wouldImport: toInsert.length,
+        wouldCategorise: toInsert.filter((r) => suggestCategory(db, r.payeeName)).length,
         duplicates: duplicates.length,
         duplicateDetail: duplicates,
         preview: toInsert.slice(0, 10).map((r) => ({
@@ -500,16 +535,20 @@ export function transactionRoutes(db: DB) {
           amountCents: r.amountCents,
           amountFormatted: formatMoney(r.amountCents),
           payeeName: r.payeeName,
+          categoryId: suggestCategory(db, r.payeeName),
           memo: r.memo,
         })),
       });
     }
 
     const createdIds: string[] = [];
+    let categorised = 0;
 
     db.$client.transaction(() => {
       for (const r of toInsert) {
         const { payeeId, payeeName } = resolvePayee(db, r.payeeName ?? undefined, undefined);
+        const categoryId = suggestCategory(db, r.payeeName);
+        if (categoryId) categorised++;
         const id = createId();
         const now = new Date().toISOString();
 
@@ -520,7 +559,7 @@ export function transactionRoutes(db: DB) {
           amountCents: r.amountCents,
           payeeId,
           payeeName,
-          categoryId: null,
+          categoryId,
           memo: r.memo ?? null,
           cleared: 'cleared',
           createdAt: now,
@@ -535,10 +574,13 @@ export function transactionRoutes(db: DB) {
       dryRun: false,
       parsed: rows.length,
       imported: createdIds.length,
+      categorised,
       duplicates: duplicates.length,
       duplicateDetail: duplicates,
       transactionIds: createdIds,
-      note: 'Imported rows are uncategorised. Assign categories so they reach the budget.',
+      note: categorised === createdIds.length
+        ? 'Every imported row got a category from its payee. Check them before trusting the budget.'
+        : `${categorised} of ${createdIds.length} rows got a category from their payee. Assign the rest so they reach the budget.`,
     }, 201);
   });
 

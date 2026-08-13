@@ -247,7 +247,10 @@ curl -s -X POST "$PFM_API_URL/api/v1/transactions/import" \
 # Then import for real (drop dryRun)
 ```
 
-Imported rows arrive **uncategorised** — assign categories so they reach the budget.
+Rows whose payee is already known arrive with **that payee's last category**; the
+response reports how many in `categorised`. The rest arrive uncategorised — assign
+categories so they reach the budget. The guess is only ever applied to rows that
+have no category, and a hidden category is never suggested.
 
 ---
 
