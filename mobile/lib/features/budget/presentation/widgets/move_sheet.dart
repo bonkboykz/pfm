@@ -74,6 +74,9 @@ class _MoveSheetState extends State<_MoveSheet> {
       title: isSource ? 'Откуда взять' : 'Куда перевести',
       // Only categories holding money can be a source.
       onlyWithMoney: isSource,
+      // Ready to Assign — источник, но не получатель: обратное направление это
+      // снятие назначения, а не перевод.
+      allowReadyToAssign: isSource,
     );
     if (picked == null || !mounted) return;
     setState(() => isSource ? _from = picked : _to = picked);
@@ -98,7 +101,11 @@ class _MoveSheetState extends State<_MoveSheet> {
     }
 
     setState(() => _saving = true);
-    final error = await widget.cubit.move(from.categoryId, to.categoryId, cents);
+    // Из RTA деньги не перемещают, а назначают: движок отказывает системным
+    // категориям в `move`. Назначение абсолютно, поэтому прибавляем к текущему.
+    final error = from.isReadyToAssign
+        ? await widget.cubit.assign(to.categoryId, to.assignedCents + cents)
+        : await widget.cubit.move(from.categoryId, to.categoryId, cents);
     if (!mounted) return;
     setState(() => _saving = false);
 
@@ -209,8 +216,14 @@ class _MoveSheetState extends State<_MoveSheet> {
                       icon: LucideIcons.shieldAlert,
                       background: AppColors.neutralSoft,
                       foreground: AppColors.textSecondary,
-                      text: 'Больше ${formatMoneySmart(from.availableCents)} отсюда '
-                          'взять нельзя — сервер откажет',
+                      // Про RTA нельзя обещать отказ сервера: назначение сверх
+                      // остатка движок примет и уведёт его в минус. Ограничение
+                      // здесь наше, и причина у него своя.
+                      text: from.isReadyToAssign
+                          ? 'Больше ${formatMoneySmart(from.availableCents)} '
+                              'отсюда брать нельзя — остаток уйдёт в минус'
+                          : 'Больше ${formatMoneySmart(from.availableCents)} '
+                              'отсюда взять нельзя — сервер откажет',
                     ),
                   ],
                   const SizedBox(height: 16),

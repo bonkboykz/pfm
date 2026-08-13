@@ -5,6 +5,10 @@
 /// be shown as-is; anything computed on the client goes through formatMoney().
 library;
 
+/// Системная категория движка. В списке месяца её нет — `getBudgetMonth`
+/// отдаёт только несистемные, — но в шторке источников она нужна строкой.
+const kReadyToAssignId = 'ready-to-assign';
+
 class CategoryBudget {
   final String categoryId;
   final String categoryName;
@@ -58,6 +62,30 @@ class CategoryBudget {
         isUnderfunded: json['isUnderfunded'] == true,
         isOverspent: json['isOverspent'] == true,
       );
+
+  /// Синтетическая строка «Готово к распределению» для списка источников.
+  ///
+  /// Настоящей категорией не является: движок отказывает системным категориям
+  /// в перемещении (`Cannot move from/to system category`), поэтому выбор этой
+  /// строки обязан уходить в назначение, а не в `move`.
+  factory CategoryBudget.readyToAssign(int cents) => CategoryBudget(
+        categoryId: kReadyToAssignId,
+        categoryName: 'Готово к распределению',
+        assignedCents: 0,
+        assignedFormatted: '',
+        activityCents: 0,
+        activityFormatted: '',
+        availableCents: cents,
+        availableFormatted: '',
+        targetAmountCents: null,
+        targetType: null,
+        targetDate: null,
+        underfundedCents: 0,
+        isUnderfunded: false,
+        isOverspent: false,
+      );
+
+  bool get isReadyToAssign => categoryId == kReadyToAssignId;
 
   bool get hasTarget =>
       targetAmountCents != null && targetType != null && targetType != 'none';

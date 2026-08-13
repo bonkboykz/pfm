@@ -9,12 +9,17 @@ import '../../data/budget_models.dart';
 ///
 /// Живёт отдельно от `move_sheet.dart`, потому что тем же списком выбирается
 /// категория и при раздаче из «Готово к распределению».
+/// [allowReadyToAssign] добавляет сверху строку «Готово к распределению».
+/// Только как источник: обратное направление — это снятие назначения, другая
+/// операция. Вызывающий обязан проверить [CategoryBudget.isReadyToAssign] и
+/// уйти в назначение — движок не даст переместить деньги из системной категории.
 Future<CategoryBudget?> pickCategory(
   BuildContext context, {
   required BudgetMonth month,
   required String title,
   String? excludeCategoryId,
   bool onlyWithMoney = false,
+  bool allowReadyToAssign = false,
 }) {
   return showModalBottomSheet<CategoryBudget>(
     context: context,
@@ -24,6 +29,7 @@ Future<CategoryBudget?> pickCategory(
       title: title,
       excludeCategoryId: excludeCategoryId,
       onlyWithMoney: onlyWithMoney,
+      allowReadyToAssign: allowReadyToAssign,
     ),
   );
 }
@@ -34,12 +40,14 @@ class _CategoryPicker extends StatelessWidget {
     required this.title,
     required this.excludeCategoryId,
     required this.onlyWithMoney,
+    required this.allowReadyToAssign,
   });
 
   final BudgetMonth month;
   final String title;
   final String? excludeCategoryId;
   final bool onlyWithMoney;
+  final bool allowReadyToAssign;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +59,26 @@ class _CategoryPicker extends StatelessWidget {
       maxChildSize: 0.9,
       builder: (context, controller) {
         final rows = <Widget>[];
+
+        // Отрицательный RTA — не источник: брать оттуда нечего, и строка с
+        // минусом только предлагала бы углубить дыру.
+        final rta = month.readyToAssignCents;
+        if (allowReadyToAssign && rta > 0) {
+          rows.add(ListTile(
+            title: const Text('Готово к распределению'),
+            trailing: Text(
+              formatMoneySmart(rta),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontFeatures: kTabularFigures,
+                color: AppColors.forAvailable(rta),
+              ),
+            ),
+            onTap: () =>
+                Navigator.of(context).pop(CategoryBudget.readyToAssign(rta)),
+          ));
+        }
+
         for (final group in month.groups) {
           final categories = group.categories
               .where((c) => c.categoryId != excludeCategoryId)
