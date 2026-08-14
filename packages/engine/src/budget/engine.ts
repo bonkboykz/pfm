@@ -929,7 +929,14 @@ export function getReadyToAssign(db: DB, month: string): ReadyToAssignBreakdown 
   `).get(month) as { total: number | null } | undefined;
 
   const totalAssignedCents = assignedRow?.total ?? 0;
-  const readyToAssignCents = new Decimal(totalInflowCents).minus(totalAssignedCents).toNumber();
+  // Тот же вычет, что в getBudgetMonth: этот путь кормит /ready-to-assign и
+  // прогноз по будущим месяцам, и разъехавшись он обещал бы деньги, которых
+  // уже нет на счетах.
+  const { cashOverspentCents } = walkAvailability(db, month);
+  const readyToAssignCents = new Decimal(totalInflowCents)
+    .minus(totalAssignedCents)
+    .minus(cashOverspentCents)
+    .toNumber();
 
   return {
     totalInflowCents,

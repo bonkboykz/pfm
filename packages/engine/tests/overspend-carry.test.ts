@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { createDb, type DB } from '../src/db/index.js';
 import { initializeDatabase } from '../src/db/ddl.js';
-import { getBudgetMonth, assignToCategory } from '../src/budget/engine.js';
+import {
+  getBudgetMonth,
+  assignToCategory,
+  getReadyToAssign,
+  getRtaReconciliation,
+} from '../src/budget/engine.js';
 
 /**
  * Перерасход на границе месяца.
@@ -168,6 +173,32 @@ describe('перерасход на границе месяца', () => {
     // значит он весь кассовый: категория обнуляется, RTA теряет 7 000 ₸.
     expect(availableOf(db, AUG, cat)).toBe(0);
     expect(getBudgetMonth(db, AUG).readyToAssignCents).toBe(98300000);
+  });
+
+  it('getReadyToAssign не расходится с бюджетом месяца', () => {
+    // Второй путь к RTA: он кормит /ready-to-assign и прогноз по будущим
+    // месяцам. Разъехавшись, он обещал бы деньги, которых нет.
+    const db = seed();
+    const cat = category(db, 'Продукты');
+    assignToCategory(db, cat, JUL, 1000000);
+    spend(db, 'tx-1', cat, '2026-07-15', 1500000);
+
+    expect(getReadyToAssign(db, AUG).readyToAssignCents).toBe(
+      getBudgetMonth(db, AUG).readyToAssignCents,
+    );
+  });
+
+  it('тождество сверки не ломается', () => {
+    // RTA + Σ Available должно оставаться равным приходу плюс активности:
+    // сколько ушло из RTA, ровно столько прибавилось к категории, которую
+    // перестали держать в минусе.
+    const db = seed();
+    const cat = category(db, 'Продукты');
+    assignToCategory(db, cat, JUL, 1000000);
+    spend(db, 'tx-1', cat, '2026-07-15', 1500000);
+
+    const rec = getRtaReconciliation(db, AUG);
+    expect(rec.reconciliation.unexplainedCents).toBe(0);
   });
 
   it('кассовой части хватает не на весь перерасход — остаток остаётся минусом', () => {
