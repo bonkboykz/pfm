@@ -289,10 +289,37 @@ function suggestCategory(db: DB, payeeName: string | undefined | null): string |
   return category && !category.isHidden ? category.id : null;
 }
 
-function formatTx(tx: any) {
+/**
+ * Валюта живёт на счёте, а не на операции, поэтому её приходится подтягивать
+ * отдельно. Счетов единицы, так что дешевле вычитать все разом, чем делать
+ * запрос на строку списка.
+ */
+function accountCurrencies(db: DB): Map<string, string> {
+  const rows = db
+    .select({ id: accounts.id, currency: accounts.currency })
+    .from(accounts)
+    .all();
+  return new Map(rows.map((r) => [r.id, r.currency]));
+}
+
+function formatTx(tx: any, currencies?: Map<string, string>) {
+  const currency = currencies?.get(tx.accountId) ?? 'KZT';
   return {
     ...tx,
-    amountFormatted: formatMoney(tx.amountCents),
+    amountFormatted: formatMoney(tx.amountCents, currency),
+  };
+}
+
+/** Одна операция — один счёт, весь список тянуть незачем. */
+function formatOneTx(db: DB, tx: any) {
+  const acct = db
+    .select({ currency: accounts.currency })
+    .from(accounts)
+    .where(eq(accounts.id, tx.accountId))
+    .get();
+  return {
+    ...tx,
+    amountFormatted: formatMoney(tx.amountCents, acct?.currency ?? 'KZT'),
   };
 }
 
@@ -321,7 +348,8 @@ export function transactionRoutes(db: DB) {
       .limit(limit)
       .all();
 
-    return c.json(rows.map(formatTx));
+    const currencies = accountCurrencies(db);
+    return c.json(rows.map((r) => formatTx(r, currencies)));
   });
 
   // POST / — create transaction or transfer
@@ -385,7 +413,8 @@ export function transactionRoutes(db: DB) {
       const tx1 = db.select().from(transactions).where(eq(transactions.id, tx1Id)).get()!;
       const tx2 = db.select().from(transactions).where(eq(transactions.id, tx2Id)).get()!;
 
-      return c.json([formatTx(tx1), formatTx(tx2)], 201);
+      const currencies = accountCurrencies(db);
+      return c.json([formatTx(tx1, currencies), formatTx(tx2, currencies)], 201);
     }
 
     // Regular transaction
@@ -407,7 +436,7 @@ export function transactionRoutes(db: DB) {
       .returning()
       .get();
 
-    return c.json(formatTx(created), 201);
+    return c.json(formatOneTx(db, created), 201);
   });
 
   // POST /bulk — many transactions in one all-or-nothing write
@@ -594,7 +623,7 @@ export function transactionRoutes(db: DB) {
       .get();
     if (!tx) throw notFound('Transaction', id);
 
-    return c.json(formatTx(tx));
+    return c.json(formatOneTx(db, tx));
   });
 
   // PATCH /:id — update transaction
@@ -648,7 +677,7 @@ export function transactionRoutes(db: DB) {
     }
 
     const updated = db.select().from(transactions).where(eq(transactions.id, id)).get()!;
-    return c.json(formatTx(updated));
+    return c.json(formatOneTx(db, updated));
   });
 
   // DELETE /:id — soft delete

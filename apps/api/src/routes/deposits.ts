@@ -54,7 +54,7 @@ function formatDeposit(
     accountId: deposit.accountId,
     categoryId: deposit.categoryId,
     initialAmountCents: deposit.initialAmountCents,
-    initialAmountFormatted: formatMoney(deposit.initialAmountCents),
+    initialAmountFormatted: formatMoney(deposit.initialAmountCents, deposit.currency),
     currency: deposit.currency,
     annualRateBps: deposit.annualRateBps,
     earlyWithdrawalRateBps: deposit.earlyWithdrawalRateBps,
@@ -65,15 +65,15 @@ function formatDeposit(
     isWithdrawable: deposit.isWithdrawable,
     isReplenishable: deposit.isReplenishable,
     minBalanceCents: deposit.minBalanceCents,
-    minBalanceFormatted: formatMoney(deposit.minBalanceCents),
+    minBalanceFormatted: formatMoney(deposit.minBalanceCents, deposit.currency),
     topUpCents: deposit.topUpCents,
-    topUpFormatted: formatMoney(deposit.topUpCents),
+    topUpFormatted: formatMoney(deposit.topUpCents, deposit.currency),
     note: deposit.note,
     isActive: deposit.isActive,
     currentBalanceCents,
-    currentBalanceFormatted: formatMoney(currentBalanceCents),
+    currentBalanceFormatted: formatMoney(currentBalanceCents, deposit.currency),
     projectedInterestCents,
-    projectedInterestFormatted: formatMoney(projectedInterestCents),
+    projectedInterestFormatted: formatMoney(projectedInterestCents, deposit.currency),
   };
 }
 
@@ -222,11 +222,11 @@ export function depositRoutes(db: DB) {
     const schedule = generateInterestSchedule(db, id, months);
     const formatted = schedule.map((entry) => ({
       ...entry,
-      startBalanceFormatted: formatMoney(entry.startBalanceCents),
-      interestFormatted: formatMoney(entry.interestCents),
-      capitalizedFormatted: formatMoney(entry.capitalizedCents),
-      endBalanceFormatted: formatMoney(entry.endBalanceCents),
-      cumulativeInterestFormatted: formatMoney(entry.cumulativeInterestCents),
+      startBalanceFormatted: formatMoney(entry.startBalanceCents, deposit.currency),
+      interestFormatted: formatMoney(entry.interestCents, deposit.currency),
+      capitalizedFormatted: formatMoney(entry.capitalizedCents, deposit.currency),
+      endBalanceFormatted: formatMoney(entry.endBalanceCents, deposit.currency),
+      cumulativeInterestFormatted: formatMoney(entry.cumulativeInterestCents, deposit.currency),
     }));
 
     return c.json({

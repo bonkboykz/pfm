@@ -14,8 +14,39 @@ describe('formatMoney', () => {
     expect(formatMoney(0)).toBe('0 ₸');
   });
 
-  it('formats small amount (truncates sub-tenge)', () => {
-    expect(formatMoney(199)).toBe('1 ₸');
+  // Усечение врало дважды: перерасход в 93 тиына рисовался как «0 ₸» с
+  // красной плашкой, а усечённые слагаемые не складывались в усечённый итог —
+  // шесть платежей по кредитам давали то 192 034 ₸, то 192 035 ₸ в
+  // зависимости от того, где округлили. В приложении это исправлено в
+  // f29577a; здесь та же правка для API и MCP.
+  describe('тиыны', () => {
+    it('показывает дробную часть, когда она есть', () => {
+      expect(formatMoney(199)).toBe('1,99 ₸');
+      expect(formatMoney(19203465)).toBe('192 034,65 ₸');
+    });
+
+    it('оставляет круглые суммы без запятой', () => {
+      expect(formatMoney(100)).toBe('1 ₸');
+      expect(formatMoney(15000000)).toBe('150 000 ₸');
+      expect(formatMoney(0)).toBe('0 ₸');
+    });
+
+    it('не теряет знак и ведущий ноль на суммах меньше единицы', () => {
+      expect(formatMoney(-93)).toBe('-0,93 ₸');
+      expect(formatMoney(7)).toBe('0,07 ₸');
+      expect(formatMoney(-100005)).toBe('-1 000,05 ₸');
+    });
+
+    it('работает с префиксными и неизвестными валютами', () => {
+      expect(formatMoney(123456, 'USD')).toBe('$1 234,56');
+      expect(formatMoney(-50, 'CNY')).toBe('-¥0,50');
+      expect(formatMoney(50050, 'BTC')).toBe('500,50 BTC');
+    });
+
+    it('итог сходится со слагаемыми', () => {
+      const parts = [3115400, 6523500, 13664865, 2547800, 1890200, 1461700];
+      expect(formatMoney(sumCents(parts))).toBe('292 034,65 ₸');
+    });
   });
 
   it('formats with EUR symbol (suffix)', () => {

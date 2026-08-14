@@ -1,11 +1,19 @@
 /// Dart port of `packages/engine/src/math/money.ts`.
 ///
-/// The API returns `*Formatted` strings alongside `*Cents`, but those strings
-/// are rendered server-side in KZT for transactions / budget / loans / deposits
-/// regardless of the entity's real currency. Only `/accounts` and the per-row
-/// `amountFormatted` in `/debts` honour it. Rule for the app: if the entity
-/// carries its own currency, format from `*Cents` here; use the server string
-/// only where the currency is known to be KZT.
+/// Сервер отдаёт `*Formatted` рядом с `*Cents`, и с PFM-47 эти строки честные:
+/// валюта берётся у сущности (счета, операции, вклады, построчные долги), а
+/// тиыны показываются там, где они есть — ровно по тому же правилу, что здесь.
+///
+/// Порт всё равно нужен, и вот зачем:
+/// * подытоги групп, суммы по дню и прочее клиент считает сам — серверных
+///   строк для них не существует;
+/// * у бюджета и кредитов колонки валюты нет вовсе, так что их строки всегда
+///   в тенге; смешение валют в одном итоге — отдельная задача (PFM-9);
+/// * ввод и разбор сумм (`formatMoneyInput`, `parseMoneyToCents`) серверу
+///   вообще не принадлежат.
+///
+/// Правило прежнее и простое: если число посчитано на клиенте — форматируй
+/// здесь; если пришло с сервера со своей строкой — показывай её.
 library;
 
 class _Currency {

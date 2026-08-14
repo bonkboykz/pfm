@@ -18,12 +18,28 @@ const CURRENCY_CONFIG: Record<string, CurrencyConfig> = {
   GEL: { symbol: '₾', position: 'suffix' },
 };
 
+/**
+ * Тиыны показываются там, где они есть; круглые суммы остаются без запятой.
+ *
+ * Раньше функция усекала до целых единиц, и это врало дважды. Перерасход в
+ * 93 тиына рендерился как «0 ₸» — с красной плашкой рядом. И усечённые
+ * слагаемые не складывались в усечённый итог: шесть платежей по кредитам
+ * давали 192 034 ₸ поштучно против 192 035 ₸ при сложении до округления,
+ * причём объяснить это, глядя в ответ API, было нельзя.
+ *
+ * «150 000,00 ₸» вместо «150 000 ₸» превратило бы любой список в частокол
+ * нулей, поэтому дробная часть появляется только когда она ненулевая.
+ */
 export function formatMoney(amountCents: number, currency = 'KZT'): string {
-  const amount = new Decimal(amountCents).dividedBy(100).truncated().toNumber();
-  const isNegative = amount < 0;
-  const absStr = Math.abs(amount)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const isNegative = amountCents < 0;
+  const abs = new Decimal(amountCents).abs();
+  const units = abs.dividedBy(100).floor();
+  const fraction = abs.minus(units.times(100)).toNumber();
+
+  const grouped = units.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const absStr = fraction === 0
+    ? grouped
+    : `${grouped},${fraction.toString().padStart(2, '0')}`;
 
   const config = CURRENCY_CONFIG[currency];
 
