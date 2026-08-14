@@ -89,27 +89,113 @@ function computeUnderfunded(
   return gap.greaterThan(0) ? gap.toNumber() : 0;
 }
 
-export function getCategoryAvailable(db: DB, categoryId: string, month: string): number {
+interface MonthCell {
+  assigned: number;
+  /** Активность по обычным счетам — деньги, которые действительно ушли. */
+  cash: number;
+  /** Активность по кредиткам — вырос долг, счёт не худел. */
+  credit: number;
+}
+
+interface Availability {
+  /** Available каждой категории на конец `month`. */
+  available: Map<string, number>;
+  /**
+   * Суммарный кассовый перерасход, списанный на границах месяцев ДО `month`.
+   * Ready to Assign уменьшается ровно на эту величину: деньги ушли со счёта,
+   * а бюджет об этом до сих пор не знал.
+   */
+  cashOverspentCents: number;
+}
+
+/**
+ * Проходит по месяцам и переносит только положительные остатки.
+ *
+ * Раньше Available было чистой суммой «всё назначенное плюс вся активность с
+ * начала времён», и минус категории висел во всех последующих месяцах вечно.
+ * YNAB на границе месяца обнуляет кассовый перерасход и вычитает его из Ready
+ * to Assign; кредитный переносить тоже не должен — он увеличивает долг по
+ * карте, — но категории платежа по кредитке у нас пока нет (PFM-27), и молча
+ * обнулить кредитную часть значило бы стереть единственный след того, что
+ * перерасход был. Поэтому она продолжает висеть минусом.
+ *
+ * При смешанном перерасходе первой списывается кассовая часть — эти деньги
+ * действительно покинули банк.
+ *
+ * Цена: формула перестала быть одним SUM и стала проходом по месяцам. Данных
+ * тут десятки категорий на десятки месяцев, так что дешевле, чем звучит.
+ */
+function walkAvailability(db: DB, month: string): Availability {
   const monthEnd = `${month}-31`;
 
-  const assignedRow = db.$client.prepare(`
-    SELECT SUM(assigned_cents) as total FROM monthly_budgets
-    WHERE category_id = ? AND month <= ?
-  `).get(categoryId, month) as { total: number | null } | undefined;
+  const assignedRows = db.$client.prepare(`
+    SELECT category_id, month, SUM(assigned_cents) AS total
+    FROM monthly_budgets WHERE month <= ?
+    GROUP BY category_id, month
+  `).all(month) as { category_id: string; month: string; total: number }[];
 
-  const activityRow = db.$client.prepare(`
-    SELECT SUM(t.amount_cents) as total
+  const activityRows = db.$client.prepare(`
+    SELECT t.category_id AS category_id,
+           substr(t.date, 1, 7) AS month,
+           SUM(CASE WHEN a.type = 'credit_card' THEN 0 ELSE t.amount_cents END) AS cash,
+           SUM(CASE WHEN a.type = 'credit_card' THEN t.amount_cents ELSE 0 END) AS credit
     FROM transactions t JOIN accounts a ON a.id = t.account_id
     WHERE a.on_budget = 1 AND t.is_deleted = 0
-      AND t.category_id = ?
+      AND t.category_id IS NOT NULL AND t.category_id != 'ready-to-assign'
       AND t.transfer_account_id IS NULL
       AND t.date <= ?
-  `).get(categoryId, monthEnd) as { total: number | null } | undefined;
+    GROUP BY t.category_id, month
+  `).all(monthEnd) as { category_id: string; month: string; cash: number; credit: number }[];
 
-  const cumAssigned = assignedRow?.total ?? 0;
-  const cumActivity = activityRow?.total ?? 0;
+  const cells = new Map<string, Map<string, MonthCell>>();
+  const cellFor = (categoryId: string, m: string): MonthCell => {
+    let byMonth = cells.get(categoryId);
+    if (!byMonth) { byMonth = new Map(); cells.set(categoryId, byMonth); }
+    let cell = byMonth.get(m);
+    if (!cell) { cell = { assigned: 0, cash: 0, credit: 0 }; byMonth.set(m, cell); }
+    return cell;
+  };
 
-  return new Decimal(cumAssigned).plus(cumActivity).toNumber();
+  for (const r of assignedRows) cellFor(r.category_id, r.month).assigned = r.total;
+  for (const r of activityRows) {
+    const cell = cellFor(r.category_id, r.month);
+    cell.cash = r.cash;
+    cell.credit = r.credit;
+  }
+
+  const available = new Map<string, number>();
+  let cashOverspentCents = new Decimal(0);
+
+  for (const [categoryId, byMonth] of cells) {
+    const months = [...byMonth.keys()].filter((m) => m <= month).sort();
+    if (!months.includes(month)) months.push(month);
+
+    let carry = new Decimal(0);
+    for (const m of months) {
+      const cell = byMonth.get(m) ?? { assigned: 0, cash: 0, credit: 0 };
+      const end = carry.plus(cell.assigned).plus(cell.cash).plus(cell.credit);
+
+      // Целевой месяц ещё не закончился — отсекать нечего.
+      if (m === month) { carry = end; break; }
+
+      if (end.greaterThanOrEqualTo(0)) { carry = end; continue; }
+
+      const overspend = end.abs();
+      const cashSpent = Decimal.max(0, new Decimal(cell.cash).negated());
+      const cashPart = Decimal.min(overspend, cashSpent);
+
+      cashOverspentCents = cashOverspentCents.plus(cashPart);
+      carry = overspend.minus(cashPart).negated();
+    }
+
+    available.set(categoryId, carry.toNumber());
+  }
+
+  return { available, cashOverspentCents: cashOverspentCents.toNumber() };
+}
+
+export function getCategoryAvailable(db: DB, categoryId: string, month: string): number {
+  return walkAvailability(db, month).available.get(categoryId) ?? 0;
 }
 
 function upsertMonthlyBudget(db: DB, categoryId: string, month: string, assignedCents: number): void {
@@ -181,32 +267,8 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
     activityMap.set(row.category_id, row.total);
   }
 
-  // Step 4: Cumulative available (all time through this month)
-  const cumAssignedRows = db.$client.prepare(`
-    SELECT category_id, SUM(assigned_cents) as total
-    FROM monthly_budgets WHERE month <= ?
-    GROUP BY category_id
-  `).all(month) as CategoryAggRow[];
-
-  const cumAssignedMap = new Map<string, number>();
-  for (const row of cumAssignedRows) {
-    cumAssignedMap.set(row.category_id, row.total);
-  }
-
-  const cumActivityRows = db.$client.prepare(`
-    SELECT t.category_id, SUM(t.amount_cents) as total
-    FROM transactions t JOIN accounts a ON a.id = t.account_id
-    WHERE a.on_budget = 1 AND t.is_deleted = 0
-      AND t.category_id IS NOT NULL AND t.category_id != 'ready-to-assign'
-      AND t.transfer_account_id IS NULL
-      AND t.date <= ?
-    GROUP BY t.category_id
-  `).all(monthEnd) as CategoryAggRow[];
-
-  const cumActivityMap = new Map<string, number>();
-  for (const row of cumActivityRows) {
-    cumActivityMap.set(row.category_id, row.total);
-  }
+  // Step 4: Available с переносом только положительных остатков
+  const availability = walkAvailability(db, month);
 
   // Step 5: Ready to Assign = total inflows - total assigned (all time through this month)
   const inflowRow = db.$client.prepare(`
@@ -224,7 +286,12 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
   `).get(month) as { total: number | null } | undefined;
 
   const totalAllAssignedCents = totalAssignedRow?.total ?? 0;
-  const readyToAssignCents = new Decimal(totalInflowCents).minus(totalAllAssignedCents).toNumber();
+  // Непокрытый кассовый перерасход прошлых месяцев уже ушёл со счёта, поэтому
+  // распределять его повторно нельзя — RTA уменьшается на эту сумму.
+  const readyToAssignCents = new Decimal(totalInflowCents)
+    .minus(totalAllAssignedCents)
+    .minus(availability.cashOverspentCents)
+    .toNumber();
 
   // Step 6: Assemble
   let totalActivity = new Decimal(0);
@@ -236,9 +303,7 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
   const categoryBudgets: CategoryBudget[] = cats.map(cat => {
     const assigned = assignedMap.get(cat.id) ?? 0;
     const activity = activityMap.get(cat.id) ?? 0;
-    const cumAssigned = cumAssignedMap.get(cat.id) ?? 0;
-    const cumActivity = cumActivityMap.get(cat.id) ?? 0;
-    const available = new Decimal(cumAssigned).plus(cumActivity).toNumber();
+    const available = availability.available.get(cat.id) ?? 0;
 
     totalAssignedThisMonth = totalAssignedThisMonth.plus(assigned);
     totalActivity = totalActivity.plus(activity);
