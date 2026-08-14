@@ -148,6 +148,39 @@ class BudgetCubit extends Cubit<BudgetState> {
   Future<String?> assign(String categoryId, int amountCents) =>
       _mutate(() => _repo.assign(state.month, categoryId, amountCents));
 
+  /// Ставит, меняет или снимает цель категории. Возвращает null при успехе.
+  ///
+  /// Бюджет перечитывается целиком: цель меняет недофинансирование, а его
+  /// считает движок — повторять формулу на клиенте значит завести вторую
+  /// метрику под тем же словом.
+  Future<String?> setTarget(
+    String categoryId, {
+    required String type,
+    int? amountCents,
+    String? date,
+  }) async {
+    emit(state.copyWith(busy: true));
+    try {
+      await _repo.setTarget(
+        categoryId,
+        type: type,
+        amountCents: amountCents,
+        date: date,
+      );
+    } on ApiException catch (e) {
+      emit(state.copyWith(busy: false));
+      return humanizeApiError(e);
+    } catch (e) {
+      emit(state.copyWith(busy: false));
+      return e.toString();
+    }
+
+    emit(state.copyWith(busy: false));
+    await load();
+    _bus?.emit(DataChange.budget);
+    return null;
+  }
+
   Future<String?> move(String fromId, String toId, int amountCents) =>
       _mutate(() => _repo.move(state.month, fromId, toId, amountCents));
 

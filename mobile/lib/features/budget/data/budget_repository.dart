@@ -64,6 +64,28 @@ class BudgetRepository {
     return AssignTargetsResult.fromJson((json as Map).cast<String, dynamic>());
   }
 
+  /// Цель живёт на категории, а не на месяце, поэтому это `PATCH /categories`,
+  /// а не бюджетная ручка. После неё бюджет надо перечитать: недофинансирование
+  /// считает движок, и оно меняется сразу для всех месяцев.
+  ///
+  /// Все три поля шлём всегда: снятие цели — это `none` плюс явные `null`, а не
+  /// пропущенные ключи.
+  Future<void> setTarget(
+    String categoryId, {
+    required String type,
+    int? amountCents,
+    String? date,
+  }) async {
+    await _api.patch(
+      '/api/v1/categories/$categoryId',
+      body: {
+        'targetType': type,
+        'targetAmountCents': amountCents,
+        'targetDate': date,
+      },
+    );
+  }
+
   Future<BudgetMonth> move(
     String month,
     String fromCategoryId,

@@ -7,6 +7,7 @@ import '../../../../core/money/money.dart';
 import '../../cubit/budget_cubit.dart';
 import '../../data/budget_models.dart';
 import 'category_picker.dart';
+import 'goal_sheet.dart';
 import 'move_sheet.dart';
 
 /// `POST /budget/:month/assign` — the endpoint SETS the month's assignment
@@ -138,6 +139,60 @@ class _AssignSheetState extends State<_AssignSheet> {
                       const SizedBox(width: 12),
                       _AvailablePill(cents: category.availableCents),
                     ],
+                  ),
+                  const SizedBox(height: 14),
+                  // Цель живёт на категории, а не на месяце, поэтому она не
+                  // часть формы назначения — но найти её надо здесь, иначе
+                  // выставить цель по-прежнему негде.
+                  InkWell(
+                    key: const Key('goal-row'),
+                    onTap: _saving
+                        ? null
+                        : () {
+                            Navigator.of(context).pop();
+                            showGoalSheet(
+                              context,
+                              widget.cubit,
+                              category: category,
+                            );
+                          },
+                    borderRadius: BorderRadius.circular(AppRadii.inner),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg,
+                        borderRadius: BorderRadius.circular(AppRadii.inner),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            LucideIcons.target,
+                            size: 16,
+                            color: category.hasTarget
+                                ? AppColors.accent
+                                : AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              goalSummary(category),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: category.hasTarget
+                                    ? AppColors.textPrimary
+                                    : AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          const Icon(LucideIcons.chevronRight,
+                              size: 16, color: AppColors.textMuted),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 18),
                   Text(
