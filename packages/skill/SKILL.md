@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.6.0
+version: 0.7.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -22,6 +22,16 @@ metadata:
 Zero-based (envelope) budgeting via REST API. Every tenge of income is
 assigned to a category. Budget balanced when Ready to Assign = 0.
 
+> ⛔ **Прежде чем называть человеку любую цифру — прочитать
+> `{baseDir}/references/pitfalls.md`.** Там свойства движка, из-за которых
+> прямой ответ по данным получается уверенно неверным: перерасход текущего
+> месяца ещё не вычтен из RTA, валютные счета складываются без пересчёта,
+> RTA одного месяца не равен свободным деньгам.
+
+> ⛔ **Читать можно свободно, писать — только с подтверждения человека**,
+> и показав заранее, что именно изменится. Особенно `copy-from`,
+> `budget/reset` и всё, что обнуляет категории.
+
 **API Base**: `$PFM_API_URL` (e.g. `http://localhost:3000`)
 
 **Auth Header** (required when `PFM_API_KEY` is set):
@@ -32,6 +42,33 @@ AUTH="Authorization: Bearer $PFM_API_KEY"
 The same server also speaks MCP at `POST /mcp/:token`, where the token is
 `PFM_MCP_TOKEN` and falls back to `PFM_API_KEY`. If MCP tools are available,
 prefer them — this file is the curl fallback, and both hit the same routes.
+
+---
+
+## ⚠️ Форма ответа у списков непоследовательна
+
+Проверено на живом API 2026-08-16. Часть коллекций отдаётся **голым
+массивом**, часть — объектом-обёрткой.
+
+| Эндпоинт | Что приходит |
+|---|---|
+| `GET /accounts` | голый массив |
+| `GET /categories` | голый массив групп |
+| `GET /transactions` | голый массив |
+| `GET /loans` | голый массив |
+| `GET /deposits` | голый массив |
+| `GET /debts` | объект `{ debts, summary }` |
+| `GET /scheduled` | объект `{ scheduled }` |
+| `GET /budget/{месяц}` | объект |
+| `GET /budget/rta-overview` | объект |
+
+Практический вывод: `jq '.accounts[]'` вернёт `null`, а не список — и это
+молча превратится в ответ «у тебя нет счетов». Для пяти верхних писать
+`jq '.[]'`.
+
+**Пустой результат проверять, а не принимать на веру.** Если список
+внезапно пуст, сначала убедиться, что разобрана правильная форма, и только
+потом говорить человеку, что данных нет.
 
 ---
 
@@ -51,7 +88,7 @@ curl -s "$PFM_API_URL/health" | jq
 curl -s -H "$AUTH" "$PFM_API_URL/api/v1/accounts" | jq
 ```
 
-Returns: `{ accounts: [{ id, name, type, onBudget, currency, isActive, balanceCents, balanceFormatted, ... }] }`
+Returns a **bare array**: `[{ id, name, type, onBudget, currency, isActive, balanceCents, balanceFormatted, ... }]`
 
 Deactivated accounts are hidden by default, yet their transactions still move
 Ready to Assign. If the totals do not add up, look for one here:
@@ -104,7 +141,7 @@ curl -s -H "$AUTH" "$PFM_API_URL/api/v1/accounts/{id}" | jq
 curl -s -H "$AUTH" "$PFM_API_URL/api/v1/categories" | jq
 ```
 
-Returns nested structure: `{ categoryGroups: [{ id, name, categories: [...] }] }`
+Returns a **bare array** of groups: `[{ groupId, groupName, categories: [...] }]`
 
 ### Create category group
 
@@ -204,6 +241,10 @@ curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
 **Never put the rate in `memo`.** Text cannot be queried, filtered or
 recomputed; a month later nobody can tell an estimate from a confirmed figure.
 
+Проверено на живом API 2026-08-16: поля сохраняются и возвращаются, фильтр
+`?estimated=true` работает. Валюта без суммы отклоняется с 400 — это
+намеренно.
+
 **Find what still needs confirming:**
 
 ```bash
@@ -301,6 +342,10 @@ Rows whose payee is already known arrive with **that payee's last category**; th
 response reports how many in `categorised`. The rest arrive uncategorised — assign
 categories so they reach the budget. The guess is only ever applied to rows that
 have no category, and a hidden category is never suggested.
+
+Проверено на живом API 2026-08-16 через `dryRun: true`: знакомый плательщик
+приезжает со своей категорией, незнакомый — без, `wouldCategorise` считает
+угаданные строки.
 
 ---
 
@@ -520,6 +565,22 @@ uncategorised spending, transfers that left the budget. A non-zero
 curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-02/reconciliation" | jq
 ```
 
+⚠️ Цифры лежат **вложенно**, в `.reconciliation`, а не на верхнем уровне
+(проверено 2026-08-16). `jq '.unexplainedCents'` вернёт `null` — то есть
+аномалию не увидишь и отрапортуешь, что всё чисто.
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-02/reconciliation" \
+  | jq '.reconciliation | {unexplainedCents, gapCents, uncategorizedCount}'
+```
+
+Поля внутри `.reconciliation`: `gapCents`, `unexplainedCents`,
+`uncategorizedCents`, `uncategorizedCount`, `offBudgetBalanceCents`,
+`inactiveAccountBalanceCents`, `foreignCurrencyBalanceCents`,
+`transfersToOffBudgetCents`.
+
+`uncategorizedCount` брать отсюда, а не фильтровать `/transactions` руками.
+
 ---
 
 ## Money Convention
@@ -531,6 +592,10 @@ All amounts are in **integer cents** (tiyns for KZT):
 
 Response fields include both raw cents and formatted strings:
 - `balanceCents: 15000000` + `balanceFormatted: "150 000 ₸"`
+
+Курс валютной покупки хранится в том же духе — целым, **тиыны за одну
+единицу**: 464,02 ₸/$ → `46402`. Дробей в денежной арифметике здесь нет
+нигде.
 
 ## Error Responses
 
