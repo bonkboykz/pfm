@@ -478,17 +478,24 @@ class _TransactionRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    [
-                      kind,
-                      if (accountName.isNotEmpty) accountName,
-                      // Покупка в валюте: что стояло в чеке и по какому курсу.
-                      if (t.originText != null) t.originText!,
-                    ].join(' · '),
+                    [kind, if (accountName.isNotEmpty) accountName].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall
                         ?.copyWith(fontSize: 12, color: AppColors.textMuted),
                   ),
+                  // Отдельной строкой: в общей подписи это самое ценное
+                  // обрезалось многоточием — счёт и категория съедали ширину.
+                  if (t.originText != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      t.originText!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11, color: AppColors.warning),
+                    ),
+                  ],
                 ],
               ),
             ),
