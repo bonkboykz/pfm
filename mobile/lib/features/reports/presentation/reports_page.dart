@@ -236,6 +236,10 @@ class _Content extends StatelessWidget {
                 _CategoriesCard(data: data),
                 const SizedBox(height: 16),
               ],
+              if (data.incomeSources.isNotEmpty) ...[
+                _IncomeCard(data: data),
+                const SizedBox(height: 16),
+              ],
               if (data.payees.isNotEmpty) ...[
                 _PayeesCard(data: data),
                 const SizedBox(height: 16),
@@ -563,6 +567,141 @@ class _CategoriesCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _IncomeCard extends StatelessWidget {
+  const _IncomeCard({required this.data});
+
+  final ReportsData data;
+
+  static const _limit = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final top = data.topIncomeSources(_limit);
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Откуда приходят деньги',
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: SizedBox(
+              width: 190,
+              height: 190,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  PieChart(
+                    PieChartData(
+                      startDegreeOffset: -90,
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 58,
+                      sections: [
+                        for (var i = 0; i < top.length; i++)
+                          PieChartSectionData(
+                            value: top[i].cents.toDouble(),
+                            color: _slicePalette[i % _slicePalette.length],
+                            radius: 36,
+                            showTitle: false,
+                          ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        groupDigits(data.incomeCents ~/ 100),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: kTabularFigures,
+                          color: AppColors.positive,
+                        ),
+                      ),
+                      Text(
+                        '₸ приход',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 11, color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          for (var i = 0; i < top.length; i++) ...[
+            if (i > 0) const SizedBox(height: 11),
+            _IncomeSourceRow(
+              source: top[i],
+              color: _slicePalette[i % _slicePalette.length],
+              share: data.shareOfIncome(top[i]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _IncomeSourceRow extends StatelessWidget {
+  const _IncomeSourceRow({
+    required this.source,
+    required this.color,
+    required this.share,
+  });
+
+  final PayeeSpend source;
+  final Color color;
+  final double share;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            source.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(fontSize: 12),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '${(share * 100).round()}%',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(fontSize: 11, color: AppColors.textMuted),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          groupDigits(source.cents ~/ 100),
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            fontFeatures: kTabularFigures,
+            color: AppColors.positive,
+          ),
+        ),
+      ],
     );
   }
 }

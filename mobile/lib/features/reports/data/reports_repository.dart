@@ -69,6 +69,8 @@ class ReportsRepository {
     final categoryTotals = <String?, int>{};
     final payeeTotals = <String, int>{};
     final payeeCounts = <String, int>{};
+    final incomeTotals = <String, int>{};
+    final incomeCounts = <String, int>{};
     var income = 0;
     var expense = 0;
     var excluded = 0;
@@ -87,6 +89,11 @@ class ReportsRepository {
 
       if (t.amountCents > 0) {
         income += t.amountCents;
+        final source = (t.payeeName?.trim().isNotEmpty ?? false)
+            ? t.payeeName!.trim()
+            : 'Без источника';
+        incomeTotals[source] = (incomeTotals[source] ?? 0) + t.amountCents;
+        incomeCounts[source] = (incomeCounts[source] ?? 0) + 1;
         if (flow != null) {
           flows[month] = MonthFlow(
             month: month,
@@ -134,6 +141,15 @@ class ReportsRepository {
         .toList()
       ..sort((a, b) => b.cents.compareTo(a.cents));
 
+    final incomeSources = incomeTotals.entries
+        .map((e) => PayeeSpend(
+              name: e.key,
+              count: incomeCounts[e.key] ?? 0,
+              cents: e.value,
+            ))
+        .toList()
+      ..sort((a, b) => b.cents.compareTo(a.cents));
+
     final monthly = flows.values.toList()
       ..sort((a, b) => a.month.compareTo(b.month));
 
@@ -144,6 +160,7 @@ class ReportsRepository {
       monthly: monthly,
       categories: categories,
       payees: payees,
+      incomeSources: incomeSources,
       incomeCents: income,
       expenseCents: expense,
       excludedCount: excluded,

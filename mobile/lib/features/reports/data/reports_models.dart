@@ -53,6 +53,11 @@ class ReportsData {
   final List<MonthFlow> monthly;
   final List<CategorySpend> categories;
   final List<PayeeSpend> payees;
+
+  /// Приход по источникам. Группировка по плательщику, а не по категории:
+  /// почти весь доход падает в системную «Ready to Assign», и разбивка по
+  /// категориям дала бы один сектор.
+  final List<PayeeSpend> incomeSources;
   final int incomeCents;
   final int expenseCents;
 
@@ -67,6 +72,7 @@ class ReportsData {
     required this.monthly,
     required this.categories,
     required this.payees,
+    this.incomeSources = const [],
     required this.incomeCents,
     required this.expenseCents,
     required this.excludedCount,
@@ -100,4 +106,22 @@ class ReportsData {
 
   double shareOf(CategorySpend category) =>
       expenseCents == 0 ? 0 : category.cents / expenseCents;
+
+  /// Топ источников дохода: хвост сверх лимита сворачивается в «Прочее», как
+  /// и у категорий расхода.
+  List<PayeeSpend> topIncomeSources(int limit) {
+    if (incomeSources.length <= limit) return incomeSources;
+    final head = incomeSources.take(limit - 1).toList();
+    final tailCents =
+        incomeSources.skip(limit - 1).fold<int>(0, (acc, p) => acc + p.cents);
+    final tailCount =
+        incomeSources.skip(limit - 1).fold<int>(0, (acc, p) => acc + p.count);
+    return [
+      ...head,
+      PayeeSpend(name: 'Прочее', count: tailCount, cents: tailCents),
+    ];
+  }
+
+  double shareOfIncome(PayeeSpend source) =>
+      incomeCents == 0 ? 0 : source.cents / incomeCents;
 }
