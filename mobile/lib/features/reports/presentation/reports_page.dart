@@ -125,9 +125,10 @@ class _PeriodChips extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
       child: Row(
         children: [
-          chip(3, '3 месяца'),
-          chip(6, '6 месяцев'),
-          chip(12, '12 месяцев'),
+          chip(1, 'Этот месяц'),
+          chip(3, '3 мес.'),
+          chip(6, '6 мес.'),
+          chip(12, '12 мес.'),
         ],
       ),
     );
@@ -253,7 +254,9 @@ class _EmptyWindow extends StatelessWidget {
           const Icon(LucideIcons.barChart3, size: 36, color: AppColors.textMuted),
           const SizedBox(height: 12),
           Text(
-            'За ${data.months} мес. операций нет',
+            data.months == 1
+                ? 'В этом месяце операций нет'
+                : 'За ${data.months} мес. операций нет',
             style: theme.textTheme.titleMedium,
           ),
           const SizedBox(height: 6),

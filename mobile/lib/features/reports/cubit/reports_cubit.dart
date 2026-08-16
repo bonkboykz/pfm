@@ -20,9 +20,11 @@ class ReportsState extends Equatable {
 
   const ReportsState({
     this.status = ReportsStatus.initial,
-    // Live data ends in March while today is August, so a 3- or 6-month window
-    // opens empty. A year is the default that actually shows something.
-    this.months = 12,
+    // Экран отвечает на вопрос «что у меня в этом месяце», поэтому окно —
+    // текущий месяц. Год стоял здесь не по замыслу: живые данные тогда
+    // заканчивались в марте, а на дворе был август, и короткое окно
+    // открывалось пустым. Данные догнали календарь, а дефолт остался.
+    this.months = 1,
     this.data,
     this.error,
     this.unauthorized = false,
