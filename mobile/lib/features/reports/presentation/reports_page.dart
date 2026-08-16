@@ -24,6 +24,11 @@ const _slicePalette = <Color>[
   Color(0xFF6366F1),
   Color(0xFFEC4899),
   Color(0xFF0EA5E9),
+  Color(0xFFEF4444),
+  Color(0xFF14B8A6),
+  Color(0xFFA855F7),
+  Color(0xFF84CC16),
+  Color(0xFFF97316),
   AppColors.neutral,
 ];
 
@@ -221,8 +226,12 @@ class _Content extends StatelessWidget {
             else ...[
               _CashFlowCard(data: data),
               const SizedBox(height: 16),
-              _TrendCard(data: data),
-              const SizedBox(height: 16),
+              // За один месяц это один столбик: сравнивать не с чем, а место
+              // занимает. Отдаём его категориям.
+              if (data.months > 1) ...[
+                _TrendCard(data: data),
+                const SizedBox(height: 16),
+              ],
               if (data.categories.isNotEmpty) ...[
                 _CategoriesCard(data: data),
                 const SizedBox(height: 16),
@@ -477,10 +486,14 @@ class _CategoriesCard extends StatelessWidget {
 
   final ReportsData data;
 
+  /// Сколько категорий показывать списком. Хвост сверх этого сворачивается в
+  /// «Прочее» — иначе карточка превращается в простыню из строк по 0,1%.
+  static const _limit = 12;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final top = data.topCategories(5);
+    final top = data.topCategories(_limit);
 
     return _Card(
       child: Column(
@@ -492,69 +505,62 @@ class _CategoriesCard extends StatelessWidget {
                 ?.copyWith(fontSize: 14, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              SizedBox(
-                width: 112,
-                height: 112,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    PieChart(
-                      PieChartData(
-                        startDegreeOffset: -90,
-                        sectionsSpace: 2,
-                        centerSpaceRadius: 34,
-                        sections: [
-                          for (var i = 0; i < top.length; i++)
-                            PieChartSectionData(
-                              value: top[i].cents.toDouble(),
-                              color:
-                                  _slicePalette[i % _slicePalette.length],
-                              radius: 22,
-                              showTitle: false,
-                            ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          groupDigits(data.expenseCents ~/ 100),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            fontFeatures: kTabularFigures,
+          // Пирог сверху во всю ширину, список под ним: категорий обычно
+          // больше, чем влезает сбоку, и сбоку они сжимались до многоточий.
+          Center(
+            child: SizedBox(
+              width: 190,
+              height: 190,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  PieChart(
+                    PieChartData(
+                      startDegreeOffset: -90,
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 58,
+                      sections: [
+                        for (var i = 0; i < top.length; i++)
+                          PieChartSectionData(
+                            value: top[i].cents.toDouble(),
+                            color: _slicePalette[i % _slicePalette.length],
+                            radius: 36,
+                            showTitle: false,
                           ),
-                        ),
-                        Text(
-                          '₸ расход',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: 10, color: AppColors.textMuted),
-                        ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 18),
-              Expanded(
-                child: Column(
-                  children: [
-                    for (var i = 0; i < top.length; i++) ...[
-                      if (i > 0) const SizedBox(height: 9),
-                      _CategoryLegendRow(
-                        category: top[i],
-                        color: _slicePalette[i % _slicePalette.length],
-                        share: data.shareOf(top[i]),
+                  ),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        groupDigits(data.expenseCents ~/ 100),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: kTabularFigures,
+                        ),
+                      ),
+                      Text(
+                        '₸ расход',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 11, color: AppColors.textMuted),
                       ),
                     ],
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
+          const SizedBox(height: 18),
+          for (var i = 0; i < top.length; i++) ...[
+            if (i > 0) const SizedBox(height: 11),
+            _CategoryLegendRow(
+              category: top[i],
+              color: _slicePalette[i % _slicePalette.length],
+              share: data.shareOf(top[i]),
+            ),
+          ],
         ],
       ),
     );
