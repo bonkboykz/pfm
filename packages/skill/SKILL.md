@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.5.1
+version: 0.6.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -170,6 +170,56 @@ curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
 
 - Positive amountCents = income (inflow)
 - Negative amountCents = expense (outflow)
+
+### Purchase priced in another currency
+
+A subscription billed in dollars, paid with a tenge card. The account is in
+tenge and the bank charges tenge, so **the budget still sees a tenge amount** —
+there is no multi-currency ledger here. What the receipt said and what rate you
+used are recorded alongside it:
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "ACCOUNT_ID",
+    "date": "2026-08-16",
+    "amountCents": -491397,
+    "payeeName": "Google Colab",
+    "categoryId": "CATEGORY_ID",
+    "originalAmountCents": -1059,
+    "originalCurrency": "USD",
+    "quotedRateCents": 46402,
+    "isEstimated": true
+  }' | jq
+```
+
+| Field | Meaning |
+|---|---|
+| `originalAmountCents` | What the receipt said, in minor units of that currency — 10.59 USD is `-1059` |
+| `originalCurrency` | ISO code. Goes together with the amount; one without the other is rejected |
+| `quotedRateCents` | **Tiyn per one unit** of that currency — 464.02 KZT/USD is `46402`. Integer, like every other amount here |
+| `isEstimated` | The tenge figure is a forecast and still needs the bank statement |
+
+**Never put the rate in `memo`.** Text cannot be queried, filtered or
+recomputed; a month later nobody can tell an estimate from a confirmed figure.
+
+**Find what still needs confirming:**
+
+```bash
+curl -s "$PFM_API_URL/api/v1/transactions?estimated=true" -H "$AUTH" | jq
+```
+
+**Confirm it once the statement arrives** — write the real tenge amount and drop
+the flag. `originalAmountCents` and `quotedRateCents` deliberately stay: the gap
+between the rate you quoted and the rate you actually got is what the bank
+charged you for the conversion, usually 1.5–3%.
+
+```bash
+curl -s -X PATCH "$PFM_API_URL/api/v1/transactions/TX_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"amountCents": -498120, "isEstimated": false}' | jq
+```
 
 ### Create income transaction
 

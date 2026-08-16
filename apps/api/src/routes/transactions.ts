@@ -29,6 +29,31 @@ function requireAccountRef(db: DB, accountId: string) {
   if (!acct) throw unknownReference('accountId', accountId, 'GET /api/v1/accounts');
 }
 
+/**
+ * Покупка, номинированная не в валюте счёта: что было в чеке и по какому курсу
+ * это записали. Курс — тиыны за одну единицу валюты, 464,02 ₸/$ → 46402.
+ * Валюта без суммы бессмысленна, поэтому идут только парой.
+ */
+const foreignAmountFields = {
+  originalAmountCents: z.number().int().optional(),
+  originalCurrency: z.string().length(3).optional(),
+  quotedRateCents: z.number().int().positive().optional(),
+  isEstimated: z.boolean().optional(),
+};
+
+function requireForeignPair(data: {
+  originalAmountCents?: number;
+  originalCurrency?: string;
+}) {
+  const hasAmount = data.originalAmountCents !== undefined;
+  const hasCurrency = data.originalCurrency !== undefined;
+  if (hasAmount !== hasCurrency) {
+    throw validationError(
+      'originalAmountCents and originalCurrency go together: an amount without a currency, or a currency without an amount, describes nothing',
+    );
+  }
+}
+
 const createTransactionSchema = z.object({
   accountId: z.string().min(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -38,6 +63,7 @@ const createTransactionSchema = z.object({
   transferAccountId: z.string().optional(),
   memo: z.string().optional(),
   cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
+  ...foreignAmountFields,
 });
 
 const updateTransactionSchema = z.object({
@@ -47,6 +73,7 @@ const updateTransactionSchema = z.object({
   categoryId: z.string().nullable().optional(),
   memo: z.string().nullable().optional(),
   cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
+  ...foreignAmountFields,
 });
 
 const bulkCreateSchema = z.object({
@@ -307,6 +334,11 @@ function formatTx(tx: any, currencies?: Map<string, string>) {
   return {
     ...tx,
     amountFormatted: formatMoney(tx.amountCents, currency),
+    // Исходная сумма показывается в СВОЕЙ валюте — это то, что было в чеке.
+    originalAmountFormatted:
+      tx.originalAmountCents == null
+        ? null
+        : formatMoney(tx.originalAmountCents, tx.originalCurrency ?? 'KZT'),
   };
 }
 
@@ -317,10 +349,7 @@ function formatOneTx(db: DB, tx: any) {
     .from(accounts)
     .where(eq(accounts.id, tx.accountId))
     .get();
-  return {
-    ...tx,
-    amountFormatted: formatMoney(tx.amountCents, acct?.currency ?? 'KZT'),
-  };
+  return formatTx(tx, new Map([[tx.accountId, acct?.currency ?? 'KZT']]));
 }
 
 export function transactionRoutes(db: DB) {
@@ -332,9 +361,13 @@ export function transactionRoutes(db: DB) {
     const categoryId = c.req.query('categoryId');
     const since = c.req.query('since');
     const until = c.req.query('until');
+    const estimated = c.req.query('estimated');
     const limit = parseInt(c.req.query('limit') ?? '50');
 
     const conditions = [eq(transactions.isDeleted, false)];
+    // Суммы, записанные по прогнозному курсу и ждущие выписки.
+    if (estimated === 'true') conditions.push(eq(transactions.isEstimated, true));
+    if (estimated === 'false') conditions.push(eq(transactions.isEstimated, false));
     if (accountId) conditions.push(eq(transactions.accountId, accountId));
     if (categoryId) conditions.push(eq(transactions.categoryId, categoryId));
     if (since) conditions.push(gte(transactions.date, since));
@@ -361,6 +394,7 @@ export function transactionRoutes(db: DB) {
     }
 
     const data = parsed.data;
+    requireForeignPair(data);
 
     // Validate source account
     const sourceAcct = db.select().from(accounts).where(eq(accounts.id, data.accountId)).get();
@@ -432,6 +466,10 @@ export function transactionRoutes(db: DB) {
         categoryId,
         memo: data.memo ?? null,
         cleared: data.cleared ?? 'uncleared',
+        originalAmountCents: data.originalAmountCents ?? null,
+        originalCurrency: data.originalCurrency ?? null,
+        quotedRateCents: data.quotedRateCents ?? null,
+        isEstimated: data.isEstimated ?? false,
       })
       .returning()
       .get();
@@ -643,6 +681,7 @@ export function transactionRoutes(db: DB) {
     }
 
     const data = parsed.data;
+    requireForeignPair(data);
     if (data.categoryId) requireCategoryRef(db, data.categoryId);
 
     const now = new Date().toISOString();

@@ -286,6 +286,7 @@ class TransactionsCubit extends Cubit<TransactionsState> {
     bool clearCategory = false,
     String? memo,
     required bool cleared,
+    bool? isEstimated,
   }) async {
     try {
       await _repo.update(
@@ -297,6 +298,7 @@ class TransactionsCubit extends Cubit<TransactionsState> {
         clearCategory: clearCategory,
         memo: memo,
         cleared: cleared ? 'cleared' : 'uncleared',
+        isEstimated: isEstimated,
       );
       await load();
       _bus?.emit(DataChange.transactions);

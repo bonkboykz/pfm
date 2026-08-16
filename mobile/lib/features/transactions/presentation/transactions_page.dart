@@ -478,7 +478,12 @@ class _TransactionRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    [kind, if (accountName.isNotEmpty) accountName].join(' · '),
+                    [
+                      kind,
+                      if (accountName.isNotEmpty) accountName,
+                      // Покупка в валюте: что стояло в чеке и по какому курсу.
+                      if (t.originText != null) t.originText!,
+                    ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall
@@ -503,7 +508,24 @@ class _TransactionRow extends StatelessWidget {
                         t.isInflow ? AppColors.positive : AppColors.textPrimary,
                   ),
                 ),
-                if (!t.isCleared) ...[
+                // Оценочная сумма важнее статуса сверки: её ещё предстоит
+                // уточнить по выписке, и цифра в списке пока приблизительная.
+                if (t.isEstimated) ...[
+                  const SizedBox(height: 3),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningSoft,
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    child: Text(
+                      'по курсу',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 10, color: AppColors.warning),
+                    ),
+                  ),
+                ] else if (!t.isCleared) ...[
                   const SizedBox(height: 3),
                   Text(
                     'не сверено',

@@ -64,6 +64,27 @@ export const transactions = sqliteTable('transactions', {
   transferAccountId: text('transfer_account_id').references(() => accounts.id),
   transferTransactionId: text('transfer_transaction_id'),
   memo: text('memo'),
+
+  /**
+   * Что было в чеке, когда покупка номинирована не в валюте счёта: сумма в
+   * минорных единицах исходной валюты и она сама. Счёт при этом остаётся
+   * тенговым — мультивалютного учёта здесь нет, есть происхождение числа.
+   */
+  originalAmountCents: integer('original_amount_cents'),
+  originalCurrency: text('original_currency'),
+
+  /**
+   * Курс, по которому записали, — тиыны за одну единицу `originalCurrency`
+   * (464,02 ₸/$ → 46402). Целым, потому что дробей в денежной арифметике
+   * здесь нет нигде. Переживает уточнение по выписке: `amountCents` к тому
+   * моменту станет фактическим, и разрыв между ним и этим курсом показывает,
+   * сколько забрал банк на конверсии.
+   */
+  quotedRateCents: integer('quoted_rate_cents'),
+
+  /** Сумма пока оценочная и ждёт подтверждения выпиской. */
+  isEstimated: integer('is_estimated', { mode: 'boolean' }).notNull().default(false),
+
   cleared: text('cleared', {
     enum: ['uncleared', 'cleared', 'reconciled'],
   }).notNull().default('uncleared'),

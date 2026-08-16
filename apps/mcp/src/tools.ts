@@ -310,12 +310,13 @@ export const tools: ToolDef[] = [
   {
     name: 'list_transactions',
     description:
-      'List transactions newest first, default limit 50. Filter by accountId, categoryId and a since/until date range (YYYY-MM-DD). Amounts are tiyn; negative is an outflow.',
+      'List transactions newest first, default limit 50. Filter by accountId, categoryId and a since/until date range (YYYY-MM-DD). Amounts are tiyn; negative is an outflow. Pass estimated=true to list only rows still carrying a provisional amount — a purchase priced in another currency, recorded at a quoted rate and waiting for the bank statement to confirm the tenge figure.',
     schema: z.object({
       accountId: z.string().optional(),
       categoryId: z.string().optional(),
       since: z.string().optional(),
       until: z.string().optional(),
+      estimated: z.boolean().optional(),
       limit: z.number().int().positive().optional(),
     }),
     method: 'GET',
@@ -325,6 +326,7 @@ export const tools: ToolDef[] = [
         categoryId: a.categoryId,
         since: a.since,
         until: a.until,
+        estimated: a.estimated,
         limit: a.limit,
       })}`,
   },
@@ -338,7 +340,7 @@ export const tools: ToolDef[] = [
   {
     name: 'create_transaction',
     description:
-      'Record a transaction. amountCents is tiyn: negative for spending, positive for income. Supplying transferAccountId makes it a transfer between two accounts — the API writes both paired sides and leaves them uncategorised, which is correct and must not be "fixed" by also passing categoryId. Omitting categoryId for a payee seen before fills in that payee\'s last category; passing it explicitly always wins.',
+      'Record a transaction. amountCents is tiyn: negative for spending, positive for income. Supplying transferAccountId makes it a transfer between two accounts — the API writes both paired sides and leaves them uncategorised, which is correct and must not be "fixed" by also passing categoryId. Omitting categoryId for a payee seen before fills in that payee\'s last category; passing it explicitly always wins. For a purchase priced in another currency on a tenge card, put the receipt amount in originalAmountCents + originalCurrency and the rate you used in quotedRateCents (tiyn per one unit, 464.02 KZT/USD is 46402), and set isEstimated until the bank statement confirms the tenge figure — never bury the rate in memo, it cannot be queried or recomputed there.',
     schema: z.object({
       accountId: z.string().min(1),
       date: z.string(),
@@ -348,6 +350,10 @@ export const tools: ToolDef[] = [
       transferAccountId: z.string().optional(),
       memo: z.string().optional(),
       cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
+      originalAmountCents: z.number().int().optional(),
+      originalCurrency: z.string().length(3).optional(),
+      quotedRateCents: z.number().int().positive().optional(),
+      isEstimated: z.boolean().optional(),
     }),
     method: 'POST',
     path: () => '/api/v1/transactions',
@@ -402,6 +408,10 @@ export const tools: ToolDef[] = [
       categoryId: z.string().nullable().optional(),
       memo: z.string().nullable().optional(),
       cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
+      originalAmountCents: z.number().int().optional(),
+      originalCurrency: z.string().length(3).optional(),
+      quotedRateCents: z.number().int().positive().optional(),
+      isEstimated: z.boolean().optional(),
     }),
     method: 'PATCH',
     path: (a) => `/api/v1/transactions/${a.id}`,

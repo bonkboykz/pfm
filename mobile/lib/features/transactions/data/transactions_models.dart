@@ -1,10 +1,11 @@
 /// Manual parsing of `GET /api/v1/transactions` and `/categories`.
 ///
-/// `amountFormatted` is rendered server-side in KZT regardless of the owning
-/// account's currency — a −50000 row on the CNY cash account arrives as
-/// "-500 ₸" when it is really −¥500. Screens must format from [amountCents]
-/// with the account's currency instead.
+/// С PFM-47 сервер форматирует `amountFormatted` в валюте счёта операции, так
+/// что строке можно верить. Экраны всё равно считают часть чисел сами —
+/// итоги по дню, например, — и для них форматирование локальное.
 library;
+
+import '../../../core/money/money.dart';
 
 class Transaction {
   final String id;
@@ -20,6 +21,16 @@ class Transaction {
   final String cleared; // uncleared | cleared | reconciled
   final bool approved;
 
+  /// Что было в чеке, если покупка номинирована не в валюте счёта: сумма в
+  /// минорных единицах своей валюты, сама валюта и курс, по которому записали
+  /// (тиыны за единицу, 464,02 ₸/$ → 46402).
+  final int? originalAmountCents;
+  final String? originalCurrency;
+  final int? quotedRateCents;
+
+  /// Тенговая сумма пока оценочная и ждёт подтверждения выпиской.
+  final bool isEstimated;
+
   const Transaction({
     required this.id,
     required this.accountId,
@@ -33,6 +44,10 @@ class Transaction {
     required this.memo,
     required this.cleared,
     required this.approved,
+    this.originalAmountCents,
+    this.originalCurrency,
+    this.quotedRateCents,
+    this.isEstimated = false,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
@@ -48,6 +63,10 @@ class Transaction {
         memo: json['memo']?.toString(),
         cleared: (json['cleared'] ?? 'uncleared').toString(),
         approved: json['approved'] == true,
+        originalAmountCents: (json['originalAmountCents'] as num?)?.toInt(),
+        originalCurrency: json['originalCurrency']?.toString(),
+        quotedRateCents: (json['quotedRateCents'] as num?)?.toInt(),
+        isEstimated: json['isEstimated'] == true,
       );
 
   bool get isTransfer => transferAccountId != null;
@@ -56,6 +75,20 @@ class Transaction {
 
   /// Income is modelled as an inflow categorised to the system RTA category.
   bool get isIncome => categoryId == 'ready-to-assign';
+
+  bool get hasForeignOrigin =>
+      originalAmountCents != null && originalCurrency != null;
+
+  /// «10,59 $ по курсу 464,02» — то, что стояло в чеке, и по чему записали.
+  String? get originText {
+    if (!hasForeignOrigin) return null;
+    final amount = formatMoneySmart(originalAmountCents!.abs(),
+        currency: originalCurrency!);
+    final rate = quotedRateCents;
+    return rate == null
+        ? amount
+        : '$amount по курсу ${formatMoneySmart(rate)}';
+  }
 }
 
 class CategoryRef {

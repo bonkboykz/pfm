@@ -52,6 +52,11 @@ class _TransactionSheetState extends State<_TransactionSheet> {
   CategoryRef? _category;
   late DateTime _date;
   late bool _cleared;
+
+  /// Сумма была записана по прогнозному курсу, и пользователь подтверждает
+  /// фактическую из выписки. Признак снимается только этим действием: любая
+  /// другая правка оценочной операции оставляет её оценочной.
+  bool _confirmActual = false;
   bool _saving = false;
 
   bool get _isEdit => widget.existing != null;
@@ -180,6 +185,9 @@ class _TransactionSheetState extends State<_TransactionSheet> {
         clearCategory: _mode == TxMode.expense && _category == null,
         memo: _memo.text.trim(),
         cleared: _cleared,
+        // Оценочная сумма перестаёт быть оценочной ровно тогда, когда её
+        // подтвердили выпиской — молча снимать признак при любой правке нельзя.
+        isEstimated: _confirmActual ? false : null,
       );
     } else {
       error = await widget.cubit.create(
@@ -365,6 +373,59 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  if (widget.existing?.isEstimated == true) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningSoft,
+                        borderRadius: BorderRadius.circular(AppRadii.inner),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Сумма записана по курсу',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.warning),
+                          ),
+                          if (widget.existing?.originText != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.existing!.originText!,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  fontSize: 11, color: AppColors.warning),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          // Не ListTile: он рисует рябь на ближайшем Material,
+                          // а он ниже крашеного контейнера — нажатие было бы
+                          // невидимым.
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Это фактическая сумма из выписки',
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(fontSize: 12),
+                                ),
+                              ),
+                              Switch(
+                                key: const Key('confirm-actual'),
+                                value: _confirmActual,
+                                onChanged: (v) =>
+                                    setState(() => _confirmActual = v),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   _ClearedToggle(
                     value: _cleared,
                     onChanged: (v) => setState(() => _cleared = v),

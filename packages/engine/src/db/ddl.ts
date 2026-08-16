@@ -66,6 +66,10 @@ export function applySchema(sqlite: Database.Database): void {
       transfer_account_id TEXT REFERENCES accounts(id),
       transfer_transaction_id TEXT,
       memo TEXT,
+      original_amount_cents INTEGER,
+      original_currency TEXT,
+      quoted_rate_cents INTEGER,
+      is_estimated INTEGER NOT NULL DEFAULT 0,
       cleared TEXT NOT NULL DEFAULT 'uncleared' CHECK(cleared IN ('uncleared', 'cleared', 'reconciled')),
       approved INTEGER NOT NULL DEFAULT 1,
       is_deleted INTEGER NOT NULL DEFAULT 0,
@@ -207,6 +211,13 @@ export function applyColumnMigrations(sqlite: Database.Database): void {
     'ALTER TABLE loans ADD COLUMN paid_off_cents INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE loans ADD COLUMN closed_date TEXT',
     'ALTER TABLE loans ADD COLUMN closure_reason TEXT',
+    // Валютная покупка на тенговом счёте: что было в чеке и по какому курсу
+    // это записали. Курс — тиыны за одну единицу валюты, 464,02 ₸/$ → 46402,
+    // потому что дробей в денежной арифметике здесь нет нигде.
+    'ALTER TABLE transactions ADD COLUMN original_amount_cents INTEGER',
+    'ALTER TABLE transactions ADD COLUMN original_currency TEXT',
+    'ALTER TABLE transactions ADD COLUMN quoted_rate_cents INTEGER',
+    'ALTER TABLE transactions ADD COLUMN is_estimated INTEGER NOT NULL DEFAULT 0',
   ];
 
   for (const sql of statements) {
@@ -223,6 +234,7 @@ const AUDITED_TABLES: Record<string, string[]> = {
   transactions: [
     'id', 'account_id', 'date', 'amount_cents', 'payee_id', 'payee_name', 'category_id',
     'transfer_account_id', 'transfer_transaction_id', 'memo', 'cleared', 'approved',
+    'original_amount_cents', 'original_currency', 'quoted_rate_cents', 'is_estimated',
     'is_deleted', 'created_at', 'updated_at',
   ],
   monthly_budgets: ['id', 'category_id', 'month', 'assigned_cents', 'note', 'created_at', 'updated_at'],

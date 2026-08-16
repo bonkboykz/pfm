@@ -82,6 +82,7 @@ class TransactionsRepository {
     bool clearCategory = false,
     String? memo,
     String? cleared,
+    bool? isEstimated,
   }) async {
     final body = <String, dynamic>{};
     if (date != null) body['date'] = date;
@@ -94,6 +95,7 @@ class TransactionsRepository {
     }
     if (memo != null) body['memo'] = memo;
     if (cleared != null) body['cleared'] = cleared;
+    if (isEstimated != null) body['isEstimated'] = isEstimated;
 
     final json = await _api.patch('/api/v1/transactions/$id', body: body);
     return Transaction.fromJson((json as Map).cast<String, dynamic>());
