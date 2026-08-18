@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.7.0
+version: 0.7.1
 metadata:
   openclaw:
     emoji: "💰"
@@ -693,10 +693,16 @@ curl -s -X PATCH "$PFM_API_URL/api/v1/accounts/ACC_ID" \
   -H "$AUTH" -H "Content-Type: application/json" -d '{ "name": "Kaspi Gold" }' | jq
 curl -s -X DELETE "$PFM_API_URL/api/v1/accounts/ACC_ID" -H "$AUTH" | jq
 
-# Scheduled rules: change the amount or the date, or drop the rule
+# Scheduled rules: change the amount, the date, or the account it debits
 curl -s -X PATCH "$PFM_API_URL/api/v1/scheduled/RULE_ID" \
   -H "$AUTH" -H "Content-Type: application/json" \
-  -d '{ "amountCents": -1549000 }' | jq
+  -d '{ "amountCents": -1549000, "accountId": "ACC_ID" }' | jq
+
+# Loans: the terms are editable too — a revised rate or a typo is a PATCH,
+# not a delete and recreate, which would lose the id and its payment history
+curl -s -X PATCH "$PFM_API_URL/api/v1/loans/LOAN_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "aprBps": 2650, "termMonths": 36, "startDate": "2025-07-01" }' | jq
 curl -s -X DELETE "$PFM_API_URL/api/v1/scheduled/RULE_ID" -H "$AUTH" | jq
 ```
 

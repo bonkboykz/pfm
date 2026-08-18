@@ -36,6 +36,14 @@ const createLoanSchema = z.object({
 
 const updateLoanSchema = z.object({
   name: z.string().min(1).optional(),
+  // Условия кредита тоже меняются: банк пересматривает ставку, срок
+  // продлевают, а при вводе ошибаются. Без этих полей опечатка в ставке
+  // лечилась удалением кредита — вместе с привязанной историей платежей.
+  type: z.enum(['loan', 'installment', 'credit_line']).optional(),
+  principalCents: z.number().int().positive().optional(),
+  aprBps: z.number().int().min(0).optional(),
+  termMonths: z.number().int().positive().optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   accountId: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
   monthlyPaymentCents: z.number().int().positive().optional(),
@@ -219,9 +227,14 @@ export function loanRoutes(db: DB) {
     }
 
     const data = parsed.data;
-    if (data.paidOffCents !== undefined && data.paidOffCents > loan.principalCents) {
+    // Тело и погашенное проверяются друг против друга в обе стороны: менять
+    // можно любое из них, но кредит, погашенный больше чем на всю сумму,
+    // сломал бы и график, и долговые итоги.
+    const principal = data.principalCents ?? loan.principalCents;
+    const paidOff = data.paidOffCents ?? loan.paidOffCents;
+    if (paidOff > principal) {
       throw validationError(
-        `paidOffCents (${data.paidOffCents}) cannot exceed principalCents (${loan.principalCents})`,
+        `paidOffCents (${paidOff}) cannot exceed principalCents (${principal})`,
       );
     }
 

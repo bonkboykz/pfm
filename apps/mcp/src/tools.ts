@@ -456,9 +456,10 @@ export const tools: ToolDef[] = [
   {
     name: 'update_scheduled',
     description:
-      'Update a scheduled transaction. Only supplied fields change; nullable fields accept null to clear them.',
+      'Update a scheduled transaction, including accountId — a rule created against the wrong account is fixed here, not by deleting it and creating a new one. Only supplied fields change; nullable fields accept null to clear them.',
     schema: z.object({
       id: z.string(),
+      accountId: z.string().min(1).optional(),
       frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']).optional(),
       nextDate: z.string().optional(),
       amountCents: z.number().int().optional(),
@@ -550,10 +551,15 @@ export const tools: ToolDef[] = [
   {
     name: 'update_loan',
     description:
-      'Update a loan. Principal, APR, term and start date are deliberately not editable — recreate the loan if those were entered wrong. isActive false retires a loan without settling its balance; to retire one that is actually repaid, use close_loan instead. Setting isActive true reopens a closed loan and clears its closure record.',
+      'Update a loan, including its terms: principal, APR, term, start date and type are editable, so a rate the bank revised or a figure typed wrong is a PATCH, not a delete and recreate — recreating loses the id and the payment history hanging off it. paidOffCents can never exceed principalCents; changing either is checked against the other. isActive false retires a loan without settling its balance; to retire one that is actually repaid, use close_loan instead. Setting isActive true reopens a closed loan and clears its closure record.',
     schema: z.object({
       id: z.string(),
       name: z.string().min(1).optional(),
+      type: z.enum(['loan', 'installment', 'credit_line']).optional(),
+      principalCents: z.number().int().positive().optional(),
+      aprBps: z.number().int().min(0).optional(),
+      termMonths: z.number().int().positive().optional(),
+      startDate: z.string().optional(),
       accountId: z.string().nullable().optional(),
       categoryId: z.string().nullable().optional(),
       monthlyPaymentCents: z.number().int().positive().optional(),

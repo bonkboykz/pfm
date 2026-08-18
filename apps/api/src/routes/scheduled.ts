@@ -18,6 +18,10 @@ const createScheduledSchema = z.object({
 });
 
 const updateScheduledSchema = z.object({
+  // Счёт списания меняется как всё остальное. Без этого правило, заведённое
+  // не на тот счёт, чинилось только удалением и созданием заново —
+  // необратимой операцией ради опечатки.
+  accountId: z.string().min(1).optional(),
   frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']).optional(),
   nextDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   amountCents: z.number().int().optional(),
@@ -124,6 +128,12 @@ export function scheduledRoutes(db: DB) {
     const parsed = updateScheduledSchema.safeParse(body);
     if (!parsed.success) {
       throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+
+    for (const accountId of [parsed.data.accountId, parsed.data.transferAccountId]) {
+      if (!accountId) continue;
+      const acct = db.select().from(accounts).where(eq(accounts.id, accountId)).get();
+      if (!acct) throw notFound('Account', accountId);
     }
 
     db.update(scheduledTransactions)
