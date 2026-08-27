@@ -17,6 +17,11 @@ class ScheduledTransaction {
   final String? transferAccountId;
   final String? transferAccountName;
   final String? memo;
+
+  /// Создаётся ли операция при «Провести». Выключено — правило работает
+  /// напоминанием: сумма списания не равна тому, что оно гасит (платёж по
+  /// кредиту), либо счёт мог быть оплачен раньше вручную.
+  final bool autoPost;
   final bool isActive;
 
   const ScheduledTransaction({
@@ -32,6 +37,7 @@ class ScheduledTransaction {
     required this.transferAccountId,
     required this.transferAccountName,
     required this.memo,
+    required this.autoPost,
     required this.isActive,
   });
 
@@ -49,6 +55,9 @@ class ScheduledTransaction {
         transferAccountId: json['transferAccountId']?.toString(),
         transferAccountName: json['transferAccountName']?.toString(),
         memo: json['memo']?.toString(),
+        // Старый сервер поля не отдаёт — там автопроведение было единственным
+        // поведением, поэтому умолчание true.
+        autoPost: json['autoPost'] != false,
         isActive: json['isActive'] == true,
       );
 
@@ -88,6 +97,10 @@ class ScheduledData {
   List<ScheduledTransaction> upcoming(DateTime now) =>
       items.where((s) => !s.isDue(now)).toList();
 
+  /// Наступившие правила, которые «Провести» действительно проведёт.
+  List<ScheduledTransaction> duePosting(DateTime now) =>
+      due(now).where((s) => s.autoPost).toList();
+
   int monthlyOutflowCents(DateTime now) => items
       .where((s) => s.amountCents < 0)
       .fold(0, (acc, s) => acc + -s.amountCents);
@@ -95,12 +108,20 @@ class ScheduledData {
 
 class ProcessResult {
   final int created;
+
+  /// Наступившие правила-напоминания: не проведены и ждут ручной операции.
+  final int reminders;
   final List<String> errors;
 
-  const ProcessResult({required this.created, required this.errors});
+  const ProcessResult({
+    required this.created,
+    required this.reminders,
+    required this.errors,
+  });
 
   factory ProcessResult.fromJson(Map<String, dynamic> json) => ProcessResult(
         created: (json['created'] as num?)?.toInt() ?? 0,
+        reminders: ((json['reminders'] as List?) ?? const []).length,
         errors: ((json['errors'] as List?) ?? const [])
             .whereType<Map>()
             .map((e) => (e['message'] ?? '').toString())

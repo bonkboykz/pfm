@@ -7,6 +7,7 @@ import '../../../core/dates/months.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/text/plural.dart';
 import '../../../core/widgets/states.dart';
 import '../cubit/scheduled_cubit.dart';
 import '../data/scheduled_models.dart';
@@ -67,15 +68,19 @@ class _Content extends StatelessWidget {
     final data = state.data!;
     final now = DateTime.now();
     final due = data.due(now);
+    final posting = data.duePosting(now);
+    final reminders = due.length - posting.length;
     final upcoming = data.upcoming(now);
 
     Future<void> runProcess() async {
       final ok = await confirmAction(
         context,
         title: 'Провести наступившие?',
-        body: 'Будут созданы реальные операции по ${due.length} правилам, '
+        body: 'Будут созданы реальные операции по ${posting.length} ${plural(posting.length, "правилу", "правилам", "правилам")}, '
             'а даты следующего платежа сдвинутся вперёд. Отменить это можно '
-            'только вручную.',
+            'только вручную.'
+            '${reminders == 0 ? "" : " Ещё $reminders — напоминания: они "
+                "останутся как есть, операцию по ним нужно завести руками."}',
         action: 'Провести',
       );
       if (!ok) return;
@@ -87,11 +92,14 @@ class _Content extends StatelessWidget {
         return;
       }
       final result = outcome.result!;
+      final tail = result.reminders == 0
+          ? ''
+          : ', напоминаний без операции: ${result.reminders}';
       showToast(
         context,
         result.errors.isEmpty
-            ? 'Создано операций: ${result.created}'
-            : 'Создано: ${result.created}, с ошибками: ${result.errors.length}',
+            ? 'Создано операций: ${result.created}$tail'
+            : 'Создано: ${result.created}, с ошибками: ${result.errors.length}$tail',
         isError: result.errors.isNotEmpty,
       );
     }
@@ -146,8 +154,9 @@ class _Content extends StatelessWidget {
                   'операции за каждый пропущенный период, а не одну на правило.',
             ),
             const SizedBox(height: 10),
-            FilledButton.icon(
-              onPressed: state.processing ? null : runProcess,
+            if (posting.isNotEmpty)
+              FilledButton.icon(
+                onPressed: state.processing ? null : runProcess,
               icon: state.processing
                   ? const SizedBox(
                       height: 16,
@@ -276,6 +285,25 @@ class _ScheduledRow extends StatelessWidget {
                   style: theme.textTheme.bodySmall
                       ?.copyWith(fontSize: 12, color: AppColors.textMuted),
                 ),
+                if (!item.autoPost) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentSoft,
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    child: Text(
+                      'Напоминание',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accent,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 2),
                 Text(
                   '${frequencyLabel(item.frequency)} · $when',
