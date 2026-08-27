@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createDb, type DB } from '../src/db/index.js';
 import { initializeDatabase } from '../src/db/ddl.js';
-import { getLoanCurrentDebt, getLoanSummary, loanToDebtSnapshot, generateAmortizationSchedule } from '../src/loan/engine.js';
+import { getLoanCurrentDebt, getLoanPaymentsObserved, getLoanSummary, loanToDebtSnapshot, generateAmortizationSchedule } from '../src/loan/engine.js';
 
 function createAndSeedDb(): DB {
   const db = createDb(':memory:');
@@ -55,10 +55,14 @@ describe('Loan Engine', () => {
   });
 
   describe('getLoanCurrentDebt', () => {
-    it('computes current debt = principal - payments', () => {
-      const debt = getLoanCurrentDebt(db, 'loan-halyk');
-      // 2,000,000 - 85,000 - 85,000 = 1,830,000 tiyns
-      expect(debt).toBe(200000000 - 8500000 - 8500000);
+    // Раньше здесь ожидалось «тело минус платежи по категории», и это было
+    // неверно: платёж по кредиту под 18,5% — тело плюс проценты, а долг
+    // уменьшается только на тело. Два списания по 85 000 ₸ гасят заметно меньше,
+    // и сколько именно — знает только график амортизации. Долг опирается на
+    // paidOffCents, а сами списания видны через getLoanPaymentsObserved.
+    it('равен телу минус погашенное, а списания в него не входят', () => {
+      expect(getLoanCurrentDebt(db, 'loan-halyk')).toBe(200000000);
+      expect(getLoanPaymentsObserved(db, 'loan-halyk')).toBe(17000000);
     });
 
     it('returns 0 for unknown loan', () => {
@@ -76,7 +80,7 @@ describe('Loan Engine', () => {
       const summary = getLoanSummary(db, 'loan-halyk');
       expect(summary).not.toBeNull();
       expect(summary!.name).toBe('Халық кредит');
-      expect(summary!.currentDebtCents).toBe(183000000);
+      expect(summary!.currentDebtCents).toBe(200000000);
       expect(summary!.principalCents).toBe(200000000);
     });
 
@@ -90,7 +94,7 @@ describe('Loan Engine', () => {
       const snapshot = loanToDebtSnapshot(db, 'loan-halyk');
       expect(snapshot).not.toBeNull();
       expect(snapshot!.type).toBe('loan');
-      expect(snapshot!.balanceCents).toBe(183000000);
+      expect(snapshot!.balanceCents).toBe(200000000);
       expect(snapshot!.aprBps).toBe(1850);
       expect(snapshot!.minPaymentCents).toBe(8500000);
     });

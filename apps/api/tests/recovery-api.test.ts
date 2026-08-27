@@ -140,8 +140,13 @@ describe('loan balances', () => {
     });
 
     expect(data.currentDebtCents).toBe(10051500);
+    expect(data.paymentsObservedCents).toBe(0);
   });
 
+  // Гарантия «платежи считаются только с даты старта» осталась, но переехала:
+  // теперь она про paymentsObservedCents. Из остатка долга списания ушли —
+  // платёж по кредиту под процент гасит тело лишь частично, и вычитать из
+  // долга всю сумму было неверно. Остаток опирается на paidOffCents.
   it('counts payments made since the loan started', async () => {
     const { data: loan } = await api(app, 'POST', '/api/v1/loans', {
       ...baseLoan, principalCents: 10051500, startDate: '2026-08-03',
@@ -152,7 +157,8 @@ describe('loan balances', () => {
     });
 
     const { data } = await api(app, 'GET', `/api/v1/loans/${loan.id}`);
-    expect(data.currentDebtCents).toBe(10051500 - 3350500);
+    expect(data.paymentsObservedCents).toBe(3350500);
+    expect(data.currentDebtCents).toBe(10051500);
   });
 
   it('accepts a balance quoted straight from the statement', async () => {

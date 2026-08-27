@@ -5,17 +5,41 @@ import { loans, transactions } from '../db/schema.js';
 import type { LoanSummary, AmortizationEntry } from './types.js';
 import type { DebtSnapshot } from '../debt/types.js';
 
+/**
+ * Остаток долга: тело минус погашенное, и только.
+ *
+ * Раньше отсюда вычиталась ещё и активность привязанной категории, и платёж
+ * уходил в минус дважды — через `paidOffCents` и через транзакцию. На
+ * беспроцентных рассрочках это не всплывало: транзакций в их категориях нет.
+ *
+ * Но ошибка глубже двойного счёта. Платёж по кредиту под процент состоит из
+ * тела и процентов, а долг уменьшается только на тело: 136 648,65 ₸ списания
+ * против 35 855,21 ₸ тела. Вычитать из долга всю сумму платежа неверно даже
+ * там, где `paidOffCents` никто не трогает.
+ *
+ * Разложить платёж без графика амортизации нельзя, поэтому долг опирается на
+ * `paidOffCents`, а фактические списания отдаются отдельно
+ * ([getLoanPaymentsObserved]) — расхождение должно быть видно, а не спрятано.
+ * Автоматическое разнесение — отдельная задача (PFM-49).
+ */
 export function getLoanCurrentDebt(db: DB, loanId: string): number {
   const loan = db.select().from(loans).where(eq(loans.id, loanId)).get();
   if (!loan) return 0;
 
-  const openingCents = Math.max(0, loan.principalCents - loan.paidOffCents);
-  if (!loan.categoryId) return openingCents;
+  return Math.max(0, loan.principalCents - loan.paidOffCents);
+}
 
-  // Payments count only from the loan's start date onward. A category is reused
-  // across loans, so spending that predates this loan belongs to whatever it
-  // replaced — counting it wiped out brand-new loans and every loan whose
-  // startDate is in the future.
+/**
+ * Сколько реально ушло по привязанной категории с даты старта кредита —
+ * тело вместе с процентами.
+ *
+ * Считается от `startDate`: категория переиспользуется между кредитами, и
+ * траты, предшествующие этому кредиту, принадлежат тому, который он сменил.
+ */
+export function getLoanPaymentsObserved(db: DB, loanId: string): number {
+  const loan = db.select().from(loans).where(eq(loans.id, loanId)).get();
+  if (!loan || !loan.categoryId) return 0;
+
   const result = db
     .select({ total: sql<number>`COALESCE(SUM(${transactions.amountCents}), 0)` })
     .from(transactions)
@@ -29,11 +53,11 @@ export function getLoanCurrentDebt(db: DB, loanId: string): number {
     )
     .get();
 
-  // Outflows are negative, so payments are the negated sum. A category left in
-  // net inflow means nothing was repaid, not that the debt grew.
-  const totalPayments = Math.max(0, -(result?.total ?? 0));
-  return Math.max(0, openingCents - totalPayments);
+  // Списания отрицательны, поэтому платежи — это сумма со знаком минус.
+  // Категория в чистом плюсе означает, что не платили ничего, а не что долг вырос.
+  return Math.max(0, -(result?.total ?? 0));
 }
+
 
 export function getLoanSummary(db: DB, loanId: string): LoanSummary | null {
   const loan = db.select().from(loans).where(eq(loans.id, loanId)).get();

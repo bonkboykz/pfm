@@ -6,6 +6,7 @@ import {
   loans,
   formatMoney,
   getLoanCurrentDebt,
+  getLoanPaymentsObserved,
   generateAmortizationSchedule,
 } from '@pfm/engine';
 import { notFound, validationError } from '../errors.js';
@@ -60,7 +61,11 @@ const closeLoanSchema = z.object({
   reason: z.string().optional(),
 });
 
-function formatLoan(loan: typeof loans.$inferSelect, currentDebtCents: number) {
+function formatLoan(
+  loan: typeof loans.$inferSelect,
+  currentDebtCents: number,
+  paymentsObservedCents = 0,
+) {
   return {
     id: loan.id,
     name: loan.name,
@@ -85,6 +90,12 @@ function formatLoan(loan: typeof loans.$inferSelect, currentDebtCents: number) {
     closureReason: loan.closureReason,
     currentDebtCents,
     currentDebtFormatted: formatMoney(currentDebtCents),
+    // Сколько реально ушло по привязанной категории с даты старта — тело
+    // вместе с процентами. В остаток долга это не входит: платёж уменьшает
+    // тело только на свою процентную долю. Число здесь, чтобы расхождение
+    // между выплаченным и погашенным было видно, а не пряталось.
+    paymentsObservedCents,
+    paymentsObservedFormatted: formatMoney(paymentsObservedCents),
   };
 }
 
@@ -101,7 +112,7 @@ export function loanRoutes(db: DB) {
 
     const result = allLoans.map((loan) => {
       const currentDebtCents = getLoanCurrentDebt(db, loan.id);
-      return formatLoan(loan, currentDebtCents);
+      return formatLoan(loan, currentDebtCents, getLoanPaymentsObserved(db, loan.id));
     });
 
     const activeDebt = result
@@ -166,7 +177,7 @@ export function loanRoutes(db: DB) {
       .get();
 
     const currentDebtCents = getLoanCurrentDebt(db, created.id);
-    return c.json(formatLoan(created, currentDebtCents), 201);
+    return c.json(formatLoan(created, currentDebtCents, getLoanPaymentsObserved(db, created.id)), 201);
   });
 
   // GET /:id — single loan. A closed loan is still readable; isActive says so.
@@ -176,7 +187,7 @@ export function loanRoutes(db: DB) {
     if (!loan) throw notFound('Loan', id);
 
     const currentDebtCents = getLoanCurrentDebt(db, loan.id);
-    return c.json(formatLoan(loan, currentDebtCents));
+    return c.json(formatLoan(loan, currentDebtCents, getLoanPaymentsObserved(db, loan.id)));
   });
 
   // POST /:id/close — settle a loan, keeping it on the books
@@ -211,7 +222,7 @@ export function loanRoutes(db: DB) {
       .run();
 
     const updated = db.select().from(loans).where(eq(loans.id, id)).get()!;
-    return c.json(formatLoan(updated, getLoanCurrentDebt(db, updated.id)));
+    return c.json(formatLoan(updated, getLoanCurrentDebt(db, updated.id), getLoanPaymentsObserved(db, updated.id)));
   });
 
   // PATCH /:id — update loan, including reactivating a closed one
@@ -251,7 +262,7 @@ export function loanRoutes(db: DB) {
 
     const updated = db.select().from(loans).where(eq(loans.id, id)).get()!;
     const currentDebtCents = getLoanCurrentDebt(db, updated.id);
-    return c.json(formatLoan(updated, currentDebtCents));
+    return c.json(formatLoan(updated, currentDebtCents, getLoanPaymentsObserved(db, updated.id)));
   });
 
   // DELETE /:id — deactivate. Prefer POST /:id/close, which also settles the

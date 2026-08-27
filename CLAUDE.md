@@ -123,8 +123,13 @@ Rules learned from a real restore-after-five-months session:
 - **`create_category` / `create_category_group` are idempotent.** A retry returns the
   existing row with `alreadyExisted: true` instead of minting a duplicate with a
   new id.
-- **Loan payments count only from `startDate`.** Categories get reused across loans;
-  counting a category's whole history zeroed out new and future-dated loans.
+- **Остаток долга — это `principalCents − paidOffCents`, и только.** Раньше из него
+  вычиталась ещё и активность привязанной категории: платёж уходил в минус дважды,
+  а при ставке выше нуля вычиталась вся сумма списания, хотя тело уменьшается лишь
+  на свою долю. Фактические списания отдаются отдельно, в `paymentsObservedCents`,
+  и считаются **только с `startDate`** — категории переиспользуются между кредитами,
+  и чужая история обнуляла новые кредиты. Разносить платёж на тело и проценты
+  автоматически — отдельная задача (PFM-49).
 - **`close_loan` ≠ `delete_loan`.** Closing settles the balance so the loan leaves the
   debt totals; deleting only hides it and leaves the balance in every aggregate.
 - **Never correct a balance with offsetting transactions.** `POST /accounts/:id/reconcile`
