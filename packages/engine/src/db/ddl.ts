@@ -104,6 +104,7 @@ export function applySchema(sqlite: Database.Database): void {
       category_id TEXT REFERENCES categories(id),
       transfer_account_id TEXT REFERENCES accounts(id),
       memo TEXT,
+      auto_post INTEGER NOT NULL DEFAULT 1,
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -218,6 +219,10 @@ export function applyColumnMigrations(sqlite: Database.Database): void {
     'ALTER TABLE transactions ADD COLUMN original_currency TEXT',
     'ALTER TABLE transactions ADD COLUMN quoted_rate_cents INTEGER',
     'ALTER TABLE transactions ADD COLUMN is_estimated INTEGER NOT NULL DEFAULT 0',
+    // Автопроведение — свойство правила. Существующие правила получают 1,
+    // чтобы поведение не изменилось молча; выключается точечно там, где
+    // сумма платежа не равна тому, что он гасит.
+    'ALTER TABLE scheduled_transactions ADD COLUMN auto_post INTEGER NOT NULL DEFAULT 1',
   ];
 
   for (const sql of statements) {

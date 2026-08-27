@@ -6,7 +6,10 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  # Монорепо: типы проверяются сборкой, а не только тестами. Ошибка типов
+  # раньше доезжала до main — тесты зелёные, а `pnpm build` падал, и это
+  # всплывало уже на выкатке Railway.
+  server:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,4 +19,22 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm test
+
+  # Мобильный клиент не проверялся в CI вообще: его тесты и анализатор
+  # запускались только локально.
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

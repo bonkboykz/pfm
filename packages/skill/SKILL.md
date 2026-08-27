@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.7.1
+version: 0.8.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -793,11 +793,50 @@ curl -s -X POST "$PFM_API_URL/api/v1/scheduled" \
   }' | jq
 ```
 
+### Reminder-only rules (`autoPost: false`)
+
+A rule normally posts its transaction the moment `process` reaches its date.
+That is right for a fixed subscription and wrong for a loan payment: the money
+that leaves the account and the debt that goes away are two different numbers,
+and splitting them needs the amortisation schedule, which the rule does not
+have. It is also wrong whenever you might have paid early by hand — an
+auto-posted copy of a bill you already entered is a duplicate that quietly
+doubles the month's spending.
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/scheduled" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "ACCOUNT_ID",
+    "frequency": "monthly",
+    "nextDate": "2026-09-20",
+    "amountCents": -14200000,
+    "payeeName": "Halyk",
+    "memo": "Платёж по кредиту",
+    "autoPost": false
+  }' | jq
+
+# Switch an existing rule over without losing it
+curl -s -X PATCH "$PFM_API_URL/api/v1/scheduled/RULE_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "autoPost": false }' | jq
+```
+
+Such a rule still shows up in `GET /scheduled` with `autoPost: false`, but
+`process` neither creates a transaction nor advances `nextDate` — moving the
+date would claim a payment happened. It comes back in `reminders[]` instead,
+and stays there every run until you enter the transaction and move the date
+yourself.
+
 ### Process all due transactions
 
 ```bash
 curl -s -X POST -H "$AUTH" "$PFM_API_URL/api/v1/scheduled/process" | jq
 ```
+
+The response is `{ created, transactions[], reminders[], errors[] }`. Do not
+read `created: 0` as "nothing was due" — check `reminders[]` before saying so,
+or you will report a quiet month while a loan payment sits unrecorded.
 
 ### Process with specific date
 

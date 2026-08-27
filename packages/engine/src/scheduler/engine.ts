@@ -64,6 +64,7 @@ export function getUpcoming(db: DB, daysAhead = 7, asOfDate?: string): Scheduled
     transferAccountId: row.transfer_account_id,
     transferAccountName: row.transfer_account_name,
     memo: row.memo,
+    autoPost: !!row.auto_post,
     isActive: !!row.is_active,
   }));
 }
@@ -81,7 +82,7 @@ export function processDue(db: DB, asOfDate?: string): ProcessResult {
       AND st.next_date <= ?
   `).all(today) as any[];
 
-  const result: ProcessResult = { created: 0, transactions: [], errors: [] };
+  const result: ProcessResult = { created: 0, transactions: [], reminders: [], errors: [] };
 
   const insertTx = db.$client.prepare(`
     INSERT INTO transactions (id, account_id, date, amount_cents, payee_name, category_id, transfer_account_id, transfer_transaction_id, memo, cleared, approved, is_deleted, created_at, updated_at)
@@ -93,6 +94,13 @@ export function processDue(db: DB, asOfDate?: string): ProcessResult {
   `);
 
   for (const row of dueRows) {
+    // Правило-напоминание: ничего не создаём и дату не двигаем — сдвинув её,
+    // механизм соврал бы, что платёж проведён.
+    if (!row.auto_post) {
+      result.reminders.push({ scheduledId: row.id, date: row.next_date });
+      continue;
+    }
+
     try {
       if (row.transfer_account_id) {
         // Transfer: create paired transactions

@@ -438,7 +438,7 @@ export const tools: ToolDef[] = [
   {
     name: 'create_scheduled',
     description:
-      'Create a recurring transaction. frequency is weekly, biweekly, monthly or yearly; nextDate (YYYY-MM-DD) is the next occurrence. amountCents is tiyn, negative for spending. Supplying transferAccountId schedules a recurring transfer.',
+      'Create a recurring transaction. frequency is weekly, biweekly, monthly or yearly; nextDate (YYYY-MM-DD) is the next occurrence. amountCents is tiyn, negative for spending. Supplying transferAccountId schedules a recurring transfer. Pass autoPost false for a reminder-only rule: process_scheduled then reports it instead of posting it — use that for loan payments, where the amount paid and the debt repaid are different numbers.',
     schema: z.object({
       accountId: z.string().min(1),
       frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']),
@@ -448,6 +448,7 @@ export const tools: ToolDef[] = [
       categoryId: z.string().optional(),
       transferAccountId: z.string().optional(),
       memo: z.string().optional(),
+      autoPost: z.boolean().optional(),
     }),
     method: 'POST',
     path: () => '/api/v1/scheduled',
@@ -456,9 +457,10 @@ export const tools: ToolDef[] = [
   {
     name: 'update_scheduled',
     description:
-      'Update a scheduled transaction, including accountId — a rule created against the wrong account is fixed here, not by deleting it and creating a new one. Only supplied fields change; nullable fields accept null to clear them.',
+      'Update a scheduled transaction, including accountId — a rule created against the wrong account is fixed here, not by deleting it and creating a new one. Setting autoPost false turns it into a reminder without losing its history. Only supplied fields change; nullable fields accept null to clear them.',
     schema: z.object({
       id: z.string(),
+      autoPost: z.boolean().optional(),
       accountId: z.string().min(1).optional(),
       frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']).optional(),
       nextDate: z.string().optional(),
@@ -483,7 +485,7 @@ export const tools: ToolDef[] = [
   {
     name: 'process_scheduled',
     description:
-      'Create real transactions for every scheduled item due on or before asOfDate (YYYY-MM-DD, defaults to today) and advance each to its next occurrence. This writes to the ledger — confirm with the user before calling it.',
+      'Create real transactions for every scheduled item due on or before asOfDate (YYYY-MM-DD, defaults to today) and advance each to its next occurrence. Rules with autoPost false are left untouched and come back in reminders[] — they still need a transaction entered by hand. This writes to the ledger — confirm with the user before calling it.',
     schema: z.object({ asOfDate: z.string().optional() }),
     method: 'POST',
     path: () => '/api/v1/scheduled/process',

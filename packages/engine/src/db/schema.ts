@@ -123,6 +123,16 @@ export const scheduledTransactions = sqliteTable('scheduled_transactions', {
   categoryId: text('category_id').references(() => categories.id),
   transferAccountId: text('transfer_account_id').references(() => accounts.id),
   memo: text('memo'),
+  /**
+   * Создавать ли операцию автоматически при наступлении даты.
+   *
+   * Выключено — правило работает напоминанием: `processDue` его не трогает и
+   * дату не двигает. Нужно там, где сумма списания не равна тому, что оно
+   * гасит: платёж по кредиту уходит целиком, а тело долга уменьшается лишь
+   * на свою долю, и разнести это без графика нельзя.
+   */
+  autoPost: integer('auto_post', { mode: 'boolean' }).notNull().default(true),
+
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),

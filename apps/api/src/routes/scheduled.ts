@@ -15,9 +15,11 @@ const createScheduledSchema = z.object({
   categoryId: z.string().optional(),
   transferAccountId: z.string().optional(),
   memo: z.string().optional(),
+  autoPost: z.boolean().optional(),
 });
 
 const updateScheduledSchema = z.object({
+  autoPost: z.boolean().optional(),
   // Счёт списания меняется как всё остальное. Без этого правило, заведённое
   // не на тот счёт, чинилось только удалением и созданием заново —
   // необратимой операцией ради опечатки.
@@ -96,6 +98,7 @@ export function scheduledRoutes(db: DB) {
     const created = db
       .insert(scheduledTransactions)
       .values({
+        autoPost: data.autoPost ?? true,
         accountId: data.accountId,
         frequency: data.frequency,
         nextDate: data.nextDate,
