@@ -98,7 +98,12 @@ worklog-ручек — **time tracking это фича Plane Pro**, в Community
 - Ready to Assign: `total_inflows - total_assigned` (all time through target month)
 - Transfers: two paired transactions with opposite amounts, `category_id = null`
 - Credit card purchases: on-budget, DO appear in category activity
-- Transfers: DO NOT appear in category activity (`transfer_account_id IS NULL` filter)
+- Transfers within one side of the budget: DO NOT appear in category activity —
+  they carry no category, and the `category_id IS NOT NULL` filter drops them
+- Transfers crossing the budget boundary: DO carry a category on the on-budget
+  side and DO count as activity. Without it the money leaves the accounts while
+  the budget still promises it, and `RTA + available = on-budget balances`
+  breaks by the size of the transfer
 - Soft delete: `is_deleted = true` (never physical delete)
 
 ### Engine Pattern

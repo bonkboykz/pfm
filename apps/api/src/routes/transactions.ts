@@ -400,11 +400,41 @@ export function transactionRoutes(db: DB) {
     const sourceAcct = db.select().from(accounts).where(eq(accounts.id, data.accountId)).get();
     if (!sourceAcct) throw unknownReference('accountId', data.accountId, 'GET /api/v1/accounts');
     if (data.categoryId) requireCategoryRef(db, data.categoryId);
+    if (data.categoryId && !data.transferAccountId && !sourceAcct.onBudget) {
+      throw validationError(
+        `Счёт "${sourceAcct.name}" вне бюджета, его операции не относятся к категориям. ` +
+          'Сейчас такая категория просто игнорируется, но включение счёта в бюджет ' +
+          'превратило бы её в трату задним числом.',
+      );
+    }
 
     // Transfer flow
     if (data.transferAccountId) {
       const targetAcct = db.select().from(accounts).where(eq(accounts.id, data.transferAccountId)).get();
       if (!targetAcct) throw unknownReference('transferAccountId', data.transferAccountId, 'GET /api/v1/accounts');
+
+      // Пересёк ли перевод границу бюджета. Если да — деньги её покинули или
+      // вошли в неё, и это трата или доход, а не перекладывание.
+      const crossesBoundary = sourceAcct.onBudget !== targetAcct.onBudget;
+
+      if (crossesBoundary && !data.categoryId) {
+        throw validationError(
+          'Перевод между бюджетным и внебюджетным счётом требует categoryId: ' +
+            'деньги покидают бюджет, и без категории они пропали бы из него незаметно. ' +
+            'Для прихода извне подойдёт "ready-to-assign".',
+        );
+      }
+
+      if (!crossesBoundary && data.categoryId) {
+        throw validationError(
+          'Перевод между двумя счетами по одну сторону бюджета не принимает categoryId: ' +
+            'ничего не потрачено, деньги лишь переложены.',
+        );
+      }
+
+      // Категория живёт на бюджетной стороне пары — только её видит бюджет.
+      const categoryOnSource = crossesBoundary && sourceAcct.onBudget ? data.categoryId ?? null : null;
+      const categoryOnTarget = crossesBoundary && targetAcct.onBudget ? data.categoryId ?? null : null;
 
       const tx1Id = createId();
       const tx2Id = createId();
@@ -417,7 +447,7 @@ export function transactionRoutes(db: DB) {
           date: data.date,
           amountCents: data.amountCents,
           payeeName: `Transfer: ${targetAcct.name}`,
-          categoryId: null,
+          categoryId: categoryOnSource,
           transferAccountId: data.transferAccountId,
           transferTransactionId: tx2Id,
           memo: data.memo ?? null,
@@ -434,7 +464,7 @@ export function transactionRoutes(db: DB) {
           date: data.date,
           amountCents: -data.amountCents,
           payeeName: `Transfer: ${sourceAcct.name}`,
-          categoryId: null,
+          categoryId: categoryOnTarget,
           transferAccountId: data.accountId,
           transferTransactionId: tx1Id,
           memo: data.memo ?? null,

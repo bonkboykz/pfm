@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.9.0
+version: 0.10.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -293,7 +293,35 @@ curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
   }' | jq
 ```
 
-Note: transfers automatically create TWO paired transactions. No category needed.
+Transfers write TWO paired transactions. Between accounts on the same side of
+the budget no category is involved — nothing was spent, the money only moved —
+and passing `categoryId` is rejected.
+
+**Crossing the budget boundary needs a category.** A transfer from an on-budget
+account to an off-budget one (cash you stop tracking, a brokerage, an account
+you follow separately) takes money out of the budget for good, so it is
+spending and has to say from which category:
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "ON_BUDGET_ID",
+    "date": "2026-09-01",
+    "amountCents": -5000000,
+    "transferAccountId": "OFF_BUDGET_ID",
+    "categoryId": "CATEGORY_ID",
+    "memo": "Отложил в брокерский"
+  }' | jq
+```
+
+Money coming the other way — off-budget into the budget — is income, so use
+`"categoryId": "ready-to-assign"`. Either way the API puts the category on
+whichever side is on-budget; the other side stays uncategorised.
+
+Without this the transfer would be invisible to the budget while plainly
+visible in the balance, and `RTA + everything available` would stop matching
+the money in the accounts by exactly its size.
 
 ### Delete transaction
 

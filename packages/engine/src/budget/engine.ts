@@ -148,7 +148,6 @@ function monthCells(db: DB, month: string): Map<string, Map<string, MonthCell>> 
     FROM transactions t JOIN accounts a ON a.id = t.account_id
     WHERE a.on_budget = 1 AND t.is_deleted = 0
       AND t.category_id IS NOT NULL AND t.category_id != 'ready-to-assign'
-      AND t.transfer_account_id IS NULL
       AND t.date <= ?
     GROUP BY t.category_id, month
   `).all(monthEnd) as { category_id: string; month: string; cash: number; credit: number }[];
@@ -336,7 +335,6 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
     FROM transactions t JOIN accounts a ON a.id = t.account_id
     WHERE a.on_budget = 1 AND t.is_deleted = 0
       AND t.category_id IS NOT NULL AND t.category_id != 'ready-to-assign'
-      AND t.transfer_account_id IS NULL
       AND t.date >= ? AND t.date <= ?
     GROUP BY t.category_id
   `).all(monthStart, monthEnd) as CategoryAggRow[];
@@ -894,14 +892,15 @@ export function getRtaReconciliation(db: DB, month: string) {
 
   const { totalInflowCents, totalAssignedCents, readyToAssignCents } = getReadyToAssign(db, month);
 
-  // Categorised, non-transfer spending on on-budget accounts — the other half
-  // of what the budget accounts for.
+  // Categorised spending on on-budget accounts — the other half of what the
+  // budget accounts for. A transfer counts here too when it carries a category:
+  // that only happens when it crossed the budget boundary, and then the money
+  // really did leave.
   const activityRow = db.$client.prepare(`
     SELECT COALESCE(SUM(t.amount_cents), 0) as total
     FROM transactions t JOIN accounts a ON a.id = t.account_id
     WHERE a.on_budget = 1 AND t.is_deleted = 0
       AND t.category_id IS NOT NULL AND t.category_id != 'ready-to-assign'
-      AND t.transfer_account_id IS NULL
       AND t.date <= ?
   `).get(monthEnd) as { total: number };
 
@@ -916,14 +915,16 @@ export function getRtaReconciliation(db: DB, month: string) {
       AND t.date <= ?
   `).get(monthEnd) as { total: number; count: number };
 
-  // Transfers that crossed the on-budget boundary drain budgeted money into
-  // accounts the budget does not track.
+  // Transfers that crossed the on-budget boundary without a category: money
+  // the budget still believes it has. With a category they are ordinary
+  // spending and are already counted above.
   const crossBoundaryRow = db.$client.prepare(`
     SELECT COALESCE(SUM(t.amount_cents), 0) as total
     FROM transactions t
       JOIN accounts a ON a.id = t.account_id
       JOIN accounts b ON b.id = t.transfer_account_id
     WHERE a.on_budget = 1 AND b.on_budget = 0
+      AND t.category_id IS NULL
       AND t.is_deleted = 0 AND t.date <= ?
   `).get(monthEnd) as { total: number };
 
