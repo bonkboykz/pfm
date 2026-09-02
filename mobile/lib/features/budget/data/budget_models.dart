@@ -309,14 +309,39 @@ class RtaOverview {
       );
 }
 
+/// Возраст денег — четвёртое правило YNAB.
+///
+/// [days] равен null, когда мерить нечего. Показывать в этом случае ноль
+/// нельзя: ноль читается как «трачу ровно с колёс», то есть утверждение о
+/// финансах, а не о пробеле в данных.
+class AgeOfMoney {
+  final int? days;
+  final int sampleSize;
+
+  const AgeOfMoney({required this.days, required this.sampleSize});
+
+  factory AgeOfMoney.fromJson(Map<String, dynamic> json) => AgeOfMoney(
+        days: (json['days'] as num?)?.toInt(),
+        sampleSize: (json['sampleSize'] as num?)?.toInt() ?? 0,
+      );
+
+  /// Больше тридцати — месяц живётся на прошлый доход.
+  bool get isMature => (days ?? 0) >= 30;
+}
+
 class BudgetData {
   final BudgetMonth month;
   final RtaOverview? overview;
+  final AgeOfMoney? age;
 
-  const BudgetData({required this.month, this.overview});
+  const BudgetData({required this.month, this.overview, this.age});
 
-  BudgetData copyWith({BudgetMonth? month, RtaOverview? overview}) =>
-      BudgetData(month: month ?? this.month, overview: overview ?? this.overview);
+  BudgetData copyWith({BudgetMonth? month, RtaOverview? overview, AgeOfMoney? age}) =>
+      BudgetData(
+        month: month ?? this.month,
+        overview: overview ?? this.overview,
+        age: age ?? this.age,
+      );
 
   /// Only worth surfacing when a later month is tighter than the one on screen.
   bool get hasFutureSqueeze {

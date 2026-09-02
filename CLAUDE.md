@@ -117,6 +117,15 @@ export function assignToCategory(db: DB, categoryId: string, month: string, amou
 
 This lets apps/api, apps/mcp, and tests each create their own db instance.
 
+### Age of Money
+
+Четвёртое правило YNAB живёт в `packages/engine/src/budget/age.ts`, отдельно от
+`engine.ts`: это метрика по денежному потоку, а не по бюджету, и общих данных
+у них нет. FIFO по бюджетным счетам, среднее по последним десяти списаниям.
+Перевод между двумя своими бюджетными счетами — не приход и не расход: деньги
+переложились и стареть не перестали. `null` вместо нуля, когда мерить нечего —
+ноль означал бы «трачу с колёс», то есть утверждение о финансах.
+
 ### Recovery & Data Integrity
 
 Rules learned from a real restore-after-five-months session:
@@ -164,7 +173,7 @@ duplicated across ten files and every schema change broke them one suite at a ti
 
 ### MCP Pattern
 
-`@pfm/mcp` owns a declarative table of 61 tools; each maps arguments to an HTTP
+`@pfm/mcp` owns a declarative table of 62 tools; each maps arguments to an HTTP
 method, path and body. `createMcpServer(dispatch)` takes the dispatch function as
 its first argument, the same dependency-injection shape engine functions use for
 `db`. The API supplies a dispatch that routes into an internal Hono app built from

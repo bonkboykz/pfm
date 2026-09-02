@@ -14,7 +14,19 @@ class BudgetRepository {
     } catch (_) {
       overview = null;
     }
-    return BudgetData(month: budget, overview: overview);
+    // То же и с возрастом денег: метрика справочная, экран без неё живёт.
+    AgeOfMoney? age;
+    try {
+      age = await ageOfMoney();
+    } catch (_) {
+      age = null;
+    }
+    return BudgetData(month: budget, overview: overview, age: age);
+  }
+
+  Future<AgeOfMoney> ageOfMoney() async {
+    final json = await _api.get('/api/v1/budget/age-of-money');
+    return AgeOfMoney.fromJson((json as Map).cast<String, dynamic>());
   }
 
   Future<BudgetMonth> monthOnly(String month) async {

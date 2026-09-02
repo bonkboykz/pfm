@@ -172,6 +172,14 @@ export const tools: ToolDef[] = [
     path: (a) => `/api/v1/budget/${a.month}`,
   },
   {
+    name: 'get_age_of_money',
+    description:
+      'Age of Money — the fourth YNAB rule. How many days a tenge sits in the accounts before it is spent, resolved FIFO: every outflow consumes the oldest untouched inflows. Above 30 means the month runs on last month\'s income and payday stops being an event. Transfers between two on-budget accounts count as neither inflow nor outflow. days is null when there is nothing to measure — report that as missing data, never as zero, which would claim the user lives hand to mouth.',
+    schema: z.object({ asOf: z.string().optional() }),
+    method: 'GET',
+    path: (a) => `/api/v1/budget/age-of-money${qs({ asOf: a.asOf })}`,
+  },
+  {
     name: 'get_rta_overview',
     description:
       'Ready to Assign across a range of months at once, starting at optional `from` (YYYY-MM). Use this instead of calling get_ready_to_assign month by month when diagnosing where money went missing — RTA is cumulative, so a single month in isolation misleads.',

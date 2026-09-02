@@ -121,7 +121,13 @@ final rtaRow = find.widgetWithText(ListTile, 'Готово к распредел
 
 /// Открывает «Покрыть перерасход» по «Продуктам» и доходит до списка источников.
 Future<void> _openSourcePicker(WidgetTester tester) async {
-  await tester.tap(find.byIcon(LucideIcons.arrowRightCircle));
+  // Карточка RTA растёт вместе с тем, что на ней показывают, и строка
+  // категории уезжает за нижний край окна теста. Прокрутка к ней надёжнее,
+  // чем надежда, что всё поместится.
+  final cover = find.byIcon(LucideIcons.arrowRightCircle);
+  await tester.ensureVisible(cover);
+  await tester.pumpAndSettle();
+  await tester.tap(cover);
   await tester.pumpAndSettle();
   expect(find.text('Покрыть перерасход'), findsOneWidget);
 

@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../core/dates/months.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
+import '../../../core/text/plural.dart';
 import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../cubit/budget_cubit.dart';
@@ -356,6 +357,10 @@ class _RtaCard extends StatelessWidget {
                   ),
                 ],
               ),
+              if (data.age != null) ...[
+                const SizedBox(height: 12),
+                _AgeOfMoneyLine(age: data.age!),
+              ],
               if (data.hasFutureSqueeze) ...[
                 const SizedBox(height: 14),
                 _FutureSqueeze(overview: data.overview!),
@@ -388,6 +393,67 @@ class _RtaCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Возраст денег рядом с RTA.
+///
+/// RTA отвечает, сколько денег без работы; возраст — насколько они свои, а не
+/// аванс под следующую зарплату. Без второго числа месяц, прожитый на прошлый
+/// доход, и месяц, дотянутый до аванса, выглядят одинаково.
+class _AgeOfMoneyLine extends StatelessWidget {
+  const _AgeOfMoneyLine({required this.age});
+
+  final AgeOfMoney age;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final days = age.days;
+
+    // Прочерк, а не ноль: ноль здесь читался бы как «трачу ровно с колёс»,
+    // то есть утверждение о финансах, а не о нехватке данных.
+    final value = days == null
+        ? '—'
+        : '$days ${plural(days, "день", "дня", "дней")}';
+    final hint = days == null
+        ? 'пока не из чего посчитать'
+        : (age.isMature
+            ? 'месяц живётся на прошлый доход'
+            : 'деньги тратятся почти сразу после прихода');
+
+    return Row(
+      children: [
+        const Icon(LucideIcons.hourglass, size: 14, color: AppColors.textMuted),
+        const SizedBox(width: 8),
+        Text(
+          'Возраст денег: ',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            fontFeatures: kTabularFigures,
+            color: days == null
+                ? AppColors.textMuted
+                : (age.isMature ? AppColors.positive : AppColors.textPrimary),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            '· $hint',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(fontSize: 11, color: AppColors.textMuted),
+          ),
+        ),
+      ],
     );
   }
 }

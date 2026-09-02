@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.10.0
+version: 0.11.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -382,6 +382,29 @@ have no category, and a hidden category is never suggested.
 > **RTA varies by month.** A single month's RTA does NOT account for
 > future assignments. Always use `/rta-overview` to see the true available
 > amount across all assigned months.
+
+### Age of money — the fourth rule
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/age-of-money" | jq
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/age-of-money?asOf=2026-08-31" | jq
+```
+
+Returns `{ days, sampleSize, asOfDate, explanation }`. `days` is how long a
+tenge sits in the accounts before being spent, resolved FIFO: each outflow
+consumes the oldest untouched inflows, and the metric averages the last ten
+outflows so it describes now rather than all history. Transfers between two
+on-budget accounts are neither an inflow nor an outflow — the money did not
+arrive or leave, it moved, and it keeps ageing.
+
+Above 30 days means the month runs on last month's income and payday stops
+being an event. Near zero means outflows are timed against the next paycheck,
+which is what forces last-minute shuffling between cards.
+
+**`days` is `null` when there is nothing to measure** — no inflows, no
+outflows, or outflows with nothing to cover them. Say that the data is
+insufficient. Reporting it as `0` would claim the user lives hand to mouth,
+which is a statement about their finances, not about a gap in the ledger.
 
 ### Get RTA overview (across months)
 

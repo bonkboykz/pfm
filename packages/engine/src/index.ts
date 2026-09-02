@@ -40,6 +40,8 @@ export {
   reconcileAccount,
   findUnfundedSpending,
 } from './budget/engine.js';
+export { getAgeOfMoney } from './budget/age.js';
+export type { AgeOfMoney } from './budget/age.js';
 export { getBudgetForecast } from './budget/forecast.js';
 export type {
   BudgetForecast,

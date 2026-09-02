@@ -86,7 +86,7 @@ describe('MCP endpoint protocol', () => {
 
     expect(res.status).toBe(200);
     const payload = await res.json();
-    expect(payload.result.tools).toHaveLength(61);
+    expect(payload.result.tools).toHaveLength(62);
     const names = payload.result.tools.map((t: { name: string }) => t.name);
     expect(names).toContain('get_budget');
     expect(names).toEqual(expect.arrayContaining([

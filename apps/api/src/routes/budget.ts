@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import {
+  getAgeOfMoney,
   type DB,
   categories,
   getBudgetMonth,
@@ -20,6 +21,7 @@ import {
 import { validationError, unknownReference } from '../errors.js';
 
 const monthRegex = /^\d{4}-\d{2}$/;
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 const assignSchema = z.object({
   categoryId: z.string().min(1),
@@ -196,6 +198,36 @@ export function budgetRoutes(db: DB) {
       minReadyToAssignCents: result.minReadyToAssignCents,
       minReadyToAssignFormatted: formatMoney(result.minReadyToAssignCents),
       minMonth: result.minMonth,
+    });
+  });
+
+  // GET /age-of-money — четвёртое правило YNAB.
+  // Перед /:month, иначе литеральный сегмент съедается параметром.
+  router.get('/age-of-money', (c) => {
+    const asOf = c.req.query('asOf');
+    if (asOf && !dateRegex.test(asOf)) {
+      throw validationError('asOf must be YYYY-MM-DD');
+    }
+
+    const result = getAgeOfMoney(db, asOf);
+    if (!result) {
+      return c.json({
+        days: null,
+        sampleSize: 0,
+        asOfDate: asOf ?? new Date().toISOString().slice(0, 10),
+        // Ноль здесь означал бы «трачу ровно с колёс» — утверждение о
+        // финансах. Отсутствие данных так подавать нельзя.
+        explanation:
+          'Недостаточно данных: нужны и поступления, и траты, которые есть чем покрыть.',
+      });
+    }
+
+    return c.json({
+      ...result,
+      explanation:
+        result.days >= 30
+          ? 'Месяц живётся на прошлый доход: дата зарплаты больше ничего не решает.'
+          : 'Деньги тратятся почти сразу после прихода — расходы зависят от дня выплаты.',
     });
   });
 
