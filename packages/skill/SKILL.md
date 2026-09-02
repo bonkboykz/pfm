@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.8.0
+version: 0.9.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -940,6 +940,73 @@ curl -s -X DELETE -H "$AUTH" "$PFM_API_URL/api/v1/loans/{id}" | jq
 ---
 
 ## Personal Debts (Личные долги)
+
+**This module records who owes whom. It does not move money.** Nothing here
+touches Ready to Assign, Available or any account balance — a debt row is a
+reminder, not a transaction. The money side is separate, and getting it wrong
+is the expensive part.
+
+### Lending money: fund the category first
+
+A loan to a person is spending from a category, exactly like groceries. The
+category must hold the money **before** the loan goes out:
+
+```bash
+# 1. Give the category the money — from RTA, or moved off another category
+curl -s -X POST "$PFM_API_URL/api/v1/budget/2026-08/assign" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "categoryId": "CAT_PERSONAL_DEBTS", "amountCents": 15304000 }' | jq
+
+# 2. The loan itself
+curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "ACCOUNT_ID",
+    "date": "2026-08-11",
+    "amountCents": -15304000,
+    "payeeName": "Алдияр С.",
+    "categoryId": "CAT_PERSONAL_DEBTS",
+    "memo": "Займ, возврат до 30.08"
+  }' | jq
+
+# 3. The reminder
+curl -s -X POST "$PFM_API_URL/api/v1/debts" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "personName": "Алдияр С.", "direction": "owed",
+        "amountCents": 15304000, "dueDate": "2026-08-30" }' | jq
+```
+
+Skipping step 1 does not fail — it overspends the category. The minus is then
+absorbed at the month boundary and quietly subtracted from **next** month's
+Ready to Assign. A real case: 153 040 ₸ lent on 11 August surfaced as an
+unexplained RTA drop on 1 September, three weeks after the decision that caused
+it. `pnpm db:audit --only=unfunded` lists every month this has happened in.
+
+### Repayment goes back into the category, never into RTA
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/transactions" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "ACCOUNT_ID",
+    "date": "2026-09-06",
+    "amountCents": 15304000,
+    "payeeName": "Алдияр С.",
+    "categoryId": "CAT_PERSONAL_DEBTS"
+  }' | jq
+
+curl -s -X POST -H "$AUTH" "$PFM_API_URL/api/v1/debts/DEBT_ID/settle" | jq
+```
+
+Booking it as `ready-to-assign` would count the same money as income twice —
+once when it was earned, once when it came back — and inflate the budget by the
+size of the loan.
+
+**Compare with a currency exchange**, which looks similar and is the opposite
+case: cash converted from an off-budget account **is** new income to the
+budget, so `categoryId: "ready-to-assign"` is right there. The test is where
+the money came from — outside the budget's perimeter, or out of one of its own
+categories.
 
 ### List debts with summary
 

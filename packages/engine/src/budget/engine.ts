@@ -125,7 +125,13 @@ interface Availability {
  * Цена: формула перестала быть одним SUM и стала проходом по месяцам. Данных
  * тут десятки категорий на десятки месяцев, так что дешевле, чем звучит.
  */
-function walkAvailability(db: DB, month: string): Availability {
+/**
+ * Назначенное и активность по каждой категории, разложенные по месяцам вплоть
+ * до `month`. Общая заготовка для всех проходов по месяцам: и для переноса
+ * остатков, и для поиска непокрытых трат — считать её дважды разными
+ * запросами значило бы завести два расходящихся представления одной таблицы.
+ */
+function monthCells(db: DB, month: string): Map<string, Map<string, MonthCell>> {
   const monthEnd = `${month}-31`;
 
   const assignedRows = db.$client.prepare(`
@@ -163,6 +169,12 @@ function walkAvailability(db: DB, month: string): Availability {
     cell.credit = r.credit;
   }
 
+  return cells;
+}
+
+function walkAvailability(db: DB, month: string): Availability {
+  const cells = monthCells(db, month);
+
   const available = new Map<string, number>();
   let cashOverspentCents = new Decimal(0);
 
@@ -192,6 +204,73 @@ function walkAvailability(db: DB, month: string): Availability {
   }
 
   return { available, cashOverspentCents: cashOverspentCents.toNumber() };
+}
+
+export interface UnfundedSpending {
+  categoryId: string;
+  categoryName: string;
+  /** Месяц, на границе которого минус был поглощён. */
+  month: string;
+  /** Сколько потрачено сверх назначенного. */
+  overspentCents: number;
+  /** Часть, ушедшая из Ready to Assign: эти деньги покинули банк. */
+  cashCents: number;
+  /** Часть, ставшая долгом по карте: счёт не худел. */
+  creditCents: number;
+}
+
+/**
+ * Траты, которым никто не давал денег: категории, ушедшие в минус в уже
+ * закрытых месяцах.
+ *
+ * Само по себе поглощение перерасхода — правильное поведение, но оно молчит:
+ * заём Алдияру 153 040 ₸ прошёл по категории с нулевым остатком 11 августа, а
+ * вычелся из Ready to Assign первого сентября, когда связь с решением уже
+ * потерялась. Отчёт называет такие месяцы поимённо, чтобы падение RTA имело
+ * имя и дату.
+ *
+ * Текущий месяц не проверяется: в нём минус ещё можно закрыть назначением, и
+ * жаловаться на него значило бы требовать невозможного.
+ */
+export function findUnfundedSpending(db: DB, throughMonth: string): UnfundedSpending[] {
+  const names = new Map<string, string>(
+    (db.$client
+      .prepare(`SELECT id, name FROM categories`)
+      .all() as { id: string; name: string }[]).map((c) => [c.id, c.name]),
+  );
+
+  const cells = monthCells(db, throughMonth);
+  const found: UnfundedSpending[] = [];
+
+  for (const [categoryId, byMonth] of cells) {
+    let carry = new Decimal(0);
+
+    for (const m of [...byMonth.keys()].filter((x) => x < throughMonth).sort()) {
+      const cell = byMonth.get(m)!;
+      const end = carry.plus(cell.assigned).plus(cell.cash).plus(cell.credit);
+
+      if (end.greaterThanOrEqualTo(0)) { carry = end; continue; }
+
+      const overspend = end.abs();
+      const cashSpent = Decimal.max(0, new Decimal(cell.cash).negated());
+      const cashPart = Decimal.min(overspend, cashSpent);
+
+      found.push({
+        categoryId,
+        categoryName: names.get(categoryId) ?? categoryId,
+        month: m,
+        overspentCents: overspend.toNumber(),
+        cashCents: cashPart.toNumber(),
+        creditCents: overspend.minus(cashPart).toNumber(),
+      });
+
+      carry = overspend.minus(cashPart).negated();
+    }
+  }
+
+  return found.sort((a, b) =>
+    a.month === b.month ? a.categoryName.localeCompare(b.categoryName) : a.month.localeCompare(b.month),
+  );
 }
 
 export function getCategoryAvailable(db: DB, categoryId: string, month: string): number {

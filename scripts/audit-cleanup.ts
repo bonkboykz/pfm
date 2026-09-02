@@ -18,8 +18,14 @@
  *                signature of hand-made corrections standing in for a proper
  *                reconciliation
  *   orphans      transactions pointing at a category id that no longer resolves
+ *   unfunded     categories that went negative in a closed month — money spent
+ *                that was never assigned. Absorbing the minus is correct, but
+ *                silent: the RTA drop lands weeks after the decision that
+ *                caused it, by which time the two look unrelated.
  */
 import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { findUnfundedSpending } from '@pfm/engine';
 import { copyFileSync, existsSync } from 'node:fs';
 
 const DB_PATH = process.env.PFM_DB_PATH ?? './data/pfm.db';
@@ -392,6 +398,33 @@ function checkOrphanReferences() {
   }
 }
 
+/**
+ * Траты без назначения. Репорт-онли: чинить это скриптом нельзя — решение,
+ * откуда взять деньги задним числом, принимает человек.
+ */
+function checkUnfundedSpending() {
+  section('Unfunded spending — categories that went negative in a closed month');
+
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const rows = findUnfundedSpending(drizzle(sqlite), thisMonth);
+
+  if (rows.length === 0) {
+    console.log('none — every closed month was covered by assignments');
+    return;
+  }
+
+  for (const r of rows) {
+    const parts = [
+      r.cashCents > 0 ? `${fmt(r.cashCents)} out of Ready to Assign` : null,
+      r.creditCents > 0 ? `${fmt(r.creditCents)} onto card debt` : null,
+    ].filter(Boolean).join(', ');
+    console.log(`  ${r.month}  ${r.categoryName} — ${fmt(r.overspentCents)}  → ${parts}`);
+    findings++;
+  }
+
+  console.log('\nassign the money in that month to give the drop a name, or leave it as history');
+}
+
 // --- Run ------------------------------------------------------------------
 
 console.log(`PFM data audit — ${DB_PATH}`);
@@ -430,6 +463,7 @@ try {
   if (wanted('loans')) checkRepaidLoans();
   if (wanted('offsetting')) checkOffsettingTransactions();
   if (wanted('orphans')) checkOrphanReferences();
+  if (wanted('unfunded')) checkUnfundedSpending();
 
   section('Summary');
   console.log(`findings: ${findings}`);

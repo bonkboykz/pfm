@@ -138,9 +138,18 @@ Rules learned from a real restore-after-five-months session:
 - **Every mutation is journalled** by SQLite triggers on `transactions`,
   `monthly_budgets` and `loans`; the audit middleware groups a request's rows into
   one batch that `POST /audit/undo` can replay backwards.
+- **Заём человеку — трата из пополненной категории, его возврат — приход в неё
+  же.** Модуль `personal_debts` ни во что бюджетное не входит: это напоминалка,
+  кто кому должен. Провести заём по пустой категории не ошибка, но минус
+  поглотится на границе месяца и вычтется из RTA недели спустя, когда связь с
+  решением уже не видна. Возврат в `ready-to-assign` засчитал бы те же деньги
+  доходом дважды. Обмен валюты — обратный случай: деньги заходят из-за периметра
+  бюджета, и там `ready-to-assign` правильно.
 - `pnpm db:audit` reports duplicate categories, repaid-but-active loans, offsetting
-  transaction pairs and dangling category references; `--apply` repairs them after
-  taking a backup.
+  transaction pairs, dangling category references and unfunded spending —
+  categories that went negative in a closed month; `--apply` repairs them after
+  taking a backup (`unfunded` is report-only: откуда взять деньги задним числом,
+  решает человек).
 
 ### Schema changes
 

@@ -23,6 +23,7 @@ export {
 
 export { formatMoney, addCents, subtractCents, multiplyCents, sumCents } from './math/money.js';
 export type { CategoryBudget, BudgetMonth, AccountBalance, ReadyToAssignBreakdown } from './budget/types.js';
+export type { UnfundedSpending } from './budget/engine.js';
 export {
   getBudgetMonth,
   assignToCategory,
@@ -37,6 +38,7 @@ export {
   resetBudgetFrom,
   getRtaReconciliation,
   reconcileAccount,
+  findUnfundedSpending,
 } from './budget/engine.js';
 export { getBudgetForecast } from './budget/forecast.js';
 export type {
