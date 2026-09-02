@@ -82,6 +82,17 @@ class _Content extends StatelessWidget {
         children: [
           _SummaryCard(data: data),
           const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // Суммы здесь выглядят как остатки по счетам, но в бюджет не входят
+          // ни копейкой. Без этой строки «мне должны 303 040» читается как
+          // доступные деньги — то самое смешение, из-за которого заём уходит
+          // по пустой категории.
+          const InfoNote(
+            text: 'Долги не участвуют в бюджете: ни в Ready to Assign, '
+                'ни в остатках категорий. Это напоминание, кто кому должен. '
+                'Сам заём проводите тратой из пополненной категории, '
+                'а возврат — приходом в неё же.',
+          ),
           SwitchListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 4),
             value: state.includeSettled,

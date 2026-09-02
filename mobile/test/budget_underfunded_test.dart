@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:pfm_mobile/app/theme.dart';
+import 'package:pfm_mobile/core/dates/months.dart';
 import 'package:pfm_mobile/core/di/di.dart';
 import 'package:pfm_mobile/core/events/data_bus.dart';
 import 'package:pfm_mobile/core/network/api_client.dart';
@@ -101,7 +102,7 @@ Map<String, dynamic> _category(
     };
 
 Map<String, dynamic> _month(int rtaCents, {bool funded = false}) => {
-      'month': '2026-08',
+      'month': currentMonth(),
       'readyToAssignCents': rtaCents,
       'readyToAssignFormatted': '',
       'totalAssignedCents': 2000000,
@@ -161,7 +162,7 @@ void main() {
     expect(result.totalAddedCents, 1000000);
     expect(result.remainingUnderfundedCents, 22000000);
     expect(result.stoppedAtZeroRta, true);
-    expect(result.month.month, '2026-08');
+    expect(result.month.month, currentMonth());
   });
 
   testWidgets('кнопка зовёт assign-targets, а не собирает раздачу сама',
@@ -175,7 +176,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.posts, hasLength(1));
-    expect(api.posts.single.path, '/api/v1/budget/2026-08/assign-targets');
+    expect(api.posts.single.path, '/api/v1/budget/${currentMonth()}/assign-targets');
     expect(api.posts.single.body, {'allowNegativeRta': false});
     expect(find.textContaining('Роздано'), findsOneWidget);
   });
@@ -228,8 +229,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(api.posts, hasLength(1));
-      expect(api.posts.single.path, '/api/v1/budget/2026-08/copy-from');
-      expect(api.posts.single.body, {'fromMonth': '2026-07'});
+      expect(api.posts.single.path, '/api/v1/budget/${currentMonth()}/copy-from');
+      expect(api.posts.single.body,
+          {'fromMonth': shiftMonth(currentMonth(), -1)});
     });
 
     testWidgets('пустой источник не выдаётся за успех', (tester) async {

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:pfm_mobile/app/theme.dart';
+import 'package:pfm_mobile/core/dates/months.dart';
 import 'package:pfm_mobile/core/di/di.dart';
 import 'package:pfm_mobile/core/events/data_bus.dart';
 import 'package:pfm_mobile/core/network/api_client.dart';
@@ -76,7 +77,7 @@ Map<String, dynamic> _category(
     };
 
 Map<String, dynamic> _month() => {
-      'month': '2026-08',
+      'month': currentMonth(),
       'readyToAssignCents': 25000000,
       'readyToAssignFormatted': '250 000 ₸',
       'totalAssignedCents': 0,
@@ -140,7 +141,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.posts, hasLength(1));
-    expect(api.posts.single.path, '/api/v1/budget/2026-08/assign');
+    expect(api.posts.single.path, '/api/v1/budget/${currentMonth()}/assign');
     expect(api.posts.single.body, {
       'categoryId': 'c-rent',
       'amountCents': 3000000,
