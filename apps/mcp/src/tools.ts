@@ -349,7 +349,7 @@ export const tools: ToolDef[] = [
   {
     name: 'create_transaction',
     description:
-      'Record a transaction. amountCents is tiyn: negative for spending, positive for income. Supplying transferAccountId makes it a transfer between two accounts — the API writes both paired sides. Between two accounts on the same side of the budget it stays uncategorised and categoryId is rejected: nothing was spent, the money only moved. Crossing the budget boundary (one account on-budget, the other not) requires categoryId, because the money leaves the budget or enters it — use "ready-to-assign" for money coming in. The API puts the category on whichever side is on-budget. Omitting categoryId for a payee seen before fills in that payee\'s last category; passing it explicitly always wins. For a purchase priced in another currency on a tenge card, put the receipt amount in originalAmountCents + originalCurrency and the rate you used in quotedRateCents (tiyn per one unit, 464.02 KZT/USD is 46402), and set isEstimated until the bank statement confirms the tenge figure — never bury the rate in memo, it cannot be queried or recomputed there.',
+      'Record a transaction. amountCents is tiyn: negative for spending, positive for income. Supplying transferAccountId makes it a transfer between two accounts — the API writes both paired sides. Between two accounts on the same side of the budget it stays uncategorised and categoryId is rejected: nothing was spent, the money only moved. Crossing the budget boundary (one account on-budget, the other not) requires categoryId, because the money leaves the budget or enters it — use "ready-to-assign" for money coming in. The API puts the category on whichever side is on-budget. Omitting categoryId for a payee seen before fills in that payee\'s last category; passing it explicitly always wins. Pass splits for one purchase that belongs to several categories — a single Kaspi line paying five instalments, a supermarket run half groceries and half household. The parts must add up to amountCents exactly, there must be at least two, and the transaction itself carries no categoryId: the categories live in the parts. The account loses the purchase once, each category sees only its share, and the ledger still shows one row — which is what keeps the statement line matchable. For a purchase priced in another currency on a tenge card, put the receipt amount in originalAmountCents + originalCurrency and the rate you used in quotedRateCents (tiyn per one unit, 464.02 KZT/USD is 46402), and set isEstimated until the bank statement confirms the tenge figure — never bury the rate in memo, it cannot be queried or recomputed there.',
     schema: z.object({
       accountId: z.string().min(1),
       date: z.string(),
@@ -363,6 +363,11 @@ export const tools: ToolDef[] = [
       originalCurrency: z.string().length(3).optional(),
       quotedRateCents: z.number().int().positive().optional(),
       isEstimated: z.boolean().optional(),
+          splits: z.array(z.object({
+        categoryId: z.string().min(1),
+        amountCents: z.number().int(),
+        memo: z.string().optional(),
+      })).min(2).max(50).optional(),
     }),
     method: 'POST',
     path: () => '/api/v1/transactions',

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { isoDate } from '../validation.js';
 import { z } from 'zod';
-import { eq, and, desc, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, sql, isNull } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 import {
   type DB,
@@ -55,6 +55,16 @@ function requireForeignPair(data: {
   }
 }
 
+/**
+ * Части сплита. Минимум две: одна часть — это обычная операция с категорией,
+ * и заводить ради неё родителя значит усложнять без причины.
+ */
+const splitSchema = z.array(z.object({
+  categoryId: z.string().min(1),
+  amountCents: z.number().int(),
+  memo: z.string().optional(),
+})).min(2).max(50);
+
 const createTransactionSchema = z.object({
   accountId: z.string().min(1),
   date: isoDate(),
@@ -65,6 +75,7 @@ const createTransactionSchema = z.object({
   memo: z.string().optional(),
   cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
   ...foreignAmountFields,
+  splits: splitSchema.optional(),
 });
 
 const updateTransactionSchema = z.object({
@@ -163,6 +174,26 @@ function importIdTaken(db: DB, accountId: string, importId: string): string | nu
     `SELECT id FROM transactions WHERE account_id = ? AND import_id = ? AND is_deleted = 0 LIMIT 1`,
   ).get(accountId, importId) as { id: string } | undefined;
   return row?.id ?? null;
+}
+
+
+/** Дописывает части к родителю сплита. У обычной операции их нет. */
+function withSplits(
+  db: DB,
+  tx: Record<string, unknown>,
+  currencies: Map<string, string>,
+): Record<string, unknown> {
+  const parts = db
+    .select()
+    .from(transactions)
+    .where(and(
+      eq(transactions.parentTransactionId, tx.id as string),
+      eq(transactions.isDeleted, false),
+    ))
+    .all();
+
+  if (parts.length === 0) return tx;
+  return { ...tx, splits: parts.map((p) => formatTx(p, currencies)) };
 }
 
 /** Splits one CSV line, honouring double-quoted fields and doubled quotes. */
@@ -443,7 +474,12 @@ export function transactionRoutes(db: DB) {
     const estimated = c.req.query('estimated');
     const limit = parseInt(c.req.query('limit') ?? '50');
 
-    const conditions = [eq(transactions.isDeleted, false)];
+    // Части сплита из ленты скрыты: в банке это одна покупка, и в списке она
+    // должна быть одной строкой. Внутри родителя они возвращаются целиком.
+    const conditions = [
+      eq(transactions.isDeleted, false),
+      sql`${transactions.parentTransactionId} IS NULL`,
+    ];
     // Суммы, записанные по прогнозному курсу и ждущие выписки.
     if (estimated === 'true') conditions.push(eq(transactions.isEstimated, true));
     if (estimated === 'false') conditions.push(eq(transactions.isEstimated, false));
@@ -461,7 +497,7 @@ export function transactionRoutes(db: DB) {
       .all();
 
     const currencies = accountCurrencies(db);
-    return c.json(rows.map((r) => formatTx(r, currencies)));
+    return c.json(rows.map((r) => withSplits(db, formatTx(r, currencies), currencies)));
   });
 
   // POST / — create transaction or transfer
@@ -558,6 +594,69 @@ export function transactionRoutes(db: DB) {
 
       const currencies = accountCurrencies(db);
       return c.json([formatTx(tx1, currencies), formatTx(tx2, currencies)], 201);
+    }
+
+    // Сплит: одна покупка, разложенная по категориям. Проверяем всё до
+    // единой записи — половина сплита это покупка, у которой часть суммы
+    // потерялась, и она хуже, чем отказ.
+    if (data.splits) {
+      if (data.categoryId) {
+        throw validationError(
+          'Категория у самой операции и части сплита противоречат друг другу: ' +
+            'категории живут в частях. Уберите categoryId.',
+        );
+      }
+
+      const sum = data.splits.reduce((acc, sp) => acc + sp.amountCents, 0);
+      if (sum !== data.amountCents) {
+        throw validationError(
+          `Части сплита дают ${formatMoney(sum)}, а операция — ${formatMoney(data.amountCents)}. ` +
+            'Сумма частей должна совпадать с суммой покупки.',
+        );
+      }
+
+      for (const sp of data.splits) requireCategoryRef(db, sp.categoryId);
+
+      const parentId = createId();
+      const now = new Date().toISOString();
+      const { payeeId, payeeName } = resolvePayee(db, data.payeeName, undefined);
+
+      db.$client.transaction(() => {
+        db.insert(transactions).values({
+          id: parentId,
+          accountId: data.accountId,
+          date: data.date,
+          amountCents: data.amountCents,
+          payeeId,
+          payeeName,
+          categoryId: null,
+          memo: data.memo ?? null,
+          cleared: data.cleared ?? 'uncleared',
+          createdAt: now,
+          updatedAt: now,
+        }).run();
+
+        for (const sp of data.splits!) {
+          db.insert(transactions).values({
+            id: createId(),
+            accountId: data.accountId,
+            date: data.date,
+            amountCents: sp.amountCents,
+            payeeId,
+            payeeName,
+            categoryId: sp.categoryId,
+            memo: sp.memo ?? null,
+            cleared: data.cleared ?? 'uncleared',
+            parentTransactionId: parentId,
+            createdAt: now,
+            updatedAt: now,
+          }).run();
+        }
+      })();
+
+      const parent = db.select().from(transactions).where(eq(transactions.id, parentId)).get()!;
+      const currencies = accountCurrencies(db);
+      return c.json(withSplits(db, formatTx(parent, currencies), currencies), 201);
     }
 
     // Regular transaction
@@ -796,7 +895,7 @@ export function transactionRoutes(db: DB) {
       .get();
     if (!tx) throw notFound('Transaction', id);
 
-    return c.json(formatOneTx(db, tx));
+    return c.json(withSplits(db, formatOneTx(db, tx), accountCurrencies(db)));
   });
 
   // PATCH /:id — update transaction
@@ -875,6 +974,13 @@ export function transactionRoutes(db: DB) {
     db.update(transactions)
       .set({ isDeleted: true, updatedAt: now })
       .where(eq(transactions.id, id))
+      .run();
+
+    // Части сплита уходят вместе с родителем: иначе они остались бы висеть в
+    // бюджете без покупки, которая их породила.
+    db.update(transactions)
+      .set({ isDeleted: true, updatedAt: new Date().toISOString() })
+      .where(eq(transactions.parentTransactionId, id))
       .run();
 
     // Also soft-delete paired transfer

@@ -71,6 +71,7 @@ export function applySchema(sqlite: Database.Database): void {
       quoted_rate_cents INTEGER,
       is_estimated INTEGER NOT NULL DEFAULT 0,
       import_id TEXT,
+      parent_transaction_id TEXT REFERENCES transactions(id),
       loan_id TEXT REFERENCES loans(id),
       loan_principal_cents INTEGER,
       loan_interest_cents INTEGER,
@@ -230,6 +231,9 @@ export function applyColumnMigrations(sqlite: Database.Database): void {
     // на совпадение претендует только ручное, иначе две покупки на одну сумму
     // в одном окне склеились бы в одну.
     'ALTER TABLE transactions ADD COLUMN import_id TEXT',
+    // Часть сплита. Со счёта уходит родитель, по категориям расходятся части:
+    // стороны не пересекаются, поэтому двойного счёта не возникает.
+    'ALTER TABLE transactions ADD COLUMN parent_transaction_id TEXT REFERENCES transactions(id)',
     'ALTER TABLE transactions ADD COLUMN loan_id TEXT REFERENCES loans(id)',
     'ALTER TABLE transactions ADD COLUMN loan_principal_cents INTEGER',
     'ALTER TABLE transactions ADD COLUMN loan_interest_cents INTEGER',
@@ -254,7 +258,7 @@ const AUDITED_TABLES: Record<string, string[]> = {
     'id', 'account_id', 'date', 'amount_cents', 'payee_id', 'payee_name', 'category_id',
     'transfer_account_id', 'transfer_transaction_id', 'memo', 'cleared', 'approved',
     'original_amount_cents', 'original_currency', 'quoted_rate_cents', 'is_estimated',
-    'import_id', 'loan_id', 'loan_principal_cents', 'loan_interest_cents',
+    'import_id', 'parent_transaction_id', 'loan_id', 'loan_principal_cents', 'loan_interest_cents',
     'is_deleted', 'created_at', 'updated_at',
   ],
   monthly_budgets: ['id', 'category_id', 'month', 'assigned_cents', 'note', 'created_at', 'updated_at'],

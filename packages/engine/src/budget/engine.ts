@@ -767,7 +767,8 @@ export function reconcileAccount(
 
   const row = db.$client.prepare(`
     SELECT COALESCE(SUM(amount_cents), 0) as balance
-    FROM transactions WHERE account_id = ? AND is_deleted = 0
+    FROM transactions
+    WHERE account_id = ? AND is_deleted = 0 AND parent_transaction_id IS NULL
   `).get(accountId) as { balance: number };
 
   const delta = new Decimal(actualBalanceCents).minus(row.balance).toNumber();
@@ -804,7 +805,10 @@ export function getAccountBalances(db: DB): AccountBalance[] {
       COALESCE(SUM(CASE WHEN t.cleared IN ('cleared', 'reconciled') THEN t.amount_cents ELSE 0 END), 0) as cleared,
       COALESCE(SUM(CASE WHEN t.cleared = 'uncleared' THEN t.amount_cents ELSE 0 END), 0) as uncleared
     FROM accounts a
+    -- Части сплита со счёта не уходят: ушёл родитель, а они лишь делят его
+    -- сумму по категориям. Учесть и то и другое значило бы списать дважды.
     LEFT JOIN transactions t ON t.account_id = a.id AND t.is_deleted = 0
+      AND t.parent_transaction_id IS NULL
     WHERE a.is_active = 1
     GROUP BY a.id
     ORDER BY a.sort_order
@@ -885,7 +889,9 @@ export function getRtaReconciliation(db: DB, month: string) {
     SELECT a.id, a.name, a.type, a.on_budget, a.is_active, a.currency,
       COALESCE(SUM(CASE WHEN t.is_deleted = 0 AND t.date <= ? THEN t.amount_cents ELSE 0 END), 0) as balance
     FROM accounts a
+    -- Части сплита счёт не трогают: ушёл родитель.
     LEFT JOIN transactions t ON t.account_id = a.id
+      AND t.parent_transaction_id IS NULL
     GROUP BY a.id
     ORDER BY a.on_budget DESC, a.sort_order
   `).all(monthEnd) as RtaAccountRow[];
@@ -906,12 +912,20 @@ export function getRtaReconciliation(db: DB, month: string) {
 
   // Money that moved on an on-budget account but landed in no category at all.
   // This is invisible in the budget yet fully visible in the balance.
+  //
+  // Родитель сплита сюда не попадает: категории у него нет, но она есть у
+  // каждой части, и трата разложена полностью. Считать его нераспределённым
+  // значило бы объявить всю покупку прошедшей мимо бюджета.
   const uncategorizedRow = db.$client.prepare(`
     SELECT COALESCE(SUM(t.amount_cents), 0) as total, COUNT(*) as count
     FROM transactions t JOIN accounts a ON a.id = t.account_id
     WHERE a.on_budget = 1 AND t.is_deleted = 0
       AND t.category_id IS NULL
       AND t.transfer_account_id IS NULL
+      AND t.id NOT IN (
+        SELECT DISTINCT parent_transaction_id FROM transactions
+        WHERE parent_transaction_id IS NOT NULL AND is_deleted = 0
+      )
       AND t.date <= ?
   `).get(monthEnd) as { total: number; count: number };
 
