@@ -417,11 +417,10 @@ class _AgeOfMoneyLine extends StatelessWidget {
     final value = days == null
         ? '—'
         : '$days ${plural(days, "день", "дня", "дней")}';
-    final hint = days == null
-        ? 'пока не из чего посчитать'
-        : (age.isMature
-            ? 'месяц живётся на прошлый доход'
-            : 'тратятся почти сразу после прихода');
+    // Пояснение остаётся только там, где иначе непонятно: прочерк сам по себе
+    // ничего не говорит. Число говорит за себя, и объяснять его каждый раз —
+    // значит занимать место рассказом про устройство системы.
+    final hint = days == null ? 'пока не из чего посчитать' : null;
 
     return Row(
       children: [
@@ -443,18 +442,18 @@ class _AgeOfMoneyLine extends StatelessWidget {
                 : (age.isMature ? AppColors.positive : AppColors.textPrimary),
           ),
         ),
-        const SizedBox(width: 6),
-        // Две строки, а не одна с многоточием: обрезанное «деньги тратятся
-        // почти сразу пос…» не объясняет ничего, ради чего строку заводили.
-        Expanded(
-          child: Text(
-            '· $hint',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(fontSize: 11, color: AppColors.textMuted),
+        if (hint != null) ...[
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '· $hint',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontSize: 11, color: AppColors.textMuted),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

@@ -836,14 +836,17 @@ class _CurrencyNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Молчим, когда всё посчитано. Постоянное «считается по счетам в ₸»
+    // объясняет устройство системы, а не состояние денег: валюту счёта видно
+    // в списке счетов, а отсутствие курса в API — не забота человека.
     final parts = <String>[
-      'Считается по счетам в ₸.',
       if (excludedCount > 0)
-        'Операций в других валютах исключено: $excludedCount — курса в API нет.',
+        'Операций в других валютах исключено: $excludedCount.',
       if (truncated)
         'Показана только часть операций: выборка упёрлась в предел страницы, '
             'суммы занижены.',
     ];
+    if (parts.isEmpty) return const SizedBox.shrink();
     final text = parts.join(' ');
 
     return Container(
