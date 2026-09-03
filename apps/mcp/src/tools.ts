@@ -391,7 +391,7 @@ export const tools: ToolDef[] = [
   {
     name: 'import_transactions',
     description:
-      'Import a bank statement CSV into one account, skipping rows that duplicate an existing date + amount + payee. Column names are detected from the header (English or Russian) and can be overridden. Dates accept YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY; amounts accept spaces as thousand separators, comma or dot decimals, and parentheses for debits. Run with dryRun first to see what would land. Rows whose payee is already known arrive with that payee\'s last category and the response counts them in categorised; the rest arrive uncategorised.',
+      'Import a bank statement CSV into one account. Each row lands in one of three ways: a row already imported before is a duplicate and does nothing; a row that matches a transaction you entered by hand — same account, same amount to the tiyn, within ten days — is attached to it, so the bank confirms the amount while your payee, category, memo and date survive; anything else is created. The response counts imported, matched and duplicates separately. Payee is deliberately not part of matching: banks write their own merchant strings. Column names are detected from the header (English or Russian) and can be overridden. Dates accept YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY; amounts accept spaces as thousand separators, comma or dot decimals, and parentheses for debits. Run with dryRun first to see what would land. Rows whose payee is already known arrive with that payee\'s last category and the response counts them in categorised; the rest arrive uncategorised.',
     schema: z.object({
       accountId: z.string().min(1),
       csv: z.string().min(1),

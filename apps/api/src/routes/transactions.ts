@@ -119,6 +119,52 @@ function findDuplicate(
   return row?.id ?? null;
 }
 
+
+/**
+ * Метка строки выписки. Одинаковая строка из того же файла даст ту же метку,
+ * поэтому повторный импорт распознаётся без сравнения текстов.
+ */
+function importIdFor(amountCents: number, date: string, occurrence: number): string {
+  return `PFM:${amountCents}:${date}:${occurrence}`;
+}
+
+/**
+ * Ручная операция, которую эта строка выписки описывает.
+ *
+ * Правила противоположны матчингу регулярных платежей, и намеренно. Там
+ * плательщик обязателен, а сумма плавает: правило знает, кому платит, но не
+ * сколько выйдет. Здесь наоборот — сумма из банка точна до тиына, а имя
+ * плательщика в выписке своё («WOLT.COM VIRTUAL POS» против «Wolt»). Поэтому
+ * ищем по счёту, точной сумме и окну ±10 дней, а плательщика не смотрим.
+ *
+ * Кандидат только без `import_id`: уже импортированное второй раз не
+ * присваивается, иначе две покупки на одну сумму в одном окне склеились бы.
+ */
+function findManualMatch(
+  db: DB,
+  r: { accountId: string; date: string; amountCents: number },
+): string | null {
+  const row = db.$client.prepare(`
+    SELECT id FROM transactions
+    WHERE account_id = ? AND amount_cents = ?
+      AND import_id IS NULL
+      AND is_deleted = 0
+      AND transfer_account_id IS NULL
+      AND date BETWEEN date(?, '-10 days') AND date(?, '+10 days')
+    ORDER BY ABS(julianday(date) - julianday(?))
+    LIMIT 1
+  `).get(r.accountId, r.amountCents, r.date, r.date, r.date) as { id: string } | undefined;
+
+  return row?.id ?? null;
+}
+
+function importIdTaken(db: DB, accountId: string, importId: string): string | null {
+  const row = db.$client.prepare(
+    `SELECT id FROM transactions WHERE account_id = ? AND import_id = ? AND is_deleted = 0 LIMIT 1`,
+  ).get(accountId, importId) as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
 /** Splits one CSV line, honouring double-quoted fields and doubled quotes. */
 function splitCsvLine(line: string): string[] {
   const out: string[] = [];
@@ -628,26 +674,39 @@ export function transactionRoutes(db: DB) {
       throw validationError('CSV contained no data rows');
     }
 
-    const toInsert: ParsedRow[] = [];
+    const toInsert: Array<ParsedRow & { importId: string }> = [];
+    const matches: Array<{ row: number; date: string; amountCents: number; existingId: string; importId: string }> = [];
     const duplicates: Array<{ row: number; date: string; amountCents: number; payeeName: string | null; existingId: string }> = [];
 
-    // Deduplication is by date + amount + payee, matched against rows already
-    // stored and against earlier rows in this same file, so re-importing an
-    // overlapping statement is safe.
-    const seenInFile = new Set<string>();
+    // Три исхода на строку, и порядок важен:
+    //   1. Такая строка уже импортирована — дубль, ничего не делаем.
+    //   2. Есть подходящая ручная операция — присваиваем ей метку выписки:
+    //      банк подтвердил сумму, а разметка остаётся человеческая.
+    //   3. Иначе создаём.
+    const occurrences = new Map<string, number>();
+    const claimed = new Set<string>();
 
     for (const r of rows) {
-      const key = `${r.date}|${r.amountCents}|${(r.payeeName ?? '').toLowerCase()}`;
-      const existing = findDuplicate(db, { accountId, ...r });
+      const slot = `${r.amountCents}|${r.date}`;
+      const occurrence = (occurrences.get(slot) ?? 0) + 1;
+      occurrences.set(slot, occurrence);
+      const importId = importIdFor(r.amountCents, r.date, occurrence);
 
-      if (existing) {
-        duplicates.push({ row: r.lineNumber, date: r.date, amountCents: r.amountCents, payeeName: r.payeeName, existingId: existing });
-      } else if (seenInFile.has(key)) {
-        duplicates.push({ row: r.lineNumber, date: r.date, amountCents: r.amountCents, payeeName: r.payeeName, existingId: 'earlier-row-in-file' });
-      } else {
-        seenInFile.add(key);
-        toInsert.push(r);
+      const already = importIdTaken(db, accountId, importId);
+      if (already) {
+        duplicates.push({ row: r.lineNumber, date: r.date, amountCents: r.amountCents, payeeName: r.payeeName, existingId: already });
+        continue;
       }
+
+      const manual = findManualMatch(db, { accountId, date: r.date, amountCents: r.amountCents });
+      // Одна ручная операция не может закрыть две строки выписки.
+      if (manual && !claimed.has(manual)) {
+        claimed.add(manual);
+        matches.push({ row: r.lineNumber, date: r.date, amountCents: r.amountCents, existingId: manual, importId });
+        continue;
+      }
+
+      toInsert.push({ ...r, importId });
     }
 
     if (dryRun) {
@@ -657,6 +716,7 @@ export function transactionRoutes(db: DB) {
         dryRun: true,
         parsed: rows.length,
         wouldImport: toInsert.length,
+        wouldMatch: matches.length,
         wouldCategorise: toInsert.filter((r) => suggestCategory(db, r.payeeName)).length,
         duplicates: duplicates.length,
         duplicateDetail: duplicates,
@@ -675,6 +735,15 @@ export function transactionRoutes(db: DB) {
     let categorised = 0;
 
     db.$client.transaction(() => {
+      // Совпавшим проставляем метку и статус: сумму подтвердил банк. Дата,
+      // плательщик, категория и памятка остаются мои — их ставили осмысленно.
+      const markMatched = db.$client.prepare(
+        `UPDATE transactions SET import_id = ?, cleared = 'cleared', updated_at = ? WHERE id = ?`,
+      );
+      for (const m of matches) {
+        markMatched.run(m.importId, new Date().toISOString(), m.existingId);
+      }
+
       for (const r of toInsert) {
         const { payeeId, payeeName } = resolvePayee(db, r.payeeName ?? undefined, undefined);
         const categoryId = suggestCategory(db, r.payeeName);
@@ -692,6 +761,7 @@ export function transactionRoutes(db: DB) {
           categoryId,
           memo: r.memo ?? null,
           cleared: 'cleared',
+          importId: r.importId,
           createdAt: now,
           updatedAt: now,
         }).run();
@@ -704,6 +774,8 @@ export function transactionRoutes(db: DB) {
       dryRun: false,
       parsed: rows.length,
       imported: createdIds.length,
+      matched: matches.length,
+      matchedDetail: matches,
       categorised,
       duplicates: duplicates.length,
       duplicateDetail: duplicates,

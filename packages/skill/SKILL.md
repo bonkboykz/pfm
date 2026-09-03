@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.16.0
+version: 0.17.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -392,6 +392,25 @@ have no category, and a hidden category is never suggested.
 угаданные строки.
 
 ---
+
+**What happens to each row.** Three outcomes, and the response counts them
+separately as `imported`, `matched` and `duplicates`:
+
+- **Already imported** — the row carries a generated `import_id`
+  (`PFM:{amount}:{date}:{n}`), so re-importing an overlapping statement does
+  nothing at all.
+- **Matches something you entered by hand** — same account, same amount to the
+  tiyn, within ten days of the statement date. The bank confirms the amount and
+  marks it cleared; your payee, category, memo and date stay as you wrote them.
+  Only hand-entered rows are candidates: an already-imported one is never
+  re-matched, or two purchases of equal size in one window would collapse.
+- **Anything else** is created.
+
+Payee is deliberately not part of the match — the bank writes
+`WOLT.COM VIRTUAL POS` where you wrote `Wolt`. Note this is the mirror image of
+the rule for recurring transactions, where the payee must match and the amount
+may drift: there the rule knows who it pays but not how much, here the bank
+knows the amount exactly but names the merchant its own way.
 
 ## Budget
 
