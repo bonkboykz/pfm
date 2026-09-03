@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isoDate } from '../validation.js';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import {
@@ -12,7 +13,7 @@ import { notFound, validationError } from '../errors.js';
 
 const reconcileSchema = z.object({
   actualBalanceCents: z.number().int(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  date: isoDate().optional(),
   memo: z.string().optional(),
 });
 

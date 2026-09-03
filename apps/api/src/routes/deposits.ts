@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isoDate } from '../validation.js';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import {
@@ -23,8 +24,8 @@ const createDepositSchema = z.object({
   annualRateBps: z.number().int().min(0),
   earlyWithdrawalRateBps: z.number().int().min(0).optional(),
   termMonths: z.number().int().min(0),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  startDate: isoDate(),
+  endDate: isoDate().optional(),
   capitalization: z.enum(['monthly', 'quarterly', 'at_end', 'none']).optional(),
   isWithdrawable: z.boolean().optional(),
   isReplenishable: z.boolean().optional(),

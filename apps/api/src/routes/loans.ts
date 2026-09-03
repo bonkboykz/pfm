@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isoDate } from '../validation.js';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import {
@@ -28,7 +29,7 @@ const createLoanSchema = z.object({
   currentBalanceCents: z.number().int().min(0).optional(),
   aprBps: z.number().int().min(0).optional(),
   termMonths: z.number().int().positive(),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  startDate: isoDate(),
   monthlyPaymentCents: z.number().int().positive(),
   paymentDay: z.number().int().min(1).max(28),
   penaltyRateBps: z.number().int().min(0).optional(),
@@ -49,7 +50,7 @@ const updateLoanSchema = z.object({
   principalCents: z.number().int().positive().optional(),
   aprBps: z.number().int().min(0).optional(),
   termMonths: z.number().int().positive().optional(),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  startDate: isoDate().optional(),
   accountId: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
   monthlyPaymentCents: z.number().int().positive().optional(),
@@ -62,13 +63,13 @@ const updateLoanSchema = z.object({
 });
 
 const closeLoanSchema = z.object({
-  closedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  closedDate: isoDate().optional(),
   reason: z.string().optional(),
 });
 
 const paymentSchema = z.object({
   accountId: z.string().min(1),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: isoDate(),
   amountCents: z.number().int().refine((n) => n !== 0, 'amountCents must not be zero'),
   categoryId: z.string().optional(),
   payeeName: z.string().optional(),

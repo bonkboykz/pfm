@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isoDate } from '../validation.js';
 import { z } from 'zod';
 import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
@@ -56,7 +57,7 @@ function requireForeignPair(data: {
 
 const createTransactionSchema = z.object({
   accountId: z.string().min(1),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: isoDate(),
   amountCents: z.number().int(),
   payeeName: z.string().optional(),
   categoryId: z.string().optional(),
@@ -67,7 +68,7 @@ const createTransactionSchema = z.object({
 });
 
 const updateTransactionSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  date: isoDate().optional(),
   amountCents: z.number().int().optional(),
   payeeName: z.string().optional(),
   categoryId: z.string().nullable().optional(),

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isoDate } from '../validation.js';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import {
@@ -14,7 +15,7 @@ const createDebtSchema = z.object({
   direction: z.enum(['owe', 'owed']),
   amountCents: z.number().int().positive(),
   currency: z.string().optional(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dueDate: isoDate().optional(),
   note: z.string().optional(),
 });
 
@@ -22,7 +23,7 @@ const updateDebtSchema = z.object({
   personName: z.string().min(1).optional(),
   amountCents: z.number().int().positive().optional(),
   currency: z.string().optional(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  dueDate: isoDate().nullable().optional(),
   note: z.string().nullable().optional(),
 });
 

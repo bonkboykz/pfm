@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { monthRegex, isRealDate } from '../validation.js';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import {
@@ -20,8 +21,8 @@ import {
 } from '@pfm/engine';
 import { validationError, unknownReference } from '../errors.js';
 
-const monthRegex = /^\d{4}-\d{2}$/;
-const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+
 
 const assignSchema = z.object({
   categoryId: z.string().min(1),
@@ -205,7 +206,7 @@ export function budgetRoutes(db: DB) {
   // Перед /:month, иначе литеральный сегмент съедается параметром.
   router.get('/age-of-money', (c) => {
     const asOf = c.req.query('asOf');
-    if (asOf && !dateRegex.test(asOf)) {
+    if (asOf && !isRealDate(asOf)) {
       throw validationError('asOf must be YYYY-MM-DD');
     }
 
@@ -241,7 +242,7 @@ export function budgetRoutes(db: DB) {
     }
 
     const asOf = c.req.query('asOf');
-    if (asOf !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(asOf)) {
+    if (asOf !== undefined && !isRealDate(asOf)) {
       throw validationError('asOf must be YYYY-MM-DD');
     }
 

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isoDate } from '../validation.js';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { type DB, accounts, scheduledTransactions } from '@pfm/engine';
@@ -9,7 +10,7 @@ import { notFound, validationError } from '../errors.js';
 const createScheduledSchema = z.object({
   accountId: z.string().min(1),
   frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']),
-  nextDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  nextDate: isoDate(),
   amountCents: z.number().int(),
   payeeName: z.string().optional(),
   categoryId: z.string().optional(),
@@ -25,7 +26,7 @@ const updateScheduledSchema = z.object({
   // необратимой операцией ради опечатки.
   accountId: z.string().min(1).optional(),
   frequency: z.enum(['weekly', 'biweekly', 'monthly', 'yearly']).optional(),
-  nextDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  nextDate: isoDate().optional(),
   amountCents: z.number().int().optional(),
   payeeName: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
@@ -34,7 +35,7 @@ const updateScheduledSchema = z.object({
 });
 
 const processSchema = z.object({
-  asOfDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  asOfDate: isoDate().optional(),
 });
 
 export function scheduledRoutes(db: DB) {
