@@ -912,11 +912,17 @@ class _CategoryRow extends StatelessWidget {
     final available = category.availableCents;
     final overspent = category.overspentCents > 0;
 
+    // Отрицательное назначение — это изъятие: деньги из категории забрали и
+    // положили в другую. Под словом «назначено» минус бессмыслен и читается
+    // как «бюджет ушёл в минус» или «система сломалась».
+    final moved = category.assignedCents < 0;
+    final assignedPart = moved
+        ? 'Перемещено ${formatMoneySmart(-category.assignedCents)}'
+        : 'Назначено ${formatMoneySmart(category.assignedCents)}';
+
     final subtitle = category.hasTarget && category.underfundedCents > 0
-        ? 'Цель ${formatMoneySmart(category.targetAmountCents!)} · '
-            'Назначено ${formatMoneySmart(category.assignedCents)}'
-        : 'Назначено ${formatMoneySmart(category.assignedCents)} · '
-            'Расход ${formatMoneySmart(category.activityCents)}';
+        ? 'Цель ${formatMoneySmart(category.targetAmountCents!)} · $assignedPart'
+        : '$assignedPart · Расход ${formatMoneySmart(category.activityCents)}';
 
     return InkWell(
       onTap: () => showAssignSheet(
