@@ -82,6 +82,7 @@ export const tools: ToolDef[] = [
     name: 'update_account',
     description: 'Update an account. Only the supplied fields change. Nullable fields accept null to clear them.',
     schema: z.object({
+      isActive: z.boolean().optional(),
       id: z.string(),
       name: z.string().min(1).optional(),
       onBudget: z.boolean().optional(),
@@ -467,6 +468,7 @@ export const tools: ToolDef[] = [
     description:
       'Update a scheduled transaction, including accountId — a rule created against the wrong account is fixed here, not by deleting it and creating a new one. Setting autoPost false turns it into a reminder without losing its history. Only supplied fields change; nullable fields accept null to clear them.',
     schema: z.object({
+      isActive: z.boolean().optional(),
       id: z.string(),
       autoPost: z.boolean().optional(),
       accountId: z.string().min(1).optional(),
@@ -732,6 +734,7 @@ export const tools: ToolDef[] = [
     description:
       'Update a deposit. Rate, term and start date are deliberately not editable — recreate the deposit if those were entered wrong. topUpCents records additional money paid in.',
     schema: z.object({
+      isActive: z.boolean().optional(),
       id: z.string(),
       name: z.string().min(1).optional(),
       accountId: z.string().nullable().optional(),

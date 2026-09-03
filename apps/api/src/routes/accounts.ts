@@ -37,6 +37,9 @@ const updateAccountSchema = z.object({
   bankName: z.string().nullable().optional(),
   last4Digits: z.string().length(4).regex(/^\d{4}$/).nullable().optional(),
   cardType: z.enum(['visa', 'mastercard', 'amex', 'unionpay', 'mir', 'other']).nullable().optional(),
+  /** Возврат из архива. Без него архивация была ловушкой:
+   * закрыл по ошибке — и починить можно только через базу. */
+  isActive: z.boolean().optional(),
 });
 
 function formatAccountBalance(ab: { accountId: string; accountName: string; type: string; balanceCents: number; clearedCents: number; unclearedCents: number }, currency = 'KZT') {
@@ -194,7 +197,7 @@ export function accountRoutes(db: DB) {
   router.get('/:id', (c) => {
     const id = c.req.param('id');
     const acct = db.select().from(accounts).where(eq(accounts.id, id)).get();
-    if (!acct || !acct.isActive) throw notFound('Account', id);
+    if (!acct) throw notFound('Account', id);
 
     const balances = getAccountBalances(db);
     const bal = balances.find((b) => b.accountId === id);
@@ -205,6 +208,8 @@ export function accountRoutes(db: DB) {
       type: acct.type,
       onBudget: acct.onBudget,
       currency: acct.currency,
+      // Без этого по карточке счёта не понять, архивный он или живой.
+      isActive: acct.isActive,
       sortOrder: acct.sortOrder,
       balanceCents: bal?.balanceCents ?? 0,
       balanceFormatted: formatMoney(bal?.balanceCents ?? 0, acct.currency),
@@ -219,7 +224,7 @@ export function accountRoutes(db: DB) {
   router.patch('/:id', async (c) => {
     const id = c.req.param('id');
     const acct = db.select().from(accounts).where(eq(accounts.id, id)).get();
-    if (!acct || !acct.isActive) throw notFound('Account', id);
+    if (!acct) throw notFound('Account', id);
 
     const body = await c.req.json();
     const parsed = updateAccountSchema.safeParse(body);

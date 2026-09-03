@@ -40,6 +40,9 @@ const updateDepositSchema = z.object({
   categoryId: z.string().nullable().optional(),
   topUpCents: z.number().int().min(0).optional(),
   note: z.string().nullable().optional(),
+  /** Возврат из архива. Без него архивация была ловушкой:
+   * закрыл по ошибке — и починить можно только через базу. */
+  isActive: z.boolean().optional(),
 });
 
 function formatDeposit(
@@ -157,7 +160,7 @@ export function depositRoutes(db: DB) {
   router.get('/:id', (c) => {
     const id = c.req.param('id');
     const deposit = db.select().from(deposits).where(eq(deposits.id, id)).get();
-    if (!deposit || !deposit.isActive) throw notFound('Deposit', id);
+    if (!deposit) throw notFound('Deposit', id);
 
     const summary = getDepositSummary(db, deposit.id);
     return c.json(
@@ -173,7 +176,7 @@ export function depositRoutes(db: DB) {
   router.patch('/:id', async (c) => {
     const id = c.req.param('id');
     const deposit = db.select().from(deposits).where(eq(deposits.id, id)).get();
-    if (!deposit || !deposit.isActive) throw notFound('Deposit', id);
+    if (!deposit) throw notFound('Deposit', id);
 
     const body = await c.req.json();
     const parsed = updateDepositSchema.safeParse(body);
@@ -201,7 +204,7 @@ export function depositRoutes(db: DB) {
   router.delete('/:id', (c) => {
     const id = c.req.param('id');
     const deposit = db.select().from(deposits).where(eq(deposits.id, id)).get();
-    if (!deposit || !deposit.isActive) throw notFound('Deposit', id);
+    if (!deposit) throw notFound('Deposit', id);
 
     db.update(deposits)
       .set({ isActive: false, updatedAt: new Date().toISOString() })
@@ -215,7 +218,7 @@ export function depositRoutes(db: DB) {
   router.get('/:id/schedule', (c) => {
     const id = c.req.param('id');
     const deposit = db.select().from(deposits).where(eq(deposits.id, id)).get();
-    if (!deposit || !deposit.isActive) throw notFound('Deposit', id);
+    if (!deposit) throw notFound('Deposit', id);
 
     const monthsParam = c.req.query('months');
     const months = monthsParam ? parseInt(monthsParam, 10) : undefined;

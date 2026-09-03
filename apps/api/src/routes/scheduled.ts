@@ -32,6 +32,9 @@ const updateScheduledSchema = z.object({
   categoryId: z.string().nullable().optional(),
   transferAccountId: z.string().nullable().optional(),
   memo: z.string().nullable().optional(),
+  /** Возврат из архива. Без него архивация была ловушкой:
+   * закрыл по ошибке — и починить можно только через базу. */
+  isActive: z.boolean().optional(),
 });
 
 const processSchema = z.object({
@@ -126,7 +129,7 @@ export function scheduledRoutes(db: DB) {
       .from(scheduledTransactions)
       .where(eq(scheduledTransactions.id, id))
       .get();
-    if (!existing || !existing.isActive) throw notFound('ScheduledTransaction', id);
+    if (!existing) throw notFound('ScheduledTransaction', id);
 
     const body = await c.req.json();
     const parsed = updateScheduledSchema.safeParse(body);
@@ -165,7 +168,7 @@ export function scheduledRoutes(db: DB) {
       .from(scheduledTransactions)
       .where(eq(scheduledTransactions.id, id))
       .get();
-    if (!existing || !existing.isActive) throw notFound('ScheduledTransaction', id);
+    if (!existing) throw notFound('ScheduledTransaction', id);
 
     db.update(scheduledTransactions)
       .set({ isActive: false, updatedAt: new Date().toISOString() })

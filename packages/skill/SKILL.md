@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.14.0
+version: 0.15.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -794,11 +794,11 @@ minor units without looking at currency, so a non-tenge balance inside the
 budget would distort Ready to Assign silently. Create them with
 `"onBudget": false`; they still show up in the account list and net worth.
 
-**Deactivation has no inverse over the API.** `DELETE` on an account or a
-deposit sets `isActive = false`, and the corresponding `PATCH` schema does not
-accept `isActive`, so it cannot be undone from here. Same for a hidden category.
-Loans are the exception — `PATCH /loans/:id` does take `isActive`. Warn the user
-before deactivating anything else.
+**Archiving is reversible.** `DELETE` sets `isActive = false`; `PATCH` with
+`{"isActive": true}` brings the account, deposit or scheduled rule back. An
+archived record can also be read and edited without reviving it — which is how
+you take a legacy foreign-currency account out of the budget without putting it
+back in the lists.
 
 `DELETE /debts/:id` is the one **physical** delete in the whole API; every other
 delete is soft. It cannot be undone at all.
