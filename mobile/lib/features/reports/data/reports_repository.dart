@@ -27,13 +27,15 @@ class ReportsRepository {
 
     // One wide page: the window is months long and the API has no aggregation.
     const pageLimit = 2000;
-    final transactions = await _transactions.list(
+    final page = await _transactions.list(
       since: since,
       until: until,
       limit: pageLimit,
     );
-    // Ровно столько, сколько просили, — значит могло быть и больше.
-    final truncated = transactions.length >= pageLimit;
+    final transactions = page.transactions;
+    // Сервер сам говорит, есть ли ещё: считать по длине страницы значило бы
+    // гадать там, где ответ уже известен.
+    final truncated = page.hasMore;
 
     // Справочник не заворачивается в try: недоступность сети — это ошибка,
     // а не данные. Раньше `catch (_) { catalog = null }` превращал сбой

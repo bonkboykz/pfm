@@ -472,7 +472,9 @@ export function transactionRoutes(db: DB) {
     const since = c.req.query('since');
     const until = c.req.query('until');
     const estimated = c.req.query('estimated');
-    const limit = parseInt(c.req.query('limit') ?? '50');
+    const search = c.req.query('search')?.trim();
+    const limit = Math.min(Math.max(parseInt(c.req.query('limit') ?? '50'), 1), 1000);
+    const offset = Math.max(parseInt(c.req.query('offset') ?? '0'), 0);
 
     // Части сплита из ленты скрыты: в банке это одна покупка, и в списке она
     // должна быть одной строкой. Внутри родителя они возвращаются целиком.
@@ -487,17 +489,41 @@ export function transactionRoutes(db: DB) {
     if (categoryId) conditions.push(eq(transactions.categoryId, categoryId));
     if (since) conditions.push(gte(transactions.date, since));
     if (until) conditions.push(lte(transactions.date, until));
+    // Поиск идёт по базе, а не по уже загруженной странице: искать среди
+    // пятидесяти строк значит не находить всё остальное, притом молча.
+    if (search) {
+      conditions.push(sql`(
+        LOWER(COALESCE(${transactions.payeeName}, '')) LIKE LOWER(${'%' + search + '%'})
+        OR LOWER(COALESCE(${transactions.memo}, '')) LIKE LOWER(${'%' + search + '%'})
+      )`);
+    }
 
     const rows = db
       .select()
       .from(transactions)
       .where(and(...conditions))
-      .orderBy(desc(transactions.date))
+      .orderBy(desc(transactions.date), desc(transactions.id))
       .limit(limit)
+      .offset(offset)
       .all();
 
+    // Сколько есть всего — по тем же условиям. Без этого «показано 50» и
+    // «всего 50» неразличимы, и агент объявит неполную выборку итогом.
+    const counted = db
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(transactions)
+      .where(and(...conditions))
+      .get();
+    const totalCount = counted?.n ?? 0;
+
     const currencies = accountCurrencies(db);
-    return c.json(rows.map((r) => withSplits(db, formatTx(r, currencies), currencies)));
+    return c.json({
+      transactions: rows.map((r) => withSplits(db, formatTx(r, currencies), currencies)),
+      totalCount,
+      limit,
+      offset,
+      hasMore: offset + rows.length < totalCount,
+    });
   });
 
   // POST / — create transaction or transfer

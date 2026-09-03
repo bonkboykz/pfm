@@ -29,7 +29,9 @@ class _FakeApi implements ApiClient {
       throw ApiException('overview недоступен', status: 500);
     }
     if (path.contains('/categories')) return <dynamic>[];
-    if (path.contains('/transactions')) return <dynamic>[];
+    if (path.contains('/transactions')) {
+      return {'transactions': <dynamic>[], 'totalCount': 0, 'hasMore': false};
+    }
     return _month;
   }
 

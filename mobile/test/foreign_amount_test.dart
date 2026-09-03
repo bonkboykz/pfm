@@ -36,7 +36,8 @@ class _FakeApi implements ApiClient {
       ];
     }
     if (path.contains('/categories')) return <dynamic>[];
-    return [
+    // Список операций приходит страницей: сервер сообщает и сколько всего.
+    final rows = [
       {
         'id': 'tx-colab',
         'accountId': 'acc',
@@ -53,6 +54,7 @@ class _FakeApi implements ApiClient {
         'isEstimated': true,
       }
     ];
+    return {'transactions': rows, 'totalCount': rows.length, 'hasMore': false};
   }
 
   @override

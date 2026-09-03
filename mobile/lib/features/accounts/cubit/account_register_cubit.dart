@@ -73,7 +73,7 @@ class AccountRegisterCubit extends Cubit<AccountRegisterState> {
     try {
       final account = await _accounts.byId(accountId);
       final transactions =
-          await _transactions.list(accountId: accountId, limit: 200);
+          (await _transactions.list(accountId: accountId, limit: 200)).transactions;
 
       // Category names are a nicety — a failure here must not blank the list.
       CategoryCatalog? categories;

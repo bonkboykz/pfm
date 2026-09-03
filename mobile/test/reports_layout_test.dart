@@ -46,7 +46,8 @@ class _FakeApi implements ApiClient {
       ];
     }
     // Девять категорий с убывающими суммами.
-    return [
+    // Список операций приходит страницей: сервер сообщает и сколько всего.
+    final rows = [
       for (var i = 1; i <= 9; i++)
         {
           'id': 'tx$i',
@@ -59,6 +60,7 @@ class _FakeApi implements ApiClient {
           'approved': true,
         }
     ];
+    return {'transactions': rows, 'totalCount': rows.length, 'hasMore': false};
   }
 
   @override

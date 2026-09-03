@@ -7,24 +7,38 @@ class TransactionsRepository {
 
   /// `GET /transactions` supports only `limit` — there is no offset or cursor,
   /// and rows are ordered by date DESC without a tie-breaker.
-  Future<List<Transaction>> list({
+  /// Страница операций вместе с тем, сколько их всего.
+  ///
+  /// Сервер отдаёт `{ transactions, totalCount, hasMore }`, а не голый список:
+  /// «показано 50» и «всего 50» иначе неразличимы, и неполная выборка выглядит
+  /// как итог. Поиск идёт туда же — искать среди загруженных строк значит не
+  /// находить остальное, притом молча.
+  Future<TransactionPage> list({
     String? accountId,
     String? categoryId,
     String? since,
     String? until,
+    String? search,
     int limit = 50,
+    int offset = 0,
   }) async {
-    final query = <String, dynamic>{'limit': limit};
+    final query = <String, dynamic>{'limit': limit, 'offset': offset};
     if (accountId != null) query['accountId'] = accountId;
     if (categoryId != null) query['categoryId'] = categoryId;
     if (since != null) query['since'] = since;
     if (until != null) query['until'] = until;
+    if (search != null && search.trim().isNotEmpty) query['search'] = search.trim();
 
     final json = await _api.get('/api/v1/transactions', query: query);
-    return ((json as List?) ?? const [])
-        .whereType<Map>()
-        .map((t) => Transaction.fromJson(t.cast<String, dynamic>()))
-        .toList();
+    final map = (json as Map).cast<String, dynamic>();
+    return TransactionPage(
+      transactions: ((map['transactions'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((t) => Transaction.fromJson(t.cast<String, dynamic>()))
+          .toList(),
+      totalCount: (map['totalCount'] as num?)?.toInt() ?? 0,
+      hasMore: map['hasMore'] == true,
+    );
   }
 
   Future<CategoryCatalog> categories() async {

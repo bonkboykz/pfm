@@ -117,7 +117,7 @@ describe('сплит-операции', () => {
     // В банке это одна покупка, и в ленте она должна быть одной.
     await create({ splits });
 
-    const list = await (await app.request('/transactions')).json();
+    const { transactions: list } = await (await app.request('/transactions')).json();
     expect(list).toHaveLength(1);
     expect(list[0].splits).toHaveLength(2);
   });

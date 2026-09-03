@@ -95,7 +95,8 @@ describe('операция в валюте на тенговом счёте', ()
       payeeName: 'Продукты',
     });
 
-    const { data } = await api(app, 'GET', '/api/v1/transactions?estimated=true');
+    const { data: list } = await api(app, 'GET', '/api/v1/transactions?estimated=true');
+    const data = list.transactions;
     expect(data).toHaveLength(1);
     expect(data[0].payeeName).toBe('Google Colab');
   });

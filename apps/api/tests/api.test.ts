@@ -279,8 +279,8 @@ describe('REST API', () => {
   it('GET /api/v1/transactions?accountId filters by account', async () => {
     const { status, data } = await api(app, 'GET', `/api/v1/transactions?accountId=${acc.kaspiGold}`);
     expect(status).toBe(200);
-    expect(data.length).toBeGreaterThan(0);
-    expect(data.every((t: any) => t.accountId === acc.kaspiGold)).toBe(true);
+    expect(data.transactions.length).toBeGreaterThan(0);
+    expect(data.transactions.every((t: any) => t.accountId === acc.kaspiGold)).toBe(true);
   });
 
   // 11. Create transaction with payee auto-create

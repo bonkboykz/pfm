@@ -32,6 +32,10 @@ class TransactionsState extends Equatable {
   final String? error;
   final bool unauthorized;
 
+  /// Сколько операций всего по текущему фильтру. Без этого «показано 50» и
+  /// «всего 50» неразличимы.
+  final int totalCount;
+
   const TransactionsState({
     this.status = TransactionsStatus.initial,
     this.transactions = const [],
@@ -44,6 +48,7 @@ class TransactionsState extends Equatable {
     this.loadingMore = false,
     this.error,
     this.unauthorized = false,
+    this.totalCount = 0,
   });
 
   TransactionsState copyWith({
@@ -59,6 +64,7 @@ class TransactionsState extends Equatable {
     bool? loadingMore,
     String? error,
     bool? unauthorized,
+    int? totalCount,
   }) =>
       TransactionsState(
         status: status ?? this.status,
@@ -73,11 +79,13 @@ class TransactionsState extends Equatable {
         loadingMore: loadingMore ?? this.loadingMore,
         error: error,
         unauthorized: unauthorized ?? this.unauthorized,
+        totalCount: totalCount ?? this.totalCount,
       );
 
   @override
   List<Object?> get props => [
         status,
+        totalCount,
         transactions,
         accounts,
         categories,
@@ -175,10 +183,11 @@ class TransactionsCubit extends Cubit<TransactionsState> {
     emit(state.copyWith(status: TransactionsStatus.loading));
     try {
       final range = _range(state.period);
-      final transactions = await _repo.list(
+      final page = await _repo.list(
         accountId: state.accountFilterId,
         since: range.since,
         until: range.until,
+        search: state.query,
         limit: _pageSize,
       );
 
@@ -193,10 +202,12 @@ class TransactionsCubit extends Cubit<TransactionsState> {
 
       emit(state.copyWith(
         status: TransactionsStatus.ready,
-        transactions: transactions,
+        transactions: page.transactions,
         accounts: accounts,
         categories: categories,
-        hasMore: transactions.length >= _pageSize,
+        // Сервер сам говорит, есть ли ещё — гадать по длине страницы не нужно.
+        hasMore: page.hasMore,
+        totalCount: page.totalCount,
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(
@@ -226,7 +237,13 @@ class TransactionsCubit extends Cubit<TransactionsState> {
     await load();
   }
 
-  void setQuery(String query) => emit(state.copyWith(query: query));
+  /// Поиск уходит на сервер: искать среди загруженных строк значит не
+  /// находить остальное, притом молча.
+  Future<void> setQuery(String query) async {
+    if (query == state.query) return;
+    emit(state.copyWith(query: query, transactions: const [], hasMore: false));
+    await load();
+  }
 
   /// There is no offset or cursor on GET /transactions, so the next page is
   /// fetched with `until` = the oldest date already loaded and then deduped by
@@ -238,25 +255,27 @@ class TransactionsCubit extends Cubit<TransactionsState> {
     }
     emit(state.copyWith(loadingMore: true));
 
-    final oldest = state.transactions
-        .map((t) => t.date)
-        .reduce((a, b) => a.compareTo(b) <= 0 ? a : b);
-
     try {
       final range = _range(state.period);
+      // Смещение вместо «до самой старой даты»: прежний способ спотыкался,
+      // когда в один день попадало больше строк, чем в страницу, — такой день
+      // отдавался снова и снова, и подгрузка вставала.
       final page = await _repo.list(
         accountId: state.accountFilterId,
         since: range.since,
-        until: oldest,
+        until: range.until,
+        search: state.query,
         limit: _pageSize,
+        offset: state.transactions.length,
       );
 
       final seen = state.transactions.map((t) => t.id).toSet();
-      final fresh = page.where((t) => !seen.contains(t.id)).toList();
+      final fresh = page.transactions.where((t) => !seen.contains(t.id)).toList();
 
       emit(state.copyWith(
         transactions: [...state.transactions, ...fresh],
-        hasMore: fresh.isNotEmpty && page.length >= _pageSize,
+        hasMore: page.hasMore,
+        totalCount: page.totalCount,
         loadingMore: false,
       ));
     } on ApiException catch (e) {

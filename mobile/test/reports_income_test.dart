@@ -44,12 +44,14 @@ class _FakeApi implements ApiClient {
         }
       ];
     }
-    return [
+    // Список операций приходит страницей: сервер сообщает и сколько всего.
+    final rows = [
       _tx('in-1', 5547900, 'Rama', 'ready-to-assign'),
       _tx('in-2', 3000000, 'Халтурка', 'ready-to-assign'),
       _tx('in-3', 1000000, 'Назым', 'ready-to-assign'),
       _tx('out-1', -314900, 'Магнум', 'c-food'),
     ];
+    return {'transactions': rows, 'totalCount': rows.length, 'hasMore': false};
   }
 
   Map<String, dynamic> _tx(String id, int cents, String payee, String cat) => {

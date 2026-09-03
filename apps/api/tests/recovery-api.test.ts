@@ -276,7 +276,7 @@ describe('clearing inherited Available', () => {
     expect(data.deltaCents).toBe(-231372900);
 
     const txAfter = await api(app, 'GET', '/api/v1/transactions?limit=500');
-    expect(txAfter.data).toHaveLength(txBefore.data.length);
+    expect(txAfter.data.transactions).toHaveLength(txBefore.data.transactions.length);
   });
 
   it('returns the freed money to Ready to Assign', async () => {
@@ -378,7 +378,7 @@ describe('bulk operations', () => {
 
     expect(status).toBe(404);
     const list = await api(app, 'GET', '/api/v1/transactions?limit=500');
-    expect(list.data).toHaveLength(0);
+    expect(list.data.transactions).toHaveLength(0);
   });
 
   it('skips rows duplicating what is already stored', async () => {
@@ -506,7 +506,7 @@ describe('reconciliation', () => {
     expect(accounts.data.find((a: { id: string }) => a.id === 'acc-main').balanceCents).toBe(49665414);
 
     const txs = await api(app, 'GET', '/api/v1/transactions?limit=500');
-    expect(txs.data).toHaveLength(2);
+    expect(txs.data.transactions).toHaveLength(2);
   });
 
   it('writes nothing when the balance already matches', async () => {
@@ -556,7 +556,7 @@ describe('audit and undo', () => {
     expect(undo.data.reverted).toBe(2);
 
     const txs = await api(app, 'GET', '/api/v1/transactions?limit=500');
-    expect(txs.data).toHaveLength(0);
+    expect(txs.data.transactions).toHaveLength(0);
   });
 
   it('restores the prior value when undoing an update', async () => {
@@ -627,7 +627,7 @@ describe('CSV import', () => {
     expect(data.wouldImport).toBe(3);
 
     const txs = await api(app, 'GET', '/api/v1/transactions?limit=500');
-    expect(txs.data).toHaveLength(0);
+    expect(txs.data.transactions).toHaveLength(0);
   });
 
   it('parses spaced thousands, comma decimals and both date styles', async () => {
@@ -636,7 +636,7 @@ describe('CSV import', () => {
     expect(data.imported).toBe(3);
 
     const txs = await api(app, 'GET', '/api/v1/transactions?limit=500');
-    const byDate = Object.fromEntries(txs.data.map((t: any) => [t.date, t.amountCents]));
+    const byDate = Object.fromEntries(txs.data.transactions.map((t: any) => [t.date, t.amountCents]));
     expect(byDate['2026-08-01']).toBe(-1500050);
     expect(byDate['2026-08-02']).toBe(-230000);
     expect(byDate['2026-08-03']).toBe(45000000);

@@ -37,7 +37,9 @@ class _FailingApi implements ApiClient {
       throw ApiException('сервер недоступен', status: 500);
     }
     if (path.contains('/accounts')) return <dynamic>[];
-    if (path.contains('/transactions')) return <dynamic>[];
+    if (path.contains('/transactions')) {
+      return {'transactions': <dynamic>[], 'totalCount': 0, 'hasMore': false};
+    }
     return <String, dynamic>{};
   }
 
@@ -92,9 +94,9 @@ class _FlakyApi implements ApiClient {
       ];
     }
     if (path.contains('/transactions')) {
-      // Полная страница: иначе hasMore = false и loadMore выйдет сразу,
-      // так и не дойдя до запроса, который должен упасть.
-      return withTransactions
+      // Полная страница и hasMore: иначе loadMore выйдет сразу, так и не
+      // дойдя до запроса, который должен упасть.
+      final rows = withTransactions
           ? [
               for (var i = 0; i < 50; i++)
                 {
@@ -103,6 +105,11 @@ class _FlakyApi implements ApiClient {
                 }
             ]
           : <dynamic>[];
+      return {
+        'transactions': rows,
+        'totalCount': withTransactions ? 200 : 0,
+        'hasMore': withTransactions,
+      };
     }
     return <String, dynamic>{};
   }
@@ -148,12 +155,14 @@ class _BigPageApi implements ApiClient {
     if (path.contains('/categories')) return <dynamic>[];
     if (path.contains('/transactions')) {
       final limit = (query?['limit'] as int?) ?? 50;
-      return [
+      final rows = [
         for (var i = 0; i < limit; i++)
           {'id': 'tx\$i', 'accountId': 'acc', 'date': '2026-08-10',
            'amountCents': -1000, 'payeeName': 'Магнум', 'categoryId': 'c',
            'cleared': 'cleared', 'approved': true}
       ];
+      // Упёрлись в предел: сервер сообщает, что есть ещё.
+      return {'transactions': rows, 'totalCount': limit * 2, 'hasMore': true};
     }
     return <String, dynamic>{};
   }

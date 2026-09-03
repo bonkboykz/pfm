@@ -59,6 +59,7 @@ prefer them — this file is the curl fallback, and both hit the same routes.
 | `GET /deposits` | голый массив |
 | `GET /debts` | объект `{ debts, summary }` |
 | `GET /scheduled` | объект `{ scheduled }` |
+| `GET /transactions` | объект `{ transactions, totalCount, limit, offset, hasMore }` |
 | `GET /budget/{месяц}` | объект |
 | `GET /budget/rta-overview` | объект |
 
@@ -189,6 +190,23 @@ curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions?since=2026-02-01&until=2026
 # Filter by category
 curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions?categoryId={id}" | jq
 ```
+
+**Check `hasMore` before concluding anything.** The response is an object, not
+a bare array: `{ transactions, totalCount, limit, offset, hasMore }`.
+`totalCount` counts every row matching the filter, so a page of 50 out of 300
+is visible rather than silent — summing one page and calling it the month's
+spending is exactly the mistake this shape exists to prevent.
+
+```bash
+# Следующая страница
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions?limit=50&offset=50" | jq
+
+# Поиск идёт по всей базе, а не по загруженной странице
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/transactions?search=Kaspi&limit=200" | jq
+```
+
+`search` matches payee and memo, case-insensitively, and `totalCount` then
+counts the matches — not the whole ledger.
 
 ### Create expense transaction
 

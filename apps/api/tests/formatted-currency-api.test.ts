@@ -63,7 +63,8 @@ describe('*Formatted учитывает валюту сущности', () => {
   });
 
   it('операция форматируется в валюте своего счёта', async () => {
-    const { data } = await api(app, 'GET', '/api/v1/transactions');
+    const { data: list } = await api(app, 'GET', '/api/v1/transactions');
+    const data = list.transactions;
     const byId = Object.fromEntries(data.map((t: { id: string }) => [t.id, t]));
 
     expect(byId['tx-usd'].amountFormatted).toBe('-$1 234,56');

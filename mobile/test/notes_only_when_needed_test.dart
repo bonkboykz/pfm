@@ -57,7 +57,7 @@ class _Api implements ApiClient {
     if (path.contains('/transactions')) {
       final limit = (query?['limit'] as int?) ?? 50;
       final count = manyRows ? limit : 2;
-      return [
+      final rows = [
         for (var i = 0; i < count; i++)
           {
             'id': 'tx$i', 'accountId': excludedCurrency && i == 0 ? 'usd' : 'acc',
@@ -65,6 +65,11 @@ class _Api implements ApiClient {
             'categoryId': 'c', 'cleared': 'cleared', 'approved': true,
           }
       ];
+      return {
+        'transactions': rows,
+        'totalCount': manyRows ? count * 2 : count,
+        'hasMore': manyRows,
+      };
     }
     return {
       'month': currentMonth(),

@@ -141,3 +141,17 @@ class CategoryCatalog {
 
   List<CategoryRef> get sortedByGroup => categories;
 }
+
+
+/// Страница списка операций: сами строки и сколько их всего по фильтру.
+class TransactionPage {
+  final List<Transaction> transactions;
+  final int totalCount;
+  final bool hasMore;
+
+  const TransactionPage({
+    required this.transactions,
+    required this.totalCount,
+    required this.hasMore,
+  });
+}

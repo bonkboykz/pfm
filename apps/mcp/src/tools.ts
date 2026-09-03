@@ -319,12 +319,14 @@ export const tools: ToolDef[] = [
   {
     name: 'list_transactions',
     description:
-      'List transactions newest first, default limit 50. Filter by accountId, categoryId and a since/until date range (YYYY-MM-DD). Amounts are tiyn; negative is an outflow. Pass estimated=true to list only rows still carrying a provisional amount — a purchase priced in another currency, recorded at a quoted rate and waiting for the bank statement to confirm the tenge figure.',
+      'List transactions newest first, default limit 50. The response is { transactions, totalCount, limit, offset, hasMore } — never a bare array. **Check hasMore before drawing any conclusion from the rows.** totalCount counts everything matching the filter, so a page of 50 out of 300 is obvious rather than silent; summing one page and calling it the month is the mistake this shape exists to prevent. Walk further with offset. Filter by accountId, categoryId, a since/until date range (YYYY-MM-DD) and search, which matches payee and memo across the whole database rather than the loaded page. Amounts are tiyn; negative is an outflow. Pass estimated=true to list only rows still carrying a provisional amount — a purchase priced in another currency, recorded at a quoted rate and waiting for the bank statement to confirm the tenge figure.',
     schema: z.object({
       accountId: z.string().optional(),
       categoryId: z.string().optional(),
       since: z.string().optional(),
       until: z.string().optional(),
+      search: z.string().optional(),
+      offset: z.number().int().min(0).optional(),
       estimated: z.boolean().optional(),
       limit: z.number().int().positive().optional(),
     }),
@@ -336,7 +338,9 @@ export const tools: ToolDef[] = [
         since: a.since,
         until: a.until,
         estimated: a.estimated,
+        search: a.search,
         limit: a.limit,
+        offset: a.offset,
       })}`,
   },
   {
