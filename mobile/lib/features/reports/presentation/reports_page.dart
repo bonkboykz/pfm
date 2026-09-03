@@ -245,7 +245,10 @@ class _Content extends StatelessWidget {
                 const SizedBox(height: 16),
               ],
             ],
-            _CurrencyNote(excludedCount: data.excludedCount),
+            _CurrencyNote(
+              excludedCount: data.excludedCount,
+              truncated: data.truncated,
+            ),
           ],
         ),
       );
@@ -822,18 +825,26 @@ class _PayeesCard extends StatelessWidget {
 }
 
 class _CurrencyNote extends StatelessWidget {
-  const _CurrencyNote({required this.excludedCount});
+  const _CurrencyNote({required this.excludedCount, required this.truncated});
 
   final int excludedCount;
+
+  /// Выборка упёрлась в лимит: суммы занижены, но выглядят полными.
+  final bool truncated;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final text = excludedCount == 0
-        ? 'Считается по счетам в ₸.'
-        : 'Считается по счетам в ₸. Операций в других валютах '
-            'исключено: $excludedCount — курса в API нет.';
+    final parts = <String>[
+      'Считается по счетам в ₸.',
+      if (excludedCount > 0)
+        'Операций в других валютах исключено: $excludedCount — курса в API нет.',
+      if (truncated)
+        'Показана только часть операций: выборка упёрлась в предел страницы, '
+            'суммы занижены.',
+    ];
+    final text = parts.join(' ');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),

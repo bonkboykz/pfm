@@ -261,8 +261,11 @@ class TransactionsCubit extends Cubit<TransactionsState> {
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(loadingMore: false, error: humanizeApiError(e)));
-    } catch (_) {
-      emit(state.copyWith(loadingMore: false));
+    } catch (e) {
+      // Раньше здесь стоял `catch (_)`, и всё, что не ApiException, исчезало:
+      // кнопка «загрузить ещё» просто переставала работать, а отличить сбой
+      // от «больше ничего нет» было нельзя.
+      emit(state.copyWith(loadingMore: false, error: e.toString()));
     }
   }
 

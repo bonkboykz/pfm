@@ -65,7 +65,13 @@ class ReportsData {
   /// the numbers never look more complete than they are.
   final int excludedCount;
 
+  /// Выборка упёрлась в лимит страницы — значит операций могло быть больше,
+  /// и суммы занижены. Показывать это обязательно: занижённый отчёт выглядит
+  /// точно так же, как полный, и за год использования начнёт врать молча.
+  final bool truncated;
+
   const ReportsData({
+    this.truncated = false,
     required this.months,
     required this.since,
     required this.until,

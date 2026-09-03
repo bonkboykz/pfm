@@ -184,11 +184,19 @@ class PayoffCubit extends Cubit<PayoffState> {
       );
       emit(state.copyWith(scenario: result, simulating: false));
     } on ApiException catch (e) {
-      emit(state.copyWith(simulating: false, error: humanizeApiError(e)));
+      emit(_failed(humanizeApiError(e)));
     } catch (e) {
-      emit(state.copyWith(simulating: false, error: e.toString()));
+      emit(_failed(e.toString()));
     }
   }
+
+  /// Провал сценария — это состояние ошибки, а не пометка сбоку.
+  ///
+  /// Экран рендерит ошибку только в ветке `PayoffStatus.error`; со статусом
+  /// `ready` он продолжал показывать прошлый сценарий, и человек принимал
+  /// решение по числам, которых сервер не подтверждал.
+  PayoffState _failed(String message) =>
+      state.copyWith(status: PayoffStatus.error, error: message, simulating: false);
 
   @override
   Future<void> close() {

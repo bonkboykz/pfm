@@ -26,18 +26,19 @@ class ReportsRepository {
     final currencyByAccount = {for (final a in accounts) a.id: a.currency};
 
     // One wide page: the window is months long and the API has no aggregation.
+    const pageLimit = 2000;
     final transactions = await _transactions.list(
       since: since,
       until: until,
-      limit: 2000,
+      limit: pageLimit,
     );
+    // Ровно столько, сколько просили, — значит могло быть и больше.
+    final truncated = transactions.length >= pageLimit;
 
-    CategoryCatalog? catalog;
-    try {
-      catalog = await _transactions.categories();
-    } catch (_) {
-      catalog = null;
-    }
+    // Справочник не заворачивается в try: недоступность сети — это ошибка,
+    // а не данные. Раньше `catch (_) { catalog = null }` превращал сбой
+    // связи в отчёт, где все категории названы «Категория удалена».
+    final catalog = await _transactions.categories();
 
     return _aggregate(
       months: months,
@@ -47,6 +48,7 @@ class ReportsRepository {
       transactions: transactions,
       currencyByAccount: currencyByAccount,
       catalog: catalog,
+      truncated: truncated,
     );
   }
 
@@ -56,6 +58,7 @@ class ReportsRepository {
     required String until,
     required DateTime start,
     required List<Transaction> transactions,
+    required bool truncated,
     required Map<String, String> currencyByAccount,
     required CategoryCatalog? catalog,
   }) {
@@ -164,6 +167,7 @@ class ReportsRepository {
       incomeCents: income,
       expenseCents: expense,
       excludedCount: excluded,
+          truncated: truncated,
     );
   }
 }
