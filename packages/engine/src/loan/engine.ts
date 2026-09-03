@@ -136,25 +136,29 @@ function lastPaymentDate(db: DB, loanId: string): string | null {
   return row?.d ?? null;
 }
 
+/**
+ * Сколько по этому кредиту реально заплачено — по проведённым платежам.
+ *
+ * Раньше считалось по категории с даты старта: другого способа не было. Он
+ * оказался негодным, и это видно на живых данных — три рассрочки делили одну
+ * категорию (притом удалённую), две карты другую, у кредита наличными её нет
+ * вовсе. Из-за этого чужой платёж приписывался соседнему займу. Теперь платёж
+ * привязан к кредиту явно, и угадывать больше не нужно: считается ровно то,
+ * что провели через проведение платежа.
+ */
 export function getLoanPaymentsObserved(db: DB, loanId: string): number {
-  const loan = db.select().from(loans).where(eq(loans.id, loanId)).get();
-  if (!loan || !loan.categoryId) return 0;
-
   const result = db
     .select({ total: sql<number>`COALESCE(SUM(${transactions.amountCents}), 0)` })
     .from(transactions)
     .where(
       and(
-        eq(transactions.categoryId, loan.categoryId),
+        eq(transactions.loanId, loanId),
         eq(transactions.isDeleted, false),
-        sql`${transactions.transferAccountId} IS NULL`,
-        gte(transactions.date, loan.startDate),
       ),
     )
     .get();
 
   // Списания отрицательны, поэтому платежи — это сумма со знаком минус.
-  // Категория в чистом плюсе означает, что не платили ничего, а не что долг вырос.
   return Math.max(0, -(result?.total ?? 0));
 }
 

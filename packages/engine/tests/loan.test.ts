@@ -35,10 +35,12 @@ function createAndSeedDb(): DB {
     .run('loan-halyk', 'Халық кредит', 'loan', 'acc-halyk', 'cat-halyk-credit', 200000000, 1850, 24, '2025-06-01', 8500000, 25, 0, 0, null, now, now);
 
   // Two payments made
-  sqlite.prepare(`INSERT INTO transactions (id, account_id, date, amount_cents, category_id, payee_name, cleared, approved, is_deleted, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'cleared', 1, 0, ?, ?)`)
-    .run('tx-loan-1', 'acc-halyk', '2026-01-25', -8500000, 'cat-halyk-credit', 'Halyk Bank', now, now);
-  sqlite.prepare(`INSERT INTO transactions (id, account_id, date, amount_cents, category_id, payee_name, cleared, approved, is_deleted, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'cleared', 1, 0, ?, ?)`)
-    .run('tx-loan-2', 'acc-halyk', '2026-02-25', -8500000, 'cat-halyk-credit', 'Halyk Bank', now, now);
+  // Проведённые платежи: привязаны к кредиту и несут разнесение. Тело здесь
+  // взято символическим — проверяется, что считается именно оно, а не вся
+  // сумма списания.
+  const postPayment = sqlite.prepare(`INSERT INTO transactions (id, account_id, date, amount_cents, category_id, payee_name, loan_id, loan_principal_cents, loan_interest_cents, cleared, approved, is_deleted, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'cleared', 1, 0, ?, ?)`);
+  postPayment.run('tx-loan-1', 'acc-halyk', '2026-01-25', -8500000, 'cat-halyk-credit', 'Halyk Bank', 'loan-halyk', 5000000, 3500000, now, now);
+  postPayment.run('tx-loan-2', 'acc-halyk', '2026-02-25', -8500000, 'cat-halyk-credit', 'Halyk Bank', 'loan-halyk', 5000000, 3500000, now, now);
 
   // Kaspi Red installment (0% APR)
   sqlite.prepare(`INSERT INTO loans (id, name, type, account_id, category_id, principal_cents, apr_bps, term_months, start_date, monthly_payment_cents, payment_day, penalty_rate_bps, early_repayment_fee_cents, note, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`)
@@ -60,8 +62,10 @@ describe('Loan Engine', () => {
     // уменьшается только на тело. Два списания по 85 000 ₸ гасят заметно меньше,
     // и сколько именно — знает только график амортизации. Долг опирается на
     // paidOffCents, а сами списания видны через getLoanPaymentsObserved.
-    it('равен телу минус погашенное, а списания в него не входят', () => {
-      expect(getLoanCurrentDebt(db, 'loan-halyk')).toBe(200000000);
+    it('уменьшается на тело проведённых платежей, а не на их сумму', () => {
+      // Со счёта ушло 170 000 ₸, но тело уменьшилось на 100 000 — остальное
+      // проценты.
+      expect(getLoanCurrentDebt(db, 'loan-halyk')).toBe(200000000 - 10000000);
       expect(getLoanPaymentsObserved(db, 'loan-halyk')).toBe(17000000);
     });
 
@@ -80,7 +84,8 @@ describe('Loan Engine', () => {
       const summary = getLoanSummary(db, 'loan-halyk');
       expect(summary).not.toBeNull();
       expect(summary!.name).toBe('Халық кредит');
-      expect(summary!.currentDebtCents).toBe(200000000);
+      // Тело займа неизменно, остаток — за вычетом проведённых платежей.
+      expect(summary!.currentDebtCents).toBe(190000000);
       expect(summary!.principalCents).toBe(200000000);
     });
 
@@ -94,7 +99,8 @@ describe('Loan Engine', () => {
       const snapshot = loanToDebtSnapshot(db, 'loan-halyk');
       expect(snapshot).not.toBeNull();
       expect(snapshot!.type).toBe('loan');
-      expect(snapshot!.balanceCents).toBe(200000000);
+      // В симулятор погашения идёт остаток, а не первоначальное тело.
+      expect(snapshot!.balanceCents).toBe(190000000);
       expect(snapshot!.aprBps).toBe(1850);
       expect(snapshot!.minPaymentCents).toBe(8500000);
     });

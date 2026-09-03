@@ -129,10 +129,13 @@ describe('loan balances', () => {
     expect(data.currentDebtCents).toBe(7876500);
   });
 
-  it('ignores spending in the category that predates the loan', async () => {
-    // The category carries history from whatever loan this one replaced.
+  it('ignores spending in the category, whoever it belonged to', async () => {
+    // Категория ничего не доказывает: на проде три рассрочки делили одну
+    // категорию (притом удалённую), две карты — другую, а у кредита
+    // наличными её не было вовсе. Платёж принадлежит кредиту, только если
+    // проведён через POST /loans/:id/payment.
     await api(app, 'POST', '/api/v1/transactions', {
-      accountId: 'acc-main', date: '2026-03-15', amountCents: -9000000, categoryId: 'cat-debt',
+      accountId: 'acc-main', date: '2026-09-15', amountCents: -9000000, categoryId: 'cat-debt',
     });
 
     const { data } = await api(app, 'POST', '/api/v1/loans', {
@@ -143,22 +146,30 @@ describe('loan balances', () => {
     expect(data.paymentsObservedCents).toBe(0);
   });
 
-  // Гарантия «платежи считаются только с даты старта» осталась, но переехала:
-  // теперь она про paymentsObservedCents. Из остатка долга списания ушли —
-  // платёж по кредиту под процент гасит тело лишь частично, и вычитать из
-  // долга всю сумму было неверно. Остаток опирается на paidOffCents.
-  it('counts payments made since the loan started', async () => {
+  // Гарантия переезжает второй раз. Сначала она была про остаток долга, потом
+  // про списания по категории с даты старта — а теперь платёж привязан к
+  // кредиту явно, и угадывать по категории больше не нужно. Считается ровно
+  // то, что провели как платёж по этому кредиту.
+  it('counts only payments posted against this loan', async () => {
     const { data: loan } = await api(app, 'POST', '/api/v1/loans', {
-      ...baseLoan, principalCents: 10051500, startDate: '2026-08-03',
+      ...baseLoan, principalCents: 10051500, aprBps: 0, startDate: '2026-08-03',
     });
 
+    // Трата в той же категории — не платёж по кредиту.
     await api(app, 'POST', '/api/v1/transactions', {
-      accountId: 'acc-main', date: '2026-09-03', amountCents: -3350500, categoryId: 'cat-debt',
+      accountId: 'acc-main', date: '2026-09-03', amountCents: -9000000, categoryId: 'cat-debt',
+    });
+    expect((await api(app, 'GET', `/api/v1/loans/${loan.id}`)).data.paymentsObservedCents)
+      .toBe(0);
+
+    await api(app, 'POST', `/api/v1/loans/${loan.id}/payment`, {
+      accountId: 'acc-main', date: '2026-09-03', amountCents: -3350500,
     });
 
     const { data } = await api(app, 'GET', `/api/v1/loans/${loan.id}`);
     expect(data.paymentsObservedCents).toBe(3350500);
-    expect(data.currentDebtCents).toBe(10051500);
+    // Беспроцентный: платёж ушёл в тело целиком.
+    expect(data.currentDebtCents).toBe(10051500 - 3350500);
   });
 
   it('accepts a balance quoted straight from the statement', async () => {

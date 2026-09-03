@@ -16,9 +16,11 @@ import { getLoanCurrentDebt, getLoanPaymentsObserved } from '../src/loan/engine.
  * против 35 855,21 ₸ тела. Вычитать из долга всю сумму списания нельзя ни при
  * каких условиях, даже если paidOffCents никто не трогает.
  *
- * Разложить платёж на тело и проценты без графика невозможно, поэтому долг
- * теперь опирается на paidOffCents, а фактические списания по категории
- * отдаются отдельным числом — чтобы расхождение было видно, а не спрятано.
+ * Разносить платёж научились позже (splitLoanPayment), и с тех пор долг
+ * уменьшают проведённые платежи. Но трата, просто попавшая в категорию
+ * кредита, платежом по нему не является и на долг не влияет: категория
+ * ничего не доказывает — три рассрочки на проде делили одну, две карты
+ * другую, а у кредита наличными её нет вовсе.
  */
 
 const CAT = 'cat-loan';
@@ -59,7 +61,8 @@ function loan(db: DB, opts: { paidOff?: number; categoryId?: string | null } = {
   return 'loan';
 }
 
-function payment(db: DB, id: string, date: string, cents: number) {
+/** Трата в категории кредита — но не платёж по нему. */
+function spendInCategory(db: DB, id: string, date: string, cents: number) {
   const now = '2026-08-27T00:00:00.000Z';
   db.$client
     .prepare(
@@ -69,38 +72,65 @@ function payment(db: DB, id: string, date: string, cents: number) {
     .run(id, CAT, date, -cents, now, now);
 }
 
+/** Проведённый платёж: привязан к кредиту и несёт своё разнесение. */
+function postedPayment(
+  db: DB, id: string, date: string, cents: number, principal: number,
+) {
+  const now = '2026-08-27T00:00:00.000Z';
+  db.$client
+    .prepare(
+      `INSERT INTO transactions (id, account_id, category_id, date, amount_cents,
+         loan_id, loan_principal_cents, loan_interest_cents,
+         cleared, approved, is_deleted, created_at, updated_at)
+       VALUES (?, 'acc', ?, ?, ?, 'loan', ?, ?, 'cleared', 1, 0, ?, ?)`,
+    )
+    .run(id, CAT, date, -cents, principal, cents - principal, now, now);
+}
+
 describe('остаток по кредиту', () => {
-  it('равен телу минус погашенное, даже когда платежи есть в категории', () => {
+  it('равен телу минус погашенное, когда в категории просто трата', () => {
     const db = seed();
     const id = loan(db, { paidOff: 13850673 });
-    payment(db, 'p1', '2026-08-21', 13664865);
+    spendInCategory(db, 'p1', '2026-08-21', 13664865);
 
     // 4 346 586,00 − 138 506,73 = 4 208 079,27 — цифра из графика амортизации.
     expect(getLoanCurrentDebt(db, id)).toBe(420807927);
   });
 
-  it('платёж не вычитается дважды', () => {
+  it('трата в категории не вычитается из долга', () => {
     const db = seed();
     const id = loan(db, { paidOff: 13850673 });
-    const withoutPayments = getLoanCurrentDebt(db, id);
-    payment(db, 'p1', '2026-08-21', 13664865);
+    const before = getLoanCurrentDebt(db, id);
+    spendInCategory(db, 'p1', '2026-08-21', 13664865);
 
-    expect(getLoanCurrentDebt(db, id)).toBe(withoutPayments);
+    expect(getLoanCurrentDebt(db, id)).toBe(before);
   });
 
-  it('фактические списания по категории видны отдельным числом', () => {
+  it('проведённый платёж уменьшает долг на своё тело, а не на всю сумму', () => {
+    // 136 648,65 ₸ ушло со счёта, тело уменьшилось на 35 855,21 — остальное
+    // проценты. Вычитать всю сумму нельзя ни при каких условиях.
     const db = seed();
     const id = loan(db, { paidOff: 13850673 });
-    payment(db, 'p1', '2026-08-21', 13664865);
-    payment(db, 'p2', '2026-07-21', 13664865);
+    postedPayment(db, 'p1', '2026-08-21', 13664865, 3585521);
+
+    expect(getLoanCurrentDebt(db, id)).toBe(420807927 - 3585521);
+  });
+
+  it('проведённые платежи видны отдельным числом', () => {
+    const db = seed();
+    const id = loan(db, { paidOff: 13850673 });
+    postedPayment(db, 'p1', '2026-08-21', 13664865, 3585521);
+    postedPayment(db, 'p2', '2026-07-21', 13664865, 3500000);
 
     expect(getLoanPaymentsObserved(db, id)).toBe(27329730);
   });
 
-  it('списания до даты старта не считаются — категория переиспользуется', () => {
+  it('чужая трата в общей категории не приписывается кредиту', () => {
+    // На проде именно так и было: платёж трёх рассрочек засчитался соседнему
+    // займу, потому что категория у них одна.
     const db = seed();
     const id = loan(db);
-    payment(db, 'old', '2026-01-15', 5000000);
+    spendInCategory(db, 'foreign', '2026-06-15', 5000000);
 
     expect(getLoanPaymentsObserved(db, id)).toBe(0);
   });
