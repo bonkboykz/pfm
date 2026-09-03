@@ -9,6 +9,8 @@ export interface CategoryBudget {
   targetAmountCents: number | null;
   targetType: string | null;
   targetDate: string | null;
+  /** Месяц, на который цель отложена; null — не отложена. */
+  targetSnoozedMonth: string | null;
   /**
    * Сколько ещё надо назначить в этом месяце, чтобы цель осталась на треке.
    * Ноль, если цели нет или она уже закрыта. Считается по-разному для каждого

@@ -95,6 +95,9 @@ function formatCategory(cb: ReturnType<typeof getBudgetMonth>['categoryBudgets']
     availableFormatted: formatMoney(cb.availableCents),
     targetAmountCents: cb.targetAmountCents,
     targetType: cb.targetType,
+    // Видно, что цель отложена и на какой месяц: иначе «недофинансировано 0»
+    // неотличимо от «цели нет».
+    targetSnoozedMonth: cb.targetSnoozedMonth ?? null,
     targetDate: cb.targetDate,
     underfundedCents: cb.underfundedCents,
     underfundedFormatted: formatMoney(cb.underfundedCents),

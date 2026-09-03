@@ -40,6 +40,14 @@ export const categories = sqliteTable('categories', {
     enum: ['none', 'monthly_funding', 'target_balance', 'target_by_date'],
   }).default('none'),
   targetDate: text('target_date'),
+
+  /**
+   * Месяц, на который цель отложена. Не флаг, а месяц: снуз действует только
+   * там, где сделан, и в следующем цель просыпается сама. Снять цель тоже
+   * можно, но её потом не вспоминают — снуз тем и отличается, что забыть
+   * вернуть её невозможно.
+   */
+  targetSnoozedMonth: text('target_snoozed_month'),
   sortOrder: integer('sort_order').notNull().default(0),
   isHidden: integer('is_hidden', { mode: 'boolean' }).notNull().default(false),
   note: text('note'),

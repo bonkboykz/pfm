@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { isoMonth } from '../validation.js';
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { type DB, categories, categoryGroups } from '@pfm/engine';
@@ -22,6 +23,12 @@ const updateCategorySchema = z.object({
   targetAmountCents: z.number().int().nullable().optional(),
   targetType: z.enum(['none', 'monthly_funding', 'target_balance', 'target_by_date']).optional(),
   targetDate: z.string().nullable().optional(),
+  /**
+   * Месяц, на который цель отложена; null снимает отложку. Не флаг, а месяц:
+   * снуз действует только там, где сделан, и в следующем цель просыпается
+   * сама — забыть вернуть её невозможно, в отличие от снятия цели.
+   */
+  targetSnoozedMonth: z.union([isoMonth(), z.null()]).optional(),
   note: z.string().nullable().optional(),
 });
 

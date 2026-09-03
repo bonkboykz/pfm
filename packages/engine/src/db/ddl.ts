@@ -42,6 +42,7 @@ export function applySchema(sqlite: Database.Database): void {
       target_amount_cents INTEGER,
       target_type TEXT DEFAULT 'none' CHECK(target_type IN ('none', 'monthly_funding', 'target_balance', 'target_by_date')),
       target_date TEXT,
+      target_snoozed_month TEXT,
       sort_order INTEGER NOT NULL DEFAULT 0,
       is_hidden INTEGER NOT NULL DEFAULT 0,
       note TEXT,
@@ -230,6 +231,10 @@ export function applyColumnMigrations(sqlite: Database.Database): void {
     // Метка строки выписки. Отличает импортированное от заведённого руками:
     // на совпадение претендует только ручное, иначе две покупки на одну сумму
     // в одном окне склеились бы в одну.
+    // Цель отложена на этот месяц. Не флаг, а месяц: снуз действует только
+    // там, где сделан, и в следующем цель просыпается сама — забыть вернуть
+    // её невозможно, в отличие от снятия.
+    'ALTER TABLE categories ADD COLUMN target_snoozed_month TEXT',
     'ALTER TABLE transactions ADD COLUMN import_id TEXT',
     // Часть сплита. Со счёта уходит родитель, по категориям расходятся части:
     // стороны не пересекаются, поэтому двойного счёта не возникает.

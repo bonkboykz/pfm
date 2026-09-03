@@ -310,6 +310,7 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
     targetAmountCents: categories.targetAmountCents,
     targetType: categories.targetType,
     targetDate: categories.targetDate,
+    targetSnoozedMonth: categories.targetSnoozedMonth,
   }).from(categories)
     .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
     .where(and(eq(categories.isSystem, false), eq(categories.isHidden, false)))
@@ -391,7 +392,10 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
     }
 
     const isOverspent = available < 0;
-    const underfundedCents = computeUnderfunded(
+    // Отложенная цель в этом месяце денег не просит. В следующем — просит
+    // снова: снуз привязан к месяцу, а не к категории.
+    const snoozed = cat.targetSnoozedMonth === month;
+    const underfundedCents = snoozed ? 0 : computeUnderfunded(
       cat.targetAmountCents,
       cat.targetType,
       cat.targetDate,
@@ -411,6 +415,7 @@ export function getBudgetMonth(db: DB, month: string): BudgetMonth {
       availableCents: available,
       targetAmountCents: cat.targetAmountCents,
       targetType: cat.targetType ?? null,
+      targetSnoozedMonth: cat.targetSnoozedMonth ?? null,
       targetDate: cat.targetDate ?? null,
       underfundedCents,
       isUnderfunded: underfundedCents > 0,
@@ -1038,4 +1043,24 @@ export function getReadyToAssign(db: DB, month: string): ReadyToAssignBreakdown 
     readyToAssignCents,
     isOverAssigned: readyToAssignCents < 0,
   };
+}
+
+/**
+ * Откладывает цель категории на один месяц.
+ *
+ * Снуз хранится как месяц, а не как флаг: он действует только там, где сделан,
+ * и в следующем месяце цель просыпается сама. Снять цель совсем тоже можно,
+ * но снятую потом не вспоминают — снуз тем и отличается, что забыть вернуть
+ * её невозможно.
+ *
+ * `null` снимает снуз.
+ */
+export function snoozeTarget(db: DB, categoryId: string, month: string | null): void {
+  const cat = db.select().from(categories).where(eq(categories.id, categoryId)).get();
+  if (!cat) throw new Error(`Unknown category: ${categoryId}`);
+
+  db.update(categories)
+    .set({ targetSnoozedMonth: month })
+    .where(eq(categories.id, categoryId))
+    .run();
 }

@@ -141,13 +141,14 @@ export const tools: ToolDef[] = [
   },
   {
     name: 'update_category',
-    description: 'Update a category name, target or note. Nullable fields accept null to clear them.',
+    description: 'Update a category name, target or note. Nullable fields accept null to clear them. Set targetSnoozedMonth to a YYYY-MM to let the target skip that one month: it stops asking for money there and wakes up by itself in the next month. Prefer this over clearing the target in a tight month — a cleared target is one nobody remembers to put back.',
     schema: z.object({
       id: z.string(),
       name: z.string().min(1).optional(),
       targetAmountCents: z.number().int().nullable().optional(),
       targetType: z.enum(['none', 'monthly_funding', 'target_balance', 'target_by_date']).optional(),
       targetDate: z.string().nullable().optional(),
+      targetSnoozedMonth: z.string().nullable().optional(),
       note: z.string().nullable().optional(),
     }),
     method: 'PATCH',

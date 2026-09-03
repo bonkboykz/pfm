@@ -39,6 +39,7 @@ export {
   getRtaReconciliation,
   reconcileAccount,
   findUnfundedSpending,
+  snoozeTarget,
 } from './budget/engine.js';
 export { getAgeOfMoney } from './budget/age.js';
 export type { AgeOfMoney } from './budget/age.js';

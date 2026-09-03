@@ -530,6 +530,29 @@ and each `targetType` computes it differently:
 `isUnderfunded` is exactly `underfundedCents > 0`. `totalUnderfundedCents` on the
 month is their sum. Do not recompute any of this from `targetAmountCents`.
 
+### Let a target skip one month
+
+```bash
+curl -s -X PATCH "$PFM_API_URL/api/v1/categories/CAT_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "targetSnoozedMonth": "2026-09" }' | jq
+
+# Разбудить раньше срока
+curl -s -X PATCH "$PFM_API_URL/api/v1/categories/CAT_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{ "targetSnoozedMonth": null }' | jq
+```
+
+A snoozed target contributes nothing to `underfundedCents` for that month and
+is skipped by `assign_to_targets` — then wakes up by itself in the next one.
+The value is a month, not a flag, which is the whole point: the target cannot
+be forgotten in the off position.
+
+Offer this instead of clearing the target when a month is tight. A cleared
+target is one nobody remembers to restore, and the plan quietly loses a line.
+`targetSnoozedMonth` comes back in the budget response, so a category showing
+`underfundedCents: 0` can be told apart from one that simply has no target.
+
 ### Assign money to a category
 
 ```bash
