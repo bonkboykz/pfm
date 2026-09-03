@@ -421,7 +421,7 @@ class _AgeOfMoneyLine extends StatelessWidget {
         ? 'пока не из чего посчитать'
         : (age.isMature
             ? 'месяц живётся на прошлый доход'
-            : 'деньги тратятся почти сразу после прихода');
+            : 'тратятся почти сразу после прихода');
 
     return Row(
       children: [
@@ -444,10 +444,12 @@ class _AgeOfMoneyLine extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
+        // Две строки, а не одна с многоточием: обрезанное «деньги тратятся
+        // почти сразу пос…» не объясняет ничего, ради чего строку заводили.
         Expanded(
           child: Text(
             '· $hint',
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall
                 ?.copyWith(fontSize: 11, color: AppColors.textMuted),
