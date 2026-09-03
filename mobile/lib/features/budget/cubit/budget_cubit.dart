@@ -184,6 +184,29 @@ class BudgetCubit extends Cubit<BudgetState> {
     return null;
   }
 
+  /// Откладывает цель категории на текущий месяц; `null` возвращает её.
+  ///
+  /// Отдельным действием, а не через setTarget: снять цель и отложить её —
+  /// разные намерения, и путать их в одном вызове значит однажды стереть
+  /// цель там, где хотели пропустить месяц.
+  Future<String?> snoozeTarget(String categoryId, {required bool snooze}) async {
+    emit(state.copyWith(busy: true));
+    try {
+      await _repo.snoozeTarget(categoryId, snooze ? state.month : null);
+    } on ApiException catch (e) {
+      emit(state.copyWith(busy: false));
+      return humanizeApiError(e);
+    } catch (e) {
+      emit(state.copyWith(busy: false));
+      return e.toString();
+    }
+
+    emit(state.copyWith(busy: false));
+    await load();
+    _bus?.emit(DataChange.budget);
+    return null;
+  }
+
   Future<String?> move(String fromId, String toId, int amountCents) =>
       _mutate(() => _repo.move(state.month, fromId, toId, amountCents));
 

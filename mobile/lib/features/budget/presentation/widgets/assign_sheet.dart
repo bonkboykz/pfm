@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../app/theme.dart';
 import '../../../../core/dates/months.dart';
 import '../../../../core/money/money.dart';
+import '../../../../core/widgets/states.dart';
 import '../../cubit/budget_cubit.dart';
 import '../../data/budget_models.dart';
 import 'category_picker.dart';
@@ -96,6 +97,7 @@ class _AssignSheetState extends State<_AssignSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final category = widget.category;
+    final snoozed = category.targetSnoozedMonth == widget.month.month;
     final spent = category.activityCents < 0 ? -category.activityCents : 0;
 
     return Padding(
@@ -277,6 +279,28 @@ class _AssignSheetState extends State<_AssignSheet> {
                           (parseMoneyToCents(_amount.text) ?? 0) + 1000000,
                         ),
                       ),
+                      // Отложить цель — третий вариант между «финансировать
+                      // нечем» и «снять цель совсем». Снятую не вспоминают,
+                      // отложенная просыпается сама в следующем месяце.
+                      if (category.hasTarget)
+                        _Chip(
+                          label: snoozed
+                              ? 'Вернуть цель'
+                              : 'Отложить цель на месяц',
+                          accent: false,
+                          onTap: () async {
+                            final error = await widget.cubit.snoozeTarget(
+                              category.categoryId,
+                              snooze: !snoozed,
+                            );
+                            if (!context.mounted) return;
+                            if (error != null) {
+                              showToast(context, error, isError: true);
+                              return;
+                            }
+                            Navigator.of(context).pop();
+                          },
+                        ),
                     ],
                   ),
                   const SizedBox(height: 18),

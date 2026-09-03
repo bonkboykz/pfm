@@ -10,6 +10,9 @@ library;
 const kReadyToAssignId = 'ready-to-assign';
 
 class CategoryBudget {
+  /// Месяц, на который цель отложена; null — не отложена.
+  final String? targetSnoozedMonth;
+
   final String categoryId;
   final String categoryName;
   final int assignedCents;
@@ -41,6 +44,7 @@ class CategoryBudget {
     required this.targetAmountCents,
     required this.targetType,
     required this.targetDate,
+    this.targetSnoozedMonth,
     required this.underfundedCents,
     required this.isUnderfunded,
     required this.isOverspent,
@@ -58,6 +62,7 @@ class CategoryBudget {
         targetAmountCents: (json['targetAmountCents'] as num?)?.toInt(),
         targetType: json['targetType']?.toString(),
         targetDate: json['targetDate']?.toString(),
+        targetSnoozedMonth: json['targetSnoozedMonth']?.toString(),
         underfundedCents: (json['underfundedCents'] as num?)?.toInt() ?? 0,
         isUnderfunded: json['isUnderfunded'] == true,
         isOverspent: json['isOverspent'] == true,

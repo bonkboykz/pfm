@@ -82,6 +82,18 @@ class BudgetRepository {
   ///
   /// Все три поля шлём всегда: снятие цели — это `none` плюс явные `null`, а не
   /// пропущенные ключи.
+  /// Откладывает цель на месяц; `null` возвращает её в строй.
+  ///
+  /// Отложка хранится месяцем, а не флагом: в следующем месяце цель
+  /// просыпается сама, и забыть вернуть её невозможно — этим она и лучше
+  /// снятия цели.
+  Future<void> snoozeTarget(String categoryId, String? month) async {
+    await _api.patch(
+      '/api/v1/categories/$categoryId',
+      body: {'targetSnoozedMonth': month},
+    );
+  }
+
   Future<void> setTarget(
     String categoryId, {
     required String type,
