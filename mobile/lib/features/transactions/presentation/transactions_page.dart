@@ -7,6 +7,7 @@ import '../../../app/theme.dart';
 import '../../../core/dates/months.dart';
 import '../../../core/di/di.dart';
 import '../../../core/money/money.dart';
+import '../../../core/text/plural.dart';
 import '../../../core/events/data_bus.dart';
 import '../../../core/network/api_client.dart';
 import '../../accounts/data/accounts_repository.dart';
@@ -433,11 +434,16 @@ class _TransactionRow extends StatelessWidget {
       _ => rawPayee,
     };
 
+    // У разделённой покупки своей категории нет — они у частей. Без этой
+    // ветки лента объявила бы её нераспределённой тратой, хотя разложена
+    // она полностью.
     final kind = t.isTransfer
         ? 'Перевод'
-        : (t.isIncome
-            ? 'Доход'
-            : (state.categories?.nameOf(t.categoryId) ?? 'Без категории'));
+        : t.isSplit
+            ? '${t.splits.length} ${plural(t.splits.length, "категория", "категории", "категорий")}'
+            : (t.isIncome
+                ? 'Доход'
+                : (state.categories?.nameOf(t.categoryId) ?? 'Без категории'));
 
     return InkWell(
       onTap: () => showTransactionSheet(

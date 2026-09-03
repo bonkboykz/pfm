@@ -8,6 +8,13 @@ library;
 import '../../../core/money/money.dart';
 
 class Transaction {
+  /// Части разделённой покупки. Пусто у обычной операции.
+  ///
+  /// У разделённой своей категории нет — они у частей, — и без этого списка
+  /// лента объявила бы её нераспределённой тратой, хотя разложена она
+  /// полностью.
+  final List<Transaction> splits;
+
   final String id;
   final String accountId;
   final String date; // YYYY-MM-DD
@@ -48,6 +55,7 @@ class Transaction {
     this.originalCurrency,
     this.quotedRateCents,
     this.isEstimated = false,
+      this.splits = const [],
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
@@ -67,7 +75,14 @@ class Transaction {
         originalCurrency: json['originalCurrency']?.toString(),
         quotedRateCents: (json['quotedRateCents'] as num?)?.toInt(),
         isEstimated: json['isEstimated'] == true,
+              splits: ((json['splits'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((t) => Transaction.fromJson(t.cast<String, dynamic>()))
+            .toList(),
       );
+
+  /// Покупка разложена по нескольким категориям.
+  bool get isSplit => splits.isNotEmpty;
 
   bool get isTransfer => transferAccountId != null;
   bool get isInflow => amountCents > 0;

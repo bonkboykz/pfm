@@ -228,6 +228,7 @@ class _TransactionSheetState extends State<_TransactionSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isSplit = widget.existing?.isSplit ?? false;
     final isTransfer = _mode == TxMode.transfer;
 
     final amountLabel = switch (_mode) {
@@ -334,7 +335,17 @@ class _TransactionSheetState extends State<_TransactionSheet> {
                       onTap: () => _pickAccount(isTarget: true),
                     ),
                   ],
-                  if (_mode == TxMode.expense) ...[
+                  // У разделённой покупки своей категории нет — они у частей.
+                  // Показать пустой выбор категории значило бы предложить
+                  // задать её поверх частей и сломать разбивку.
+                  if (isSplit) ...[
+                    const SizedBox(height: 10),
+                    _SplitParts(
+                      parts: widget.existing!.splits,
+                      categories: widget.state.categories,
+                      currency: _currency,
+                    ),
+                  ] else if (_mode == TxMode.expense) ...[
                     const SizedBox(height: 10),
                     _PickerField(
                       label: 'Категория',
@@ -807,6 +818,83 @@ class _CategoryPicker extends StatelessWidget {
             ),
           ),
           Expanded(child: ListView(controller: controller, children: rows)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Части разделённой покупки — только для чтения.
+///
+/// Править их с телефона пока нельзя: изменение части обязано сохранить
+/// равенство суммы с покупкой, и без этой проверки правка молча развалила бы
+/// разбивку. Показывать при этом надо: иначе непонятно, куда ушли деньги.
+class _SplitParts extends StatelessWidget {
+  const _SplitParts({
+    required this.parts,
+    required this.categories,
+    required this.currency,
+  });
+
+  final List<Transaction> parts;
+  final CategoryCatalog? categories;
+  final String currency;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(AppRadii.inner),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.splitSquareHorizontal,
+                  size: 15, color: AppColors.accent),
+              const SizedBox(width: 8),
+              Text(
+                'Разделено по категориям',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (final p in parts) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    categories?.nameOf(p.categoryId) ?? 'Без категории',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  formatMoneySigned(p.amountCents, currency: currency),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: kTabularFigures,
+                  ),
+                ),
+              ],
+            ),
+            if (p != parts.last) const SizedBox(height: 8),
+          ],
         ],
       ),
     );
