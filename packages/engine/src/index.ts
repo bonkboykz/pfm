@@ -58,7 +58,8 @@ export type { Frequency, ScheduledTransaction, ProcessResult } from './scheduler
 export { getUpcoming, processDue, advanceDate } from './scheduler/engine.js';
 
 export type { LoanSummary, AmortizationEntry } from './loan/types.js';
-export { getLoanCurrentDebt, getLoanPaymentsObserved, getLoanSummary, loanToDebtSnapshot, generateAmortizationSchedule } from './loan/engine.js';
+export type { LoanPaymentSplit } from './loan/engine.js';
+export { getLoanCurrentDebt, getLoanPaymentsObserved, splitLoanPayment, getLoanSummary, loanToDebtSnapshot, generateAmortizationSchedule } from './loan/engine.js';
 
 export type { DepositSummary, InterestScheduleEntry, KdifExposure, DepositCompareConfig, DepositComparisonEntry } from './deposit/types.js';
 export { getDepositCurrentBalance, getDepositSummary, generateInterestSchedule, computeEffectiveAnnualRate, getKdifExposure, compareDeposits } from './deposit/engine.js';

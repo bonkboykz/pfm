@@ -70,6 +70,9 @@ export function applySchema(sqlite: Database.Database): void {
       original_currency TEXT,
       quoted_rate_cents INTEGER,
       is_estimated INTEGER NOT NULL DEFAULT 0,
+      loan_id TEXT REFERENCES loans(id),
+      loan_principal_cents INTEGER,
+      loan_interest_cents INTEGER,
       cleared TEXT NOT NULL DEFAULT 'uncleared' CHECK(cleared IN ('uncleared', 'cleared', 'reconciled')),
       approved INTEGER NOT NULL DEFAULT 1,
       is_deleted INTEGER NOT NULL DEFAULT 0,
@@ -219,6 +222,12 @@ export function applyColumnMigrations(sqlite: Database.Database): void {
     'ALTER TABLE transactions ADD COLUMN original_currency TEXT',
     'ALTER TABLE transactions ADD COLUMN quoted_rate_cents INTEGER',
     'ALTER TABLE transactions ADD COLUMN is_estimated INTEGER NOT NULL DEFAULT 0',
+    // Платёж по кредиту привязывается к кредиту явно. По категории это
+    // невозможно: три рассрочки делят одну категорию, две карты — другую, а
+    // у кредита наличными категории нет вовсе.
+    'ALTER TABLE transactions ADD COLUMN loan_id TEXT REFERENCES loans(id)',
+    'ALTER TABLE transactions ADD COLUMN loan_principal_cents INTEGER',
+    'ALTER TABLE transactions ADD COLUMN loan_interest_cents INTEGER',
     // Автопроведение — свойство правила. Существующие правила получают 1,
     // чтобы поведение не изменилось молча; выключается точечно там, где
     // сумма платежа не равна тому, что он гасит.
@@ -240,6 +249,7 @@ const AUDITED_TABLES: Record<string, string[]> = {
     'id', 'account_id', 'date', 'amount_cents', 'payee_id', 'payee_name', 'category_id',
     'transfer_account_id', 'transfer_transaction_id', 'memo', 'cleared', 'approved',
     'original_amount_cents', 'original_currency', 'quoted_rate_cents', 'is_estimated',
+    'loan_id', 'loan_principal_cents', 'loan_interest_cents',
     'is_deleted', 'created_at', 'updated_at',
   ],
   monthly_budgets: ['id', 'category_id', 'month', 'assigned_cents', 'note', 'created_at', 'updated_at'],

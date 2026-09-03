@@ -137,7 +137,17 @@ Rules learned from a real restore-after-five-months session:
 - **`create_category` / `create_category_group` are idempotent.** A retry returns the
   existing row with `alreadyExisted: true` instead of minting a duplicate with a
   new id.
-- **Остаток долга — это `principalCents − paidOffCents`, и только.** Раньше из него
+- **Платёж по кредиту проводится через `POST /loans/:id/payment`, а не обычной
+  операцией.** Проценты считаются от фактического остатка за фактическое число
+  дней с прошлого платежа (actual/365), остальное уменьшает тело: переплата
+  сокращает срок сама. График амортизации для этого не годится — он верен лишь
+  пока платят ровно по расписанию. Разнесение хранится на самой операции
+  (`loan_id`, `loan_principal_cents`, `loan_interest_cents`), поэтому удаление
+  платежа возвращает долг на место. Привязка к кредиту явная: по категории её
+  не вывести — три рассрочки делят одну категорию, две карты другую, а у
+  кредита наличными категории нет вовсе.
+- **Остаток долга — это `principalCents − paidOffCents` минус проведённые
+  платежи.** `paidOffCents` — то, что погашено до появления кредита в системе. Раньше из него
   вычиталась ещё и активность привязанной категории: платёж уходил в минус дважды,
   а при ставке выше нуля вычиталась вся сумма списания, хотя тело уменьшается лишь
   на свою долю. Фактические списания отдаются отдельно, в `paymentsObservedCents`,
@@ -173,7 +183,7 @@ duplicated across ten files and every schema change broke them one suite at a ti
 
 ### MCP Pattern
 
-`@pfm/mcp` owns a declarative table of 62 tools; each maps arguments to an HTTP
+`@pfm/mcp` owns a declarative table of 63 tools; each maps arguments to an HTTP
 method, path and body. `createMcpServer(dispatch)` takes the dispatch function as
 its first argument, the same dependency-injection shape engine functions use for
 `db`. The API supplies a dispatch that routes into an internal Hono app built from

@@ -85,6 +85,19 @@ export const transactions = sqliteTable('transactions', {
   /** Сумма пока оценочная и ждёт подтверждения выпиской. */
   isEstimated: integer('is_estimated', { mode: 'boolean' }).notNull().default(false),
 
+  /**
+   * Платёж по кредиту: к какому именно и как он разошёлся на тело и проценты.
+   *
+   * Привязка явная, а не через категорию: три рассрочки делят одну категорию,
+   * две карты — другую, у кредита наличными категории нет вовсе, и угадать по
+   * ней, чей это платёж, нельзя. Разнесение хранится рядом с операцией, а не
+   * складывается в поле кредита, чтобы удаление платежа возвращало долг на
+   * место само.
+   */
+  loanId: text('loan_id').references(() => loans.id),
+  loanPrincipalCents: integer('loan_principal_cents'),
+  loanInterestCents: integer('loan_interest_cents'),
+
   cleared: text('cleared', {
     enum: ['uncleared', 'cleared', 'reconciled'],
   }).notNull().default('uncleared'),

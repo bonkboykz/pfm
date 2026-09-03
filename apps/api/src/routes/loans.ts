@@ -7,8 +7,13 @@ import {
   formatMoney,
   getLoanCurrentDebt,
   getLoanPaymentsObserved,
+  splitLoanPayment,
   generateAmortizationSchedule,
+  accounts,
+  categories,
+  transactions,
 } from '@pfm/engine';
+import { createId } from '@paralleldrive/cuid2';
 import { notFound, validationError } from '../errors.js';
 
 const createLoanSchema = z.object({
@@ -59,6 +64,16 @@ const updateLoanSchema = z.object({
 const closeLoanSchema = z.object({
   closedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   reason: z.string().optional(),
+});
+
+const paymentSchema = z.object({
+  accountId: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  amountCents: z.number().int().refine((n) => n !== 0, 'amountCents must not be zero'),
+  categoryId: z.string().optional(),
+  payeeName: z.string().optional(),
+  memo: z.string().optional(),
+  cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
 });
 
 function formatLoan(
@@ -188,6 +203,67 @@ export function loanRoutes(db: DB) {
 
     const currentDebtCents = getLoanCurrentDebt(db, loan.id);
     return c.json(formatLoan(loan, currentDebtCents, getLoanPaymentsObserved(db, loan.id)));
+  });
+
+  // POST /:id/payment — провести платёж: одна операция и в бюджете, и в долге
+  router.post('/:id/payment', async (c) => {
+    const id = c.req.param('id');
+    const loan = db.select().from(loans).where(eq(loans.id, id)).get();
+    if (!loan) throw notFound('Loan', id);
+
+    const body = await c.req.json();
+    const parsed = paymentSchema.safeParse(body);
+    if (!parsed.success) {
+      throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
+    }
+    const data = parsed.data;
+
+    const acct = db.select().from(accounts).where(eq(accounts.id, data.accountId)).get();
+    if (!acct) throw notFound('Account', data.accountId);
+
+    // Категория по умолчанию — привязанная к кредиту, но её может не быть:
+    // у части займов категории нет, а у части она общая на несколько.
+    const categoryId = data.categoryId ?? loan.categoryId ?? null;
+    if (categoryId) {
+      const cat = db.select().from(categories).where(eq(categories.id, categoryId)).get();
+      if (!cat) throw notFound('Category', categoryId);
+    }
+
+    const split = splitLoanPayment(db, id, data.date, data.amountCents);
+
+    const now = new Date().toISOString();
+    const txId = createId();
+    db.insert(transactions).values({
+      id: txId,
+      accountId: data.accountId,
+      date: data.date,
+      // Сумма платежа уходит со счёта целиком; на тело долга влияет только
+      // её часть, и она записана рядом, а не вместо.
+      amountCents: -Math.abs(data.amountCents),
+      payeeName: data.payeeName ?? loan.name,
+      categoryId,
+      memo: data.memo ?? null,
+      cleared: data.cleared ?? 'uncleared',
+      loanId: id,
+      loanPrincipalCents: split.principalCents,
+      loanInterestCents: split.interestCents,
+      createdAt: now,
+      updatedAt: now,
+    }).run();
+
+    const tx = db.select().from(transactions).where(eq(transactions.id, txId)).get()!;
+    const updated = db.select().from(loans).where(eq(loans.id, id)).get()!;
+
+    return c.json({
+      split: {
+        ...split,
+        principalFormatted: formatMoney(split.principalCents),
+        interestFormatted: formatMoney(split.interestCents),
+        outstandingAfterFormatted: formatMoney(split.outstandingAfterCents),
+      },
+      transaction: { ...tx, amountFormatted: formatMoney(tx.amountCents) },
+      loan: formatLoan(updated, getLoanCurrentDebt(db, id), getLoanPaymentsObserved(db, id)),
+    }, 201);
   });
 
   // POST /:id/close — settle a loan, keeping it on the books

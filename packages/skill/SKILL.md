@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.11.0
+version: 0.12.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -952,6 +952,49 @@ curl -s -X POST "$PFM_API_URL/api/v1/loans" \
     "paymentDay": 3
   }' | jq
 ```
+
+### Record a loan payment
+
+```bash
+curl -s -X POST "$PFM_API_URL/api/v1/loans/LOAN_ID/payment" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "ACCOUNT_ID",
+    "date": "2026-09-21",
+    "amountCents": -13664865,
+    "memo": "Платёж по графику"
+  }' | jq
+```
+
+**Use this instead of `create_transaction` for anything that pays down a loan.**
+One call does both jobs: it writes the spending transaction and reduces the
+debt by the part that actually went to principal. Recording it as a plain
+transaction leaves the budget showing the money gone while the loan still
+believes nothing was repaid.
+
+The response is `{ split, transaction, loan }`. `split` shows the arithmetic:
+
+```json
+{ "principalCents": 3806500, "interestCents": 9858365,
+  "daysAccrued": 30, "coversInterest": true,
+  "outstandingBeforeCents": 420807927, "outstandingAfterCents": 417001427 }
+```
+
+Interest is computed from the **real outstanding balance for the real number of
+days** since the previous payment (actual/365), and everything above it reduces
+the principal. That is why paying extra works: the surplus goes entirely to
+principal, and the next payment accrues interest on a smaller balance. An
+amortisation schedule cannot do this — it assumes every payment lands exactly
+on time for exactly the scheduled amount, and diverges from reality at the
+first partial early repayment.
+
+A payment smaller than the accrued interest reduces nothing and comes back with
+`coversInterest: false`. The shortfall is not carried anywhere: arrears and
+penalty interest are not modelled.
+
+`categoryId` defaults to the loan's own category. Pass it explicitly when
+several loans share one, which is common — the payment is attached to the loan
+by id, never guessed from the category.
 
 ### Get amortization schedule
 

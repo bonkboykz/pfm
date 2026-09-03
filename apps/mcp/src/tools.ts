@@ -513,6 +513,24 @@ export const tools: ToolDef[] = [
     path: (a) => `/api/v1/loans${qs({ includeInactive: a.includeInactive, withTotals: a.withTotals })}`,
   },
   {
+    name: 'pay_loan',
+    description:
+      'Record a payment against a loan. One call does both jobs: it writes the spending transaction and reduces the debt by the part that actually went to principal. Interest is computed from the real outstanding balance for the real number of days since the previous payment (actual/365), and everything above it reduces the principal — so paying extra shortens the loan and the next payment accrues on less. Do not record loan payments with create_transaction: the budget would see the money leave while the debt stayed put. Pass amountCents as the amount that left the account (sign is ignored). categoryId defaults to the loan\'s own category.',
+    schema: z.object({
+      id: z.string(),
+      accountId: z.string().min(1),
+      date: z.string(),
+      amountCents: z.number().int(),
+      categoryId: z.string().optional(),
+      payeeName: z.string().optional(),
+      memo: z.string().optional(),
+      cleared: z.enum(['uncleared', 'cleared', 'reconciled']).optional(),
+    }),
+    method: 'POST',
+    path: (a) => `/api/v1/loans/${a.id}/payment`,
+    body: omitId,
+  },
+  {
     name: 'close_loan',
     description:
       'Close a paid-off loan: marks it inactive, settles the outstanding balance to zero and records when and why. This is the right way to retire a loan — delete_loan only hides it and leaves its balance in the debt totals, which is how repaid loans end up inflating what you owe. The loan stays readable by id and via list_loans(includeInactive).',
