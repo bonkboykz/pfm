@@ -92,9 +92,12 @@ class _Content extends StatelessWidget {
         return;
       }
       final result = outcome.result!;
-      final tail = result.reminders == 0
-          ? ''
-          : ', напоминаний без операции: ${result.reminders}';
+      final tail = [
+        if (result.matched > 0)
+          'уже было заведено: ${result.matched}',
+        if (result.reminders > 0)
+          'напоминаний без операции: ${result.reminders}',
+      ].map((s) => ', $s').join();
       showToast(
         context,
         result.errors.isEmpty

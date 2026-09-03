@@ -28,5 +28,19 @@ export interface ProcessResult {
    * «проведено 0» выглядело бы как «нечего проводить».
    */
   reminders: { scheduledId: string; date: string }[];
+  /**
+   * Вхождения, для которых операция уже была заведена руками. Ничего не
+   * создано, но дата сдвинута: платёж действительно состоялся.
+   *
+   * Суммы отдаются обе — фактическая и ожидавшаяся, — потому что совпадение
+   * ищется без учёта суммы, и расхождение стоит видеть.
+   */
+  matched: {
+    scheduledId: string;
+    date: string;
+    transactionId: string;
+    amountCents: number;
+    expectedAmountCents: number;
+  }[];
   errors: { scheduledId: string; message: string }[];
 }

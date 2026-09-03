@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.15.0
+version: 0.16.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -922,9 +922,23 @@ yourself.
 curl -s -X POST -H "$AUTH" "$PFM_API_URL/api/v1/scheduled/process" | jq
 ```
 
-The response is `{ created, transactions[], reminders[], errors[] }`. Do not
-read `created: 0` as "nothing was due" — check `reminders[]` before saying so,
-or you will report a quiet month while a loan payment sits unrecorded.
+The response is `{ created, transactions[], reminders[], matched[], errors[] }`.
+Do not read `created: 0` as "nothing was due" — check `reminders[]` and
+`matched[]` before saying so, or you will report a quiet month while a loan
+payment sits unrecorded.
+
+**Occurrences already entered by hand are recognised, not duplicated.** Before
+creating anything, `process` looks for a transaction on the same account, with
+the same payee, within ten days of the due date. Found one — that payment
+happened, so nothing is created and the date simply moves on; the occurrence
+comes back in `matched[]` with both the actual and the expected amount.
+
+The amount is deliberately not part of the match. Bills float — part of a
+Kazakhtelecom invoice gets paid with bonus points — and requiring equality
+would miss exactly the case this exists for. The risks are not symmetric: a
+false match is visible in `matched[]` and fixed by hand, while a duplicate
+quietly doubles the month's spending and, at the month boundary, eats Ready to
+Assign.
 
 ### Process with specific date
 

@@ -82,7 +82,30 @@ export function processDue(db: DB, asOfDate?: string): ProcessResult {
       AND st.next_date <= ?
   `).all(today) as any[];
 
-  const result: ProcessResult = { created: 0, transactions: [], reminders: [], errors: [] };
+  const result: ProcessResult = {
+    created: 0, transactions: [], reminders: [], matched: [], errors: [],
+  };
+
+  /**
+   * Уже заведённая вручную операция того же вхождения.
+   *
+   * Ищем по счёту, плательщику и окну ±10 дней вокруг даты правила. Сумма в
+   * условие не входит: у части платежей она плавает (часть гасится бонусами),
+   * и требовать совпадения значило бы не поймать ровно тот случай, ради
+   * которого матчинг и нужен. Риски несимметричны — лишний пропуск виден в
+   * ответе и правится руками, лишний дубль тихо удваивает расход, а на
+   * границе месяца ещё и съедает Ready to Assign.
+   */
+  const findExisting = db.$client.prepare(`
+    SELECT id, amount_cents FROM transactions
+    WHERE account_id = ?
+      AND is_deleted = 0
+      AND payee_name IS NOT NULL
+      AND LOWER(payee_name) = LOWER(?)
+      AND date BETWEEN date(?, '-10 days') AND date(?, '+10 days')
+    ORDER BY ABS(julianday(date) - julianday(?))
+    LIMIT 1
+  `);
 
   const insertTx = db.$client.prepare(`
     INSERT INTO transactions (id, account_id, date, amount_cents, payee_name, category_id, transfer_account_id, transfer_transaction_id, memo, cleared, approved, is_deleted, created_at, updated_at)
@@ -102,6 +125,27 @@ export function processDue(db: DB, asOfDate?: string): ProcessResult {
     }
 
     try {
+      // Перевод между своими счетами по плательщику не опознать, поэтому
+      // матчинг применяется только к обычным операциям.
+      if (!row.transfer_account_id && row.payee_name) {
+        const hit = findExisting.get(
+          row.account_id, row.payee_name, row.next_date, row.next_date, row.next_date,
+        ) as { id: string; amount_cents: number } | undefined;
+
+        if (hit) {
+          result.matched.push({
+            scheduledId: row.id,
+            date: row.next_date,
+            transactionId: hit.id,
+            amountCents: hit.amount_cents,
+            expectedAmountCents: row.amount_cents,
+          });
+          // Дату двигаем: вхождение состоялось, просто заведено руками.
+          updateSched.run(advanceDate(row.next_date, row.frequency as Frequency), now, row.id);
+          continue;
+        }
+      }
+
       if (row.transfer_account_id) {
         // Transfer: create paired transactions
         const tx1Id = createId();

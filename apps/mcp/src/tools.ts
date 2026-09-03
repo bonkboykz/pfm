@@ -495,7 +495,7 @@ export const tools: ToolDef[] = [
   {
     name: 'process_scheduled',
     description:
-      'Create real transactions for every scheduled item due on or before asOfDate (YYYY-MM-DD, defaults to today) and advance each to its next occurrence. Rules with autoPost false are left untouched and come back in reminders[] — they still need a transaction entered by hand. This writes to the ledger — confirm with the user before calling it.',
+      'Create real transactions for every scheduled item due on or before asOfDate (YYYY-MM-DD, defaults to today) and advance each to its next occurrence. Rules with autoPost false are left untouched and come back in reminders[] — they still need a transaction entered by hand. An occurrence already entered by hand is recognised and not duplicated: a transaction on the same account, with the same payee, within ten days of the due date counts as that payment, so nothing is created and the date moves on. Those come back in matched[] with both amounts. This writes to the ledger — confirm with the user before calling it.',
     schema: z.object({ asOfDate: z.string().optional() }),
     method: 'POST',
     path: () => '/api/v1/scheduled/process',

@@ -111,17 +111,23 @@ class ProcessResult {
 
   /// Наступившие правила-напоминания: не проведены и ждут ручной операции.
   final int reminders;
+
+  /// Вхождения, операция по которым уже была заведена руками. Ничего не
+  /// создано, дата сдвинута — платёж действительно состоялся.
+  final int matched;
   final List<String> errors;
 
   const ProcessResult({
     required this.created,
     required this.reminders,
+    required this.matched,
     required this.errors,
   });
 
   factory ProcessResult.fromJson(Map<String, dynamic> json) => ProcessResult(
         created: (json['created'] as num?)?.toInt() ?? 0,
         reminders: ((json['reminders'] as List?) ?? const []).length,
+        matched: ((json['matched'] as List?) ?? const []).length,
         errors: ((json['errors'] as List?) ?? const [])
             .whereType<Map>()
             .map((e) => (e['message'] ?? '').toString())
