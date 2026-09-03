@@ -239,6 +239,29 @@ pnpm db:migrate       # Create tables (packages/engine)
 pnpm db:seed          # Populate test data (packages/engine)
 ```
 
+## Сборка на устройство
+
+Для установки на Pixel собирать под его архитектуру:
+
+```bash
+flutter build apk --release --target-platform android-arm64
+adb install -r build/app/outputs/flutter-apk/app-release.apk
+```
+
+APK ужимается с 59 МБ до 21: универсальный несёт ещё armeabi-v7a и x86_64,
+которые на устройстве лежат мёртвым грузом. Разница не в сборке — она
+одинаковая, — а в доставке по USB: пять минут против одной. За одну сессию
+установка срывалась трижды (`pm install` не находил протолкнутый файл,
+устройство отваливалось посреди передачи), и каждый обрыв стоил полной
+пересылки.
+
+Универсальный APK нужен только для настоящей раздачи — там архитектура
+устройства заранее неизвестна.
+
+**Проверять установку сразу после деплоя API бесполезно.** Railway при выкатке
+недолго держит старый и новый контейнер на одном томе SQLite, и старый читатель
+отдаёт снимок до изменений: запись проходит, а чтение показывает прежнее.
+
 ## Spec Files (read these before implementing)
 
 - `docs/section-1-spec.md` — Architecture, zero-based rules, tech stack
