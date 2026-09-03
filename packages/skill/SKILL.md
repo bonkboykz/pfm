@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.12.1
+version: 0.13.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -322,6 +322,22 @@ whichever side is on-budget; the other side stays uncategorised.
 Without this the transfer would be invisible to the budget while plainly
 visible in the balance, and `RTA + everything available` would stop matching
 the money in the accounts by exactly its size.
+
+### Reconciled transactions are locked
+
+`cleared: "reconciled"` means the amount and date were confirmed against a bank
+statement. Changing either, or deleting the transaction, returns **409** — the
+balance would drift away from the document that vouched for it.
+
+```bash
+# Unreconcile first, then edit
+curl -s -X PATCH "$PFM_API_URL/api/v1/transactions/TX_ID" \
+  -H "$AUTH" -H "Content-Type: application/json" \
+  -d '{"cleared": "cleared"}' | jq
+```
+
+Category and memo stay editable: expense classification gets refined months
+later and does not move any balance.
 
 ### Delete transaction
 

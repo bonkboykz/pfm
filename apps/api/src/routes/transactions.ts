@@ -11,7 +11,7 @@ import {
   payees,
   formatMoney,
 } from '@pfm/engine';
-import { notFound, validationError, unknownReference } from '../errors.js';
+import { notFound, validationError, unknownReference, conflict } from '../errors.js';
 
 /**
  * Rejects a category id that does not resolve.
@@ -351,6 +351,38 @@ function formatOneTx(db: DB, tx: any) {
     .where(eq(accounts.id, tx.accountId))
     .get();
   return formatTx(tx, new Map([[tx.accountId, acct?.currency ?? 'KZT']]));
+}
+
+
+/**
+ * Сверенную операцию нельзя переписать молча.
+ *
+ * `reconciled` означает, что сумма, дата и счёт подтверждены выпиской банка.
+ * Изменить их — значит увести баланс от документа и потерять точку, к которой
+ * сверка была привязана. Категория и памятка не в счёт: разметка расходов
+ * уточняется и через месяцы, а на баланс не влияет.
+ *
+ * Расcверить операцию можно, но отдельным действием: сначала `cleared`, потом
+ * правка. Тогда это решение, а не побочный эффект.
+ */
+// Счёт и вторая сторона перевода в схеме правки отсутствуют — менять их
+// нельзя вовсе, поэтому запирать надо только эти два.
+const BALANCE_FIELDS = ['amountCents', 'date'] as const;
+
+function requireUnreconciled(
+  tx: { cleared: string },
+  data: Record<string, unknown>,
+  action: string,
+): void {
+  if (tx.cleared !== 'reconciled') return;
+
+  const touched = BALANCE_FIELDS.filter((f) => data[f] !== undefined);
+  if (touched.length === 0 && action === 'edit') return;
+
+  throw conflict(
+    `Операция сверена с выпиской: ${action === 'delete' ? 'удалить' : `менять ${touched.join(', ')}`} нельзя.`,
+    'Сначала снимите сверку: PATCH с { "cleared": "cleared" }, затем правьте.',
+  );
 }
 
 export function transactionRoutes(db: DB) {
@@ -712,6 +744,11 @@ export function transactionRoutes(db: DB) {
     }
 
     const data = parsed.data;
+    // Снятие сверки — само по себе разрешённое действие, поэтому проверяем
+    // только когда правят что-то ещё.
+    if (data.cleared === undefined || Object.keys(data).length > 1) {
+      requireUnreconciled(tx, data as Record<string, unknown>, 'edit');
+    }
     requireForeignPair(data);
     if (data.categoryId) requireCategoryRef(db, data.categoryId);
 
@@ -759,6 +796,7 @@ export function transactionRoutes(db: DB) {
       .where(and(eq(transactions.id, id), eq(transactions.isDeleted, false)))
       .get();
     if (!tx) throw notFound('Transaction', id);
+    requireUnreconciled(tx, {}, 'delete');
 
     const now = new Date().toISOString();
 
