@@ -459,6 +459,27 @@ outflows, or outflows with nothing to cover them. Say that the data is
 insufficient. Reporting it as `0` would claim the user lives hand to mouth,
 which is a statement about their finances, not about a gap in the ledger.
 
+### Start here: the whole month in one call
+
+```bash
+curl -s -H "$AUTH" "$PFM_API_URL/api/v1/budget/2026-09/overview" | jq
+```
+
+**Make this the first call of any monthly review.** It answers what used to
+take five: free money and whether it went negative, every overspent category
+with its amount, what the targets still want, obligations due in the next
+thirty days, and `actions[]` — each a tool name with its arguments already
+filled in.
+
+The point is not saving round trips. Assembling those five answers by hand
+means re-deriving arithmetic in conversation, and that is where it goes wrong:
+underfunded gets added to overspent, a category's available gets read as its
+assignment, a quiet month gets declared because the wrong number was checked.
+
+`actions[]` only suggests what there is money for — advising a cover when
+nothing is free would be mockery, not advice. An **empty** `actions` means
+nothing needs doing, not that the check failed.
+
 ### Get RTA overview (across months)
 
 Use this INSTEAD of checking a single month's RTA. Shows the real available

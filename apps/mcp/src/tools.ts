@@ -182,6 +182,14 @@ export const tools: ToolDef[] = [
     path: (a) => `/api/v1/budget/age-of-money${qs({ asOf: a.asOf })}`,
   },
   {
+    name: 'get_month_overview',
+    description:
+      'The whole month in one answer, and the first call for any monthly review. Returns free money with an isOverAssigned flag, every overspent category with its amount, what the targets still want, the obligations due in the next 30 days, and actions[] — each a tool name with arguments already filled in. The numbers are computed server-side precisely so they are not re-derived and mis-added in conversation: underfunded is not overspent, available is not assigned. Actions only ever suggest what there is money for; an empty actions list means nothing needs doing, not that the check failed.',
+    schema: z.object({ month: z.string() }),
+    method: 'GET',
+    path: (a) => `/api/v1/budget/${a.month}/overview`,
+  },
+  {
     name: 'get_rta_overview',
     description:
       'Ready to Assign across a range of months at once, starting at optional `from` (YYYY-MM). Use this instead of calling get_ready_to_assign month by month when diagnosing where money went missing — RTA is cumulative, so a single month in isolation misleads.',

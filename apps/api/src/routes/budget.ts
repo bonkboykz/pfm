@@ -15,6 +15,7 @@ import {
   resetBudgetFrom,
   getReadyToAssignRange,
   getReadyToAssign,
+  getUpcoming,
   getRtaReconciliation,
   getBudgetForecast,
   formatMoney,
@@ -497,6 +498,105 @@ export function budgetRoutes(db: DB) {
       clearedFormatted: formatMoney(result.clearedCents),
       readyToAssignCents: budget.readyToAssignCents,
       readyToAssignFormatted: formatMoney(budget.readyToAssignCents),
+    });
+  });
+
+  // GET /:month/overview — один ответ на «что делать в этом месяце».
+  //
+  // Раньше картина собиралась из пяти вызовов и склеивалась арифметикой в
+  // голове вызывающего. Ровно там и возникали ошибки: недофинансирование
+  // складывалось с перерасходом, остаток категории путался с назначенным.
+  // Числа считает движок, читателю остаётся их прочитать.
+  router.get('/:month/overview', (c) => {
+    const month = c.req.param('month');
+    if (!monthRegex.test(month)) {
+      throw validationError('Month must be YYYY-MM format');
+    }
+
+    const budget = getBudgetMonth(db, month);
+    const { isOverAssigned } = getReadyToAssign(db, month);
+
+    const overspent = budget.categoryBudgets
+      .filter((cb) => cb.availableCents < 0)
+      .map((cb) => ({
+        categoryId: cb.categoryId,
+        categoryName: cb.categoryName,
+        amountCents: -cb.availableCents,
+        amountFormatted: formatMoney(-cb.availableCents),
+      }))
+      .sort((a, b) => b.amountCents - a.amountCents);
+
+    const underfunded = budget.categoryBudgets
+      .filter((cb) => cb.underfundedCents > 0)
+      .map((cb) => ({
+        categoryId: cb.categoryId,
+        categoryName: cb.categoryName,
+        amountCents: cb.underfundedCents,
+        amountFormatted: formatMoney(cb.underfundedCents),
+      }))
+      .sort((a, b) => b.amountCents - a.amountCents);
+
+    const upcoming = getUpcoming(db, 30).map((s) => ({
+      scheduledId: s.id,
+      payeeName: s.payeeName,
+      nextDate: s.nextDate,
+      amountCents: s.amountCents,
+      amountFormatted: s.amountFormatted,
+      autoPost: s.autoPost,
+    }));
+
+    // Советуем только то, на что есть деньги. «Покрой перерасход», когда
+    // покрывать нечем, — не совет, а издевательство.
+    const actions: Array<{ tool: string; why: string; arguments: Record<string, unknown> }> = [];
+    let free = budget.readyToAssignCents;
+
+    for (const o of overspent) {
+      if (free <= 0) break;
+      const cover = Math.min(free, o.amountCents);
+      const cb = budget.categoryBudgets.find((x) => x.categoryId === o.categoryId)!;
+      actions.push({
+        tool: 'assign_budget',
+        why: `«${o.categoryName}» в минусе на ${formatMoney(o.amountCents)}. ` +
+          'Непокрытый минус на границе месяца спишется из Ready to Assign следующего.',
+        arguments: {
+          month,
+          categoryId: o.categoryId,
+          amountCents: cb.assignedCents + cover,
+        },
+      });
+      free -= cover;
+    }
+
+    if (free > 0 && underfunded.length > 0) {
+      actions.push({
+        tool: 'assign_to_targets',
+        why: `Свободно ${formatMoney(free)}, недофинансировано ` +
+          `${formatMoney(budget.totalUnderfundedCents)}. Раздача остановится на нуле.`,
+        arguments: { month },
+      });
+    }
+
+    const reminders = upcoming.filter((u) => !u.autoPost);
+    if (reminders.length > 0) {
+      actions.push({
+        tool: 'create_transaction',
+        why: `${reminders.length} правил ждут ручной операции: автопроведение у них ` +
+          'выключено, и сами они ничего не создадут.',
+        arguments: {},
+      });
+    }
+
+    return c.json({
+      month,
+      readyToAssignCents: budget.readyToAssignCents,
+      readyToAssignFormatted: formatMoney(budget.readyToAssignCents),
+      isOverAssigned,
+      overspentCents: budget.overspentCents,
+      overspent,
+      underfundedCents: budget.totalUnderfundedCents,
+      underfunded,
+      upcoming,
+      actions,
     });
   });
 
