@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -130,9 +131,28 @@ class TransactionsCubit extends Cubit<TransactionsState> {
   final AccountsRepository _accounts;
   final DataBus? _bus;
 
+  StreamSubscription<DataChange>? _sub;
+
   TransactionsCubit(this._repo, this._accounts, {DataBus? bus})
       : _bus = bus,
-        super(const TransactionsState());
+        super(const TransactionsState()) {
+    _sub = bus?.stream.listen(_onExternalChange);
+  }
+
+  /// На чужие записи операций этот экран не подписан намеренно: он их сам и
+  /// делает, а результат приходит в ответе мутации. А вот смена подключения
+  /// его касается — до неё данные было не достать, и экран так и остался бы
+  /// на «нужен ключ» до перезапуска.
+  void _onExternalChange(DataChange change) {
+    if (isClosed) return;
+    if (change == DataChange.connection) load();
+  }
+
+  @override
+  Future<void> close() {
+    _sub?.cancel();
+    return super.close();
+  }
 
   static String _fmt(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
 

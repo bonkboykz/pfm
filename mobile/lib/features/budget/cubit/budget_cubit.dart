@@ -98,10 +98,13 @@ class BudgetCubit extends Cubit<BudgetState> {
   /// Бюджет зависит от операций и от счетов (стартовый баланс нового счёта —
   /// это приход, то есть Ready to Assign). На собственные назначения не
   /// реагирует: их результат уже пришёл в ответе мутации, а подписка на себя
-  /// дала бы петлю.
+  /// дала бы петлю. Смена подключения — отдельный случай: данные прежние, но
+  /// до неё их было не достать.
   void _onExternalChange(DataChange change) {
     if (isClosed) return;
-    if (change == DataChange.transactions || change == DataChange.accounts) {
+    if (change == DataChange.transactions ||
+        change == DataChange.accounts ||
+        change == DataChange.connection) {
       load();
     }
   }

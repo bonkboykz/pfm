@@ -53,10 +53,14 @@ class AccountsCubit extends Cubit<AccountsState> {
   }
 
   /// Балансы считаются из операций, поэтому запись на вкладке «Операции»
-  /// меняет и этот экран. На собственные события не подписываемся.
+  /// меняет и этот экран. На собственные события не подписываемся. Смена
+  /// подключения перезагружает всё: до неё данные были недостижимы.
   void _onExternalChange(DataChange change) {
     if (isClosed) return;
-    if (change == DataChange.transactions) load();
+    if (change == DataChange.transactions ||
+        change == DataChange.connection) {
+      load();
+    }
   }
 
   @override

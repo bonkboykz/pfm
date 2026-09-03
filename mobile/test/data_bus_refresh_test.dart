@@ -127,6 +127,53 @@ void main() {
     await cubit.close();
   });
 
+  test('смена подключения оживляет экран, застрявший на «нужен ключ»',
+      () async {
+    // Пользователь вписал ключ в настройках и получил «Подключение работает».
+    // Если бюджет об этом не узнает, он продолжит просить ключ, и человек
+    // решит, что ключ не подошёл — хотя подошёл.
+    final cubit = BudgetCubit(BudgetRepository(api), bus: bus);
+    await cubit.load();
+    final before = budgetLoads();
+
+    bus.emit(DataChange.connection);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(budgetLoads(), greaterThan(before));
+    await cubit.close();
+  });
+
+  test('смена подключения перезагружает и счета', () async {
+    final cubit = AccountsCubit(AccountsRepository(api), bus: bus);
+    await cubit.load();
+    final before = accountLoads();
+
+    bus.emit(DataChange.connection);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(accountLoads(), greaterThan(before));
+    await cubit.close();
+  });
+
+  test('смена подключения оживляет и операции', () async {
+    // Экран операций тоже умеет показывать «нужен ключ», а на шину подписан
+    // не был вовсе: застревал до перезапуска глубже остальных.
+    final cubit = TransactionsCubit(
+      TransactionsRepository(api),
+      AccountsRepository(api),
+      bus: bus,
+    );
+    await cubit.load();
+    final before = api.gets.where((p) => p.contains('/transactions')).length;
+
+    bus.emit(DataChange.connection);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(api.gets.where((p) => p.contains('/transactions')).length,
+        greaterThan(before));
+    await cubit.close();
+  });
+
   test('событие после закрытия экрана ничего не делает', () async {
     // Cubit закрыт, а подписка жива — emit после close роняет bloc.
     final cubit = BudgetCubit(BudgetRepository(api), bus: bus);

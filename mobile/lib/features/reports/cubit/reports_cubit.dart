@@ -58,10 +58,14 @@ class ReportsCubit extends Cubit<ReportsState> {
   }
 
   /// Отчёт — это агрегат операций, поэтому запись на соседней вкладке делает
-  /// его неверным ровно так же, как бюджет и счета.
+  /// его неверным ровно так же, как бюджет и счета. Смена подключения — тоже
+  /// повод перезагрузиться: до неё данные были недостижимы.
   void _onExternalChange(DataChange change) {
     if (isClosed) return;
-    if (change == DataChange.transactions) load();
+    if (change == DataChange.transactions ||
+        change == DataChange.connection) {
+      load();
+    }
   }
 
   @override

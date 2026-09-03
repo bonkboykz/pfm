@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../app/theme.dart';
 import '../../../core/di/di.dart';
+import '../../../core/events/data_bus.dart';
 import '../../../core/env/env.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
@@ -78,6 +79,12 @@ class _SettingsPageState extends State<SettingsPage> {
       await tokens.setBaseUrlOverride(
         baseUrl == Env.apiBaseUrl ? null : baseUrl,
       );
+
+      // Экраны, застрявшие на «нужен ключ», сами о смене не узнают: они
+      // созданы один раз и с тех пор ничего не перезапрашивали. Без этого
+      // человек, вписавший верный ключ, вернётся на прежний экран с прежней
+      // просьбой и решит, что ключ не подошёл.
+      sl<DataBus>().emit(DataChange.connection);
 
       if (!mounted) return;
       setState(() {
