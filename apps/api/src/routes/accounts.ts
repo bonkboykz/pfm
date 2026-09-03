@@ -9,7 +9,7 @@ import {
   reconcileAccount,
   formatMoney,
 } from '@pfm/engine';
-import { notFound, validationError } from '../errors.js';
+import { notFound, validationError, conflict } from '../errors.js';
 
 const reconcileSchema = z.object({
   actualBalanceCents: z.number().int(),
@@ -47,6 +47,31 @@ function formatAccountBalance(ab: { accountId: string; accountName: string; type
     unclearedFormatted: formatMoney(ab.unclearedCents, currency),
   };
 }
+
+
+/**
+ * Счёт в чужой валюте не может участвовать в бюджете.
+ *
+ * Движок складывает минорные единицы, не глядя на валюту: 100 юаней и
+ * 100 тенге для него одно число. Пока такие счета вне бюджета, это безвредно —
+ * выборки фильтруют `on_budget = 1`. Включённый в бюджет валютный счёт
+ * заставил бы RTA врать молча, без единой ошибки.
+ *
+ * Настоящая поддержка валют — курсы на дату и переоценка остатков — отдельная
+ * работа. До неё честнее запретить, чем считать неправильно.
+ */
+function requireBudgetCurrency(currency: string, onBudget: boolean): void {
+  if (!onBudget || currency === BUDGET_CURRENCY) return;
+
+  throw validationError(
+    `Счёт в валюте ${currency} не может быть в бюджете: движок складывает суммы ` +
+      `как ${BUDGET_CURRENCY}, и остаток исказил бы Ready to Assign. ` +
+      'Держите его вне бюджета (onBudget: false) — он останется в списке счетов ' +
+      'и в чистой стоимости, но не будет участвовать в распределении.',
+  );
+}
+
+const BUDGET_CURRENCY = 'KZT';
 
 export function accountRoutes(db: DB) {
   const router = new Hono();
@@ -145,6 +170,7 @@ export function accountRoutes(db: DB) {
 
     const data = parsed.data;
     const onBudget = data.type === 'tracking' ? false : (data.onBudget ?? true);
+    requireBudgetCurrency(data.currency ?? BUDGET_CURRENCY, onBudget);
 
     const created = db
       .insert(accounts)
@@ -201,6 +227,13 @@ export function accountRoutes(db: DB) {
       throw validationError(parsed.error.issues.map((i) => i.message).join(', '));
     }
 
+    // Проверяем то состояние, которое получится после правки: запрет обходится
+    // и включением счёта в бюджет, и сменой валюты у уже включённого.
+    requireBudgetCurrency(
+      parsed.data.currency ?? acct.currency,
+      parsed.data.onBudget ?? acct.onBudget,
+    );
+
     db.update(accounts)
       .set({ ...parsed.data, updatedAt: new Date().toISOString() })
       .where(eq(accounts.id, id))
@@ -211,17 +244,51 @@ export function accountRoutes(db: DB) {
   });
 
   // DELETE /:id — soft delete
+  // DELETE — архивация. С ?purge=true — удаление насовсем, но только если
+  // терять нечего: операции счёта и переводы на него держат его в истории, и
+  // молча унести их вместе со счётом значило бы порвать эту историю.
   router.delete('/:id', (c) => {
     const id = c.req.param('id');
+    const purge = c.req.query('purge') === 'true';
+
     const acct = db.select().from(accounts).where(eq(accounts.id, id)).get();
-    if (!acct || !acct.isActive) throw notFound('Account', id);
+    // Архивировать можно только живой счёт; удалять — и уже архивный тоже,
+    // иначе до мусора, заведённого по ошибке, не добраться вовсе.
+    if (!acct || (!purge && !acct.isActive)) throw notFound('Account', id);
+
+    if (purge) {
+      const used = db.$client
+        .prepare(
+          `SELECT
+             (SELECT COUNT(*) FROM transactions WHERE account_id = ?) AS own,
+             (SELECT COUNT(*) FROM transactions WHERE transfer_account_id = ?) AS inbound,
+             (SELECT COUNT(*) FROM loans WHERE account_id = ?) AS loans,
+             (SELECT COUNT(*) FROM deposits WHERE account_id = ?) AS deposits,
+             (SELECT COUNT(*) FROM scheduled_transactions
+               WHERE account_id = ? OR transfer_account_id = ?) AS scheduled`,
+        )
+        .get(id, id, id, id, id, id) as Record<string, number>;
+
+      const held = Object.entries(used).filter(([, n]) => n > 0);
+      if (held.length > 0) {
+        const what = held.map(([k, n]) => `${k}: ${n}`).join(', ');
+        throw conflict(
+          `Счёт "${acct.name}" удалить нельзя, на нём держится история (${what}). ` +
+            'Операции ушли бы вместе с ним.',
+          'Архивируйте: DELETE без ?purge=true — счёт исчезнет из списков, история останется.',
+        );
+      }
+
+      db.delete(accounts).where(eq(accounts.id, id)).run();
+      return c.json({ success: true, purged: true });
+    }
 
     db.update(accounts)
       .set({ isActive: false, updatedAt: new Date().toISOString() })
       .where(eq(accounts.id, id))
       .run();
 
-    return c.json({ success: true });
+    return c.json({ success: true, purged: false });
   });
 
   return router;

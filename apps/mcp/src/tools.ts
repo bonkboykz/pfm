@@ -99,10 +99,10 @@ export const tools: ToolDef[] = [
   {
     name: 'delete_account',
     description:
-      'Deactivate an account. This hides the account and its history from balances. Prefer fixing individual transactions over deleting an account.',
-    schema: z.object({ id: z.string() }),
+      'Archive an account: it disappears from the lists, its history stays. Pass purge to remove it permanently — allowed only when nothing hangs off it (no transactions, transfers, loans, deposits or scheduled rules); otherwise it returns 409 and archiving is the only option. Prefer fixing individual transactions over removing an account.',
+    schema: z.object({ id: z.string(), purge: z.boolean().optional() }),
     method: 'DELETE',
-    path: (a) => `/api/v1/accounts/${a.id}`,
+    path: (a) => `/api/v1/accounts/${a.id}${a.purge ? '?purge=true' : ''}`,
   },
 
   // ===== Categories =====

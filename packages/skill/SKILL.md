@@ -7,7 +7,7 @@ description: >
   account balances, financial planning, debt tracking, Kaspi, transfers,
   loans, кредиты, рассрочка, личные долги, "кому должен", "кто должен",
   вклады, депозиты, проценты, КГСС, капитализация.
-version: 0.13.0
+version: 0.14.0
 metadata:
   openclaw:
     emoji: "💰"
@@ -772,6 +772,27 @@ curl -s -X PATCH "$PFM_API_URL/api/v1/loans/LOAN_ID" \
   -d '{ "aprBps": 2650, "termMonths": 36, "startDate": "2025-07-01" }' | jq
 curl -s -X DELETE "$PFM_API_URL/api/v1/scheduled/RULE_ID" -H "$AUTH" | jq
 ```
+
+### Archive or delete an account
+
+```bash
+# Архив: исчезает из списков, история остаётся
+curl -s -X DELETE "$PFM_API_URL/api/v1/accounts/ACC_ID" -H "$AUTH" | jq
+
+# Насовсем — только если на счёте ничего не висит
+curl -s -X DELETE "$PFM_API_URL/api/v1/accounts/ACC_ID?purge=true" -H "$AUTH" | jq
+```
+
+`?purge=true` removes the row for good, and refuses with **409** when anything
+hangs off the account — transactions, transfers pointing at it, loans, deposits
+or scheduled rules. Deleting it then would carry that history away with it, so
+archiving is the only option. Use purge for accounts created by mistake and
+never used; archive for real accounts that closed.
+
+**Accounts in a currency other than KZT cannot be on-budget.** The engine adds
+minor units without looking at currency, so a non-tenge balance inside the
+budget would distort Ready to Assign silently. Create them with
+`"onBudget": false`; they still show up in the account list and net worth.
 
 **Deactivation has no inverse over the API.** `DELETE` on an account or a
 deposit sets `isActive = false`, and the corresponding `PATCH` schema does not
