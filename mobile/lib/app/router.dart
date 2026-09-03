@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../features/accounts/presentation/account_register_page.dart';
 import '../features/accounts/presentation/accounts_page.dart';
 import '../features/budget/presentation/budget_page.dart';
+import '../features/overview/presentation/overview_page.dart';
 import '../features/debts/presentation/debts_page.dart';
 import '../features/deposits/presentation/deposit_schedule_page.dart';
 import '../features/deposits/presentation/deposits_page.dart';
@@ -22,7 +23,7 @@ final _rootKey = GlobalKey<NavigatorState>();
 
 final appRouter = GoRouter(
   navigatorKey: _rootKey,
-  initialLocation: '/budget',
+  initialLocation: '/overview',
   routes: [
     // Root-level so it covers the bottom nav; reached with context.push('/settings').
     GoRoute(
@@ -35,10 +36,25 @@ final appRouter = GoRouter(
       navigatorContainerBuilder: (context, shell, children) =>
           _Shell(shell: shell, children: children),
       branches: [
+        // Сводка первой: она отвечает «что делать», а бюджет — «как обстоят
+        // дела». Первым человек должен видеть ответ, а не таблицу, по которой
+        // ответ ещё надо вывести.
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/overview',
+            builder: (context, state) => const OverviewPage(),
+          ),
+        ]),
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/budget',
             builder: (context, state) => const BudgetPage(),
+          ),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/transactions',
+            builder: (context, state) => const TransactionsPage(),
           ),
         ]),
         StatefulShellBranch(routes: [
@@ -53,18 +69,6 @@ final appRouter = GoRouter(
                 ),
               ),
             ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/transactions',
-            builder: (context, state) => const TransactionsPage(),
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/reports',
-            builder: (context, state) => const ReportsPage(),
           ),
         ]),
         StatefulShellBranch(routes: [
@@ -107,6 +111,10 @@ final appRouter = GoRouter(
                 path: 'payoff',
                 builder: (context, state) => const PayoffPage(),
               ),
+              GoRoute(
+                path: 'reports',
+                builder: (context, state) => const ReportsPage(),
+              ),
             ],
           ),
         ]),
@@ -129,16 +137,18 @@ class _Shell extends StatelessWidget {
         selectedIndex: shell.currentIndex,
         onDestinationSelected: (i) =>
             shell.goBranch(i, initialLocation: i == shell.currentIndex),
+        // «Операции» посередине: это единственная вкладка, куда заходят
+        // что-то делать, а не смотреть, и большой палец достаёт до центра.
         destinations: const [
           NavigationDestination(
-              icon: Icon(LucideIcons.pieChart, size: 22), label: 'Бюджет'),
+              icon: Icon(LucideIcons.house, size: 22), label: 'Сводка'),
           NavigationDestination(
-              icon: Icon(LucideIcons.wallet, size: 22), label: 'Счета'),
+              icon: Icon(LucideIcons.pieChart, size: 22), label: 'Бюджет'),
           NavigationDestination(
               icon: Icon(LucideIcons.arrowLeftRight, size: 22),
               label: 'Операции'),
           NavigationDestination(
-              icon: Icon(LucideIcons.barChart3, size: 22), label: 'Отчёты'),
+              icon: Icon(LucideIcons.wallet, size: 22), label: 'Счета'),
           NavigationDestination(
               icon: Icon(LucideIcons.layoutGrid, size: 22), label: 'Ещё'),
         ],
